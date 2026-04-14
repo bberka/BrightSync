@@ -88,7 +88,7 @@
                 <TextBlock Style="{StaticResource SectionLabel}" Text="External Monitors"/>
 
                 <!-- Empty state -->
-                <TextBlock Text="{Binding StatusText}"
+                <TextBlock Text="{Binding EmptyStateText}"
                            FontSize="12"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                            HorizontalAlignment="Center"
@@ -235,6 +235,17 @@
                                                    Margin="0,5,0,0"/>
                                     </StackPanel>
 
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <ui:Button Grid.Column="1"
+                                                   Content="Reset"
+                                                   Command="{Binding ResetCommand}"
+                                                   Appearance="Secondary"/>
+                                    </Grid>
+
                                 </StackPanel>
                             </ui:Card>
                         </DataTemplate>
@@ -289,6 +300,7 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0"
                                Text="{Binding StatusText}"
@@ -296,10 +308,14 @@
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                VerticalAlignment="Center"/>
                     <ui:Button Grid.Column="1"
+                               Content="Reset All"
+                               Command="{Binding ResetAllCommand}"
+                               Margin="0,0,6,0"/>
+                    <ui:Button Grid.Column="2"
                                Content="Refresh"
                                Command="{Binding RefreshCommand}"
                                Margin="0,0,6,0"/>
-                    <ui:Button Grid.Column="2"
+                    <ui:Button Grid.Column="3"
                                Content="Save"
                                Command="{Binding SaveCommand}"
                                Appearance="Primary"/>

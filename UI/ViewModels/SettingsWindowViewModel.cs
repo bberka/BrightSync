@@ -52,8 +52,10 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     public ICommand SaveCommand { get; }
     public ICommand RefreshCommand { get; }
+    public ICommand ResetAllCommand { get; }
 
     public string StatusText { get; private set; } = string.Empty;
+    public string EmptyStateText { get; private set; } = string.Empty;
 
     public SettingsWindowViewModel(
         BrightSyncEngine engine,
@@ -70,6 +72,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
         SaveCommand = new RelayCommand(Save);
         RefreshCommand = new RelayCommand(Refresh);
+        ResetAllCommand = new RelayCommand(ResetAll);
 
         engine.InternalBrightnessChanged += OnInternalBrightnessChanged;
         BuildMonitorList();
@@ -81,15 +84,15 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         foreach (var monitor in _ddc.GetMonitors())
         {
             var profile = _config.GetOrCreateProfile(monitor.DeviceName);
-            Monitors.Add(new MonitorRowViewModel(monitor, profile, _engine));
+            Monitors.Add(new MonitorRowViewModel(monitor, profile, _engine, OnMonitorReset));
         }
 
         OnChanged(nameof(HasMonitors));
         if (Monitors.Count == 0)
-            StatusText = "No DDC/CI monitors detected — try Refresh.";
+            EmptyStateText = "No DDC/CI monitors detected. Try Refresh.";
         else
-            StatusText = string.Empty;
-        OnChanged(nameof(StatusText));
+            EmptyStateText = string.Empty;
+        OnChanged(nameof(EmptyStateText));
     }
 
     private void OnInternalBrightnessChanged(object? sender, int brightness)
@@ -124,6 +127,25 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
                 OnChanged(nameof(StatusText));
             });
         });
+    }
+
+    private void ResetAll()
+    {
+        _config.Config.Monitors.Clear();
+        EnforcementIntervalSeconds = new AppConfig().EnforcementIntervalSeconds;
+        StartWithWindows = false;
+
+        foreach (var monitor in Monitors)
+            monitor.Reset();
+
+        StatusText = "Reset all settings to defaults. Save to persist.";
+        OnChanged(nameof(StatusText));
+    }
+
+    private void OnMonitorReset()
+    {
+        StatusText = "Monitor settings reset. Save to persist.";
+        OnChanged(nameof(StatusText));
     }
 
     private void OnChanged([CallerMemberName] string? name = null)

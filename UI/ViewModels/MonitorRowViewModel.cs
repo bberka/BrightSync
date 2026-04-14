@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows.Input;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;
@@ -13,6 +14,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     private readonly MonitorProfile _profile;
     private readonly BrightSyncEngine _engine;
     private readonly string _displayName;
+    private readonly Action? _onReset;
 
     public string DeviceName { get; }
     public string BrandName { get; }
@@ -80,6 +82,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     public string ConnectionText { get; }
     public string DdcStatusText => SupportsDdcCi ? "DDC/CI" : "No DDC/CI";
     public bool IsInternal { get; }
+    public ICommand ResetCommand { get; }
 
     public string TargetText
     {
@@ -97,7 +100,8 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     public MonitorRowViewModel(
         DdcMonitor monitor,
         MonitorProfile profile,
-        BrightSyncEngine engine)
+        BrightSyncEngine engine,
+        Action? onReset = null)
     {
         DeviceName = monitor.DeviceName;
         BrandName = monitor.ManufacturerName;
@@ -110,13 +114,31 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         SupportsDdcCi = monitor.SupportsDdcCi;
         _profile = profile;
         _engine = engine;
+        _onReset = onReset;
         _enabled = profile.Enabled;
         _min = profile.MinBrightness;
         _max = profile.MaxBrightness;
         _multiplier = profile.Multiplier;
+        ResetCommand = new RelayCommand(Reset);
     }
 
     public void RefreshTargetText() => OnChanged(nameof(TargetText));
+
+    public void Reset()
+    {
+        _profile.Reset();
+        _enabled = _profile.Enabled;
+        _min = _profile.MinBrightness;
+        _max = _profile.MaxBrightness;
+        _multiplier = _profile.Multiplier;
+        OnChanged(nameof(Enabled));
+        OnChanged(nameof(MinBrightness));
+        OnChanged(nameof(MaxBrightness));
+        OnChanged(nameof(Multiplier));
+        OnChanged(nameof(MultiplierDisplay));
+        OnChanged(nameof(TargetText));
+        _onReset?.Invoke();
+    }
 
     private static string BuildDisplayName(DdcMonitor monitor)
     {
