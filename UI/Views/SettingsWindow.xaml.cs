@@ -62,6 +62,12 @@ public partial class SettingsWindow : Window
         ExitRequested?.Invoke(this, EventArgs.Empty);
     }
 
+    private void MonitorCard_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: MonitorRowViewModel vm })
+            vm.IsExpanded = !vm.IsExpanded;
+    }
+
     protected override void OnClosing(CancelEventArgs e)
     {
         e.Cancel = true;

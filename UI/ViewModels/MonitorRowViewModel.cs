@@ -31,8 +31,14 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     public bool Enabled
     {
         get => _enabled;
-        set { _enabled = value; _profile.Enabled = value; OnChanged(); OnChanged(nameof(TargetText)); }
+        set
+        {
+            if (!SupportsDdcCi) { _enabled = false; return; }
+            _enabled = value; _profile.Enabled = value; OnChanged(); OnChanged(nameof(TargetText));
+        }
     }
+
+    public bool CanToggleEnabled => SupportsDdcCi;
 
     private int _min;
     public int MinBrightness
@@ -135,7 +141,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         _profile = profile;
         _engine = engine;
         _onReset = onReset;
-        _enabled = profile.Enabled;
+        _enabled = SupportsDdcCi && profile.Enabled;
         _min = profile.MinBrightness;
         _max = profile.MaxBrightness;
         _multiplier = profile.Multiplier;
