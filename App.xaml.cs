@@ -2,6 +2,7 @@ using System.Windows;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;
+using BrightSync.Core.Updates;
 using BrightSync.UI;
 
 namespace BrightSync;
@@ -14,6 +15,7 @@ public partial class App
     private TrayManager _trayManager = null!;
     private BrightSyncEngine _syncEngine = null!;
     private DdcCiService _ddcService = null!;
+    private UpdateChecker _updateChecker = null!;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -27,6 +29,9 @@ public partial class App
         _syncEngine = new BrightSyncEngine(_ddcService, watcher, configManager);
         _syncEngine.Start();
 
+        _updateChecker = new UpdateChecker(configManager);
+        _updateChecker.Start();
+
         _trayManager = new TrayManager(_syncEngine, configManager, _ddcService);
         _trayManager.ExitRequested += (_, _) => ExitApp();
         _trayManager.Initialize();
@@ -37,6 +42,7 @@ public partial class App
         _syncEngine.Dispose();
         _trayManager.Dispose();
         _ddcService.Dispose();
+        _updateChecker.Dispose();
         Shutdown();
     }
 
@@ -46,6 +52,7 @@ public partial class App
         _syncEngine?.Dispose();
         _trayManager?.Dispose();
         _ddcService?.Dispose();
+        _updateChecker?.Dispose();
         base.OnExit(e);
     }
 }

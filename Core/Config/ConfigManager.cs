@@ -36,6 +36,8 @@ public sealed class AppConfig
     public int EnforcementIntervalSeconds { get; set; } = 10;
     /// <summary>Whether to launch BrightSync when the user logs in.</summary>
     public bool StartWithWindows { get; set; } = false;
+    /// <summary>The last local calendar date when BrightSync checked for updates.</summary>
+    public DateOnly? LastUpdateCheckDate { get; set; }
 }
 
 /// <summary>
