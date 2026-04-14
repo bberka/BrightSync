@@ -95,7 +95,7 @@ public sealed class BrightnessSyncEngine : IDisposable
         foreach (var monitor in _ddc.GetMonitors())
         {
             if (!monitor.SupportsDdcCi) continue;
-            var profile = _config.GetOrCreateProfile(monitor.DeviceName, monitor.Description);
+            var profile = _config.GetOrCreateProfile(monitor.DeviceName);
             if (!profile.Enabled) continue;
 
             int target = CalculateTarget(monitor.DeviceName, profile);
@@ -110,7 +110,7 @@ public sealed class BrightnessSyncEngine : IDisposable
         foreach (var monitor in _ddc.GetMonitors())
         {
             if (!monitor.SupportsDdcCi) continue;
-            var profile = _config.GetOrCreateProfile(monitor.DeviceName, monitor.Description);
+            var profile = _config.GetOrCreateProfile(monitor.DeviceName);
             if (!profile.Enabled) continue;
             if (monitor.LastCommandedPercent < 0) continue;
 

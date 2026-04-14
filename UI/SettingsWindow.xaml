@@ -6,6 +6,7 @@
     xmlns:local="clr-namespace:BrightnessSync.UI"
     Title="BrightnessSync"
     Width="360"
+    MaxWidth="360"
     MinHeight="200"
     MaxHeight="680"
     SizeToContent="Height"
@@ -121,15 +122,10 @@
                                         </Grid.ColumnDefinitions>
 
                                         <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                            <!-- Editable name -->
-                                            <TextBox Text="{Binding FriendlyName, UpdateSourceTrigger=LostFocus}"
-                                                     FontSize="13" FontWeight="SemiBold"
-                                                     BorderThickness="0"
-                                                     Background="Transparent"
-                                                     Padding="0"
-                                                     CaretBrush="{DynamicResource TextFillColorPrimaryBrush}"
-                                                     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                                                     ToolTip="Click to rename"/>
+                                            <TextBlock Text="{Binding DisplayName}"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
                                             <!-- Resolution + DDC status on one line -->
                                             <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                                                 <TextBlock Text="{Binding ResolutionText}"

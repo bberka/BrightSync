@@ -56,15 +56,9 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
 
     private readonly MonitorProfile _profile;
     private readonly BrightnessSyncEngine _engine;
+    private readonly string _displayName;
 
     public string DeviceName { get; }
-
-    private string _friendlyName;
-    public string FriendlyName
-    {
-        get => _friendlyName;
-        set { _friendlyName = value; _profile.FriendlyName = value; OnChanged(); }
-    }
 
     private bool _enabled;
     public bool Enabled
@@ -122,8 +116,8 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     public bool SupportsDdcCi { get; }
     /// <summary>Raw DDC firmware string — shown as subtitle.</summary>
     public string HardwareDescription { get; }
-    /// <summary>Best available name: custom label if set, else WMI friendly name.</summary>
-    public string DisplayName => !string.IsNullOrWhiteSpace(_friendlyName) ? _friendlyName : HardwareDescription;
+    /// <summary>Best available detected monitor name for display only, never user-saved.</summary>
+    public string DisplayName => _displayName;
     public string ResolutionText { get; }
 
     public string TargetText
@@ -145,17 +139,16 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         BrightnessSyncEngine engine)
     {
         DeviceName = monitor.DeviceName;
-        HardwareDescription = monitor.FriendlyName.Length > 0 ? monitor.FriendlyName : monitor.Description;
+        _displayName = !string.IsNullOrWhiteSpace(monitor.FriendlyName)
+            ? monitor.FriendlyName
+            : monitor.Description;
+        HardwareDescription = _displayName;
         ResolutionText = monitor.ResolutionWidth > 0
             ? $"{monitor.ResolutionWidth} × {monitor.ResolutionHeight}"
             : string.Empty;
         SupportsDdcCi = monitor.SupportsDdcCi;
         _profile = profile;
         _engine = engine;
-        // Pre-populate friendly name from WMI if the user hasn't set a custom one
-        if (string.IsNullOrWhiteSpace(profile.FriendlyName) && !string.IsNullOrEmpty(monitor.FriendlyName))
-            profile.FriendlyName = monitor.FriendlyName;
-        _friendlyName = profile.FriendlyName;
         _enabled = profile.Enabled;
         _min = profile.MinBrightness;
         _max = profile.MaxBrightness;
@@ -244,7 +237,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         Monitors.Clear();
         foreach (var monitor in _ddc.GetMonitors())
         {
-            var profile = _config.GetOrCreateProfile(monitor.DeviceName, monitor.Description);
+            var profile = _config.GetOrCreateProfile(monitor.DeviceName);
             Monitors.Add(new MonitorRowViewModel(monitor, profile, _engine));
         }
 

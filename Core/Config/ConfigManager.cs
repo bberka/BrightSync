@@ -7,7 +7,7 @@ namespace BrightnessSync.Core.Config;
 
 public sealed class MonitorProfile
 {
-    /// <summary>Display-friendly name the user can customise.</summary>
+    /// <summary>Legacy field kept for backward compatibility; monitor names are runtime-detected.</summary>
     public string FriendlyName { get; set; } = string.Empty;
     /// <summary>Whether to sync this monitor at all.</summary>
     public bool Enabled { get; set; } = true;
@@ -62,17 +62,16 @@ public sealed class ConfigManager
 
     public AppConfig Config => _config;
 
-    public MonitorProfile GetOrCreateProfile(string deviceName, string description)
+    public MonitorProfile GetOrCreateProfile(string deviceName)
     {
         if (!_config.Monitors.TryGetValue(deviceName, out var profile))
         {
-            profile = new MonitorProfile { FriendlyName = description };
+            profile = new MonitorProfile();
             _config.Monitors[deviceName] = profile;
         }
-        else if (string.IsNullOrWhiteSpace(profile.FriendlyName))
-        {
-            profile.FriendlyName = description;
-        }
+
+        // Clear any previously persisted custom/generic monitor name; names are detected at runtime now.
+        profile.FriendlyName = string.Empty;
         return profile;
     }
 
