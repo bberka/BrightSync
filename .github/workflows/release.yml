@@ -108,7 +108,7 @@ jobs:
         shell: pwsh
         run: |
           $tag = "${{ steps.version.outputs.tag }}"
-          $title = "BrightSync $tag"
+          $title = "$tag"
 
           gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
           if ($LASTEXITCODE -ne 0) {
