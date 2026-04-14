@@ -15,6 +15,8 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     private readonly string _displayName;
 
     public string DeviceName { get; }
+    public string BrandName { get; }
+    public string ModelName { get; }
 
     private bool _enabled;
     public bool Enabled
@@ -75,6 +77,9 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     /// <summary>Best available detected monitor name for display only, never user-saved.</summary>
     public string DisplayName => _displayName;
     public string ResolutionText { get; }
+    public string ConnectionText { get; }
+    public string DdcStatusText => SupportsDdcCi ? "DDC/CI" : "No DDC/CI";
+    public bool IsInternal { get; }
 
     public string TargetText
     {
@@ -95,13 +100,13 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         BrightSyncEngine engine)
     {
         DeviceName = monitor.DeviceName;
-        _displayName = !string.IsNullOrWhiteSpace(monitor.FriendlyName)
-            ? monitor.FriendlyName
-            : monitor.Description;
-        HardwareDescription = _displayName;
-        ResolutionText = monitor.ResolutionWidth > 0
-            ? $"{monitor.ResolutionWidth} × {monitor.ResolutionHeight}"
-            : string.Empty;
+        BrandName = monitor.ManufacturerName;
+        ModelName = monitor.ModelName;
+        _displayName = BuildDisplayName(monitor);
+        HardwareDescription = BuildHardwareDescription(monitor, _displayName);
+        ResolutionText = BuildResolutionText(monitor);
+        ConnectionText = monitor.ConnectionType;
+        IsInternal = monitor.IsInternal;
         SupportsDdcCi = monitor.SupportsDdcCi;
         _profile = profile;
         _engine = engine;
@@ -112,6 +117,39 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     }
 
     public void RefreshTargetText() => OnChanged(nameof(TargetText));
+
+    private static string BuildDisplayName(DdcMonitor monitor)
+    {
+        if (!string.IsNullOrWhiteSpace(monitor.ManufacturerName) &&
+            !string.IsNullOrWhiteSpace(monitor.ModelName))
+        {
+            return $"{monitor.ManufacturerName} {monitor.ModelName}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(monitor.FriendlyName))
+            return monitor.FriendlyName;
+
+        return monitor.Description;
+    }
+
+    private static string BuildResolutionText(DdcMonitor monitor)
+    {
+        if (monitor.ResolutionWidth <= 0 || monitor.ResolutionHeight <= 0)
+            return string.Empty;
+
+        var resolution = $"{monitor.ResolutionWidth}x{monitor.ResolutionHeight}";
+        return monitor.RefreshRateHz > 0
+            ? $"{resolution}@{monitor.RefreshRateHz}"
+            : resolution;
+    }
+
+    private static string BuildHardwareDescription(DdcMonitor monitor, string displayName)
+    {
+        var description = monitor.Description?.Trim() ?? string.Empty;
+        return string.Equals(description, displayName, StringComparison.OrdinalIgnoreCase)
+            ? string.Empty
+            : description;
+    }
 
     private void OnChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

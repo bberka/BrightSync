@@ -76,6 +76,7 @@ public sealed class DdcCiService : IDisposable
                 brightnessPercent = (int)Math.Round(current * 100.0 / max);
                 return true;
             }
+
             return false;
         }
     }
@@ -109,7 +110,13 @@ public sealed class DdcCiService : IDisposable
             _groups.Add(group);
 
             // Resolve friendly name once per HMONITOR (one monitor per adapter port)
-            var friendlyName = MonitorNameResolver.Resolve(deviceName);
+            var identity = MonitorNameResolver.ResolveIdentity(deviceName);
+            var displayConfig = DisplayConfigResolver.Resolve(deviceName);
+            var friendlyName = !string.IsNullOrWhiteSpace(identity.FriendlyName)
+                ? identity.FriendlyName
+                : (!string.IsNullOrWhiteSpace(displayConfig.FriendlyTargetName)
+                    ? displayConfig.FriendlyTargetName
+                    : deviceName);
 
             for (var i = 0; i < physicals.Length; i++)
             {
@@ -123,10 +130,15 @@ public sealed class DdcCiService : IDisposable
                 _monitors.Add(new DdcMonitor
                 {
                     DeviceName = deviceName,
+                    ManufacturerName = identity.ManufacturerName,
+                    ModelName = identity.ModelName,
                     FriendlyName = friendlyName,
                     Description = pm.szPhysicalMonitorDescription?.Trim() ?? deviceName,
                     ResolutionWidth = resW,
                     ResolutionHeight = resH,
+                    RefreshRateHz = GetRefreshRate(deviceName),
+                    ConnectionType = displayConfig.ConnectionType,
+                    IsInternal = displayConfig.IsInternal,
                     SupportsDdcCi = supportsDdc,
                     MaxDdcBrightness = maxBrightness,
                     LastCommandedPercent = supportsDdc ? (int)Math.Round(current * 100.0 / maxBrightness) : -1,
@@ -139,7 +151,8 @@ public sealed class DdcCiService : IDisposable
 
     private static string GetDeviceName(IntPtr hMonitor, out int resW, out int resH)
     {
-        resW = 0; resH = 0;
+        resW = 0;
+        resH = 0;
         var mi = new NativeMethods.MONITORINFOEX
         {
             cbSize = (uint)Marshal.SizeOf<NativeMethods.MONITORINFOEX>()
@@ -147,9 +160,23 @@ public sealed class DdcCiService : IDisposable
         if (!NativeMethods.GetMonitorInfo(hMonitor, ref mi))
             return $"Monitor_0x{hMonitor:X}";
 
-        resW = mi.rcMonitor.Right  - mi.rcMonitor.Left;
+        resW = mi.rcMonitor.Right - mi.rcMonitor.Left;
         resH = mi.rcMonitor.Bottom - mi.rcMonitor.Top;
         return mi.szDevice;
+    }
+
+    private static int GetRefreshRate(string deviceName)
+    {
+        var mode = new NativeMethods.DEVMODE
+        {
+            dmDeviceName = string.Empty,
+            dmFormName = string.Empty,
+            dmSize = (ushort)Marshal.SizeOf<NativeMethods.DEVMODE>()
+        };
+
+        return NativeMethods.EnumDisplaySettings(deviceName, NativeMethods.ENUM_CURRENT_SETTINGS, ref mode)
+            ? (int)Math.Round(Convert.ToDecimal(mode.dmDisplayFrequency))
+            : 0;
     }
 
     private void DisposeGroups()

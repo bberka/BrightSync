@@ -12,8 +12,8 @@ namespace BrightSync.Core.Monitors;
 /// </summary>
 public static class MonitorNameResolver
 {
-    // hwId (e.g. "DEL4141") → friendly name from WMI
-    private static Dictionary<string, string>? _wmiCache;
+    // hwId (e.g. "DEL4141") → identity from WMI
+    private static Dictionary<string, MonitorIdentity>? _wmiCache;
     private static readonly Lock CacheLock = new();
 
     /// <summary>
@@ -21,14 +21,17 @@ public static class MonitorNameResolver
     /// (e.g. "\\.\DISPLAY1").
     /// </summary>
     public static string Resolve(string adapterDeviceName)
+        => ResolveIdentity(adapterDeviceName).FriendlyName;
+
+    public static MonitorIdentity ResolveIdentity(string adapterDeviceName)
     {
         var hwId = GetHardwareId(adapterDeviceName);
-        if (string.IsNullOrEmpty(hwId)) return "Unknown Monitor";
+        if (string.IsNullOrEmpty(hwId)) return MonitorIdentity.Unknown;
 
         EnsureCache();
 
-        if (_wmiCache!.TryGetValue(hwId, out var friendly) && !string.IsNullOrWhiteSpace(friendly))
-            return friendly;
+        if (_wmiCache!.TryGetValue(hwId, out var identity) && !string.IsNullOrWhiteSpace(identity.FriendlyName))
+            return identity;
 
         // Fallback: decode the PnP ID itself (first 3 chars = EISA manufacturer)
         return DecodePnpId(hwId);
@@ -61,7 +64,7 @@ public static class MonitorNameResolver
         lock (CacheLock)
         {
             if (_wmiCache != null) return;
-            _wmiCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            _wmiCache = new Dictionary<string, MonitorIdentity>(StringComparer.OrdinalIgnoreCase);
             try
             {
                 using var searcher = new ManagementObjectSearcher(
@@ -76,10 +79,13 @@ public static class MonitorNameResolver
                     if (parts.Length < 2) continue;
 
                     var hwId = parts[1];
-                    var friendly = DecodeUshorts(obj["UserFriendlyName"] as ushort[]);
+                    var model = DecodeUshorts(obj["UserFriendlyName"] as ushort[]);
+                    var manufacturerCode = DecodeUshorts(obj["ManufacturerName"] as ushort[]);
+                    var manufacturer = DecodeManufacturerCode(manufacturerCode);
 
-                    if (!string.IsNullOrWhiteSpace(friendly))
-                        _wmiCache[hwId] = friendly;
+                    var identity = BuildIdentity(manufacturer, model);
+                    if (!string.IsNullOrWhiteSpace(identity.FriendlyName))
+                        _wmiCache[hwId] = identity;
                 }
             }
             catch
@@ -106,15 +112,48 @@ public static class MonitorNameResolver
     /// Decodes a PnP vendor ID (first 3 chars of HW ID) to manufacturer name.
     /// The remaining chars are the model hex code — kept as-is.
     /// </summary>
-    private static string DecodePnpId(string hwId)
+    private static MonitorIdentity DecodePnpId(string hwId)
     {
-        if (hwId.Length < 3) return hwId;
+        if (hwId.Length < 3) return new MonitorIdentity(string.Empty, hwId, hwId);
 
         // 3-char EISA/PnP vendor codes (ISA Plug and Play standard)
         var vendor = hwId[..3].ToUpperInvariant();
         var model = hwId.Length > 3 ? hwId[3..] : string.Empty;
 
-        var mfrName = vendor switch
+        return BuildIdentity(DecodeManufacturerCode(vendor), model);
+    }
+
+    private static MonitorIdentity BuildIdentity(string manufacturer, string model)
+    {
+        manufacturer = manufacturer.Trim();
+        model = model.Trim();
+
+        if (string.IsNullOrWhiteSpace(manufacturer) && string.IsNullOrWhiteSpace(model))
+            return MonitorIdentity.Unknown;
+
+        if (string.IsNullOrWhiteSpace(manufacturer))
+            return new MonitorIdentity(string.Empty, model, model);
+
+        var cleanedModel = RemoveDuplicatedManufacturerPrefix(model, manufacturer);
+        var friendly = string.IsNullOrWhiteSpace(cleanedModel)
+            ? manufacturer
+            : $"{manufacturer} {cleanedModel}";
+        return new MonitorIdentity(manufacturer, cleanedModel, friendly);
+    }
+
+    private static string RemoveDuplicatedManufacturerPrefix(string model, string manufacturer)
+    {
+        if (string.IsNullOrWhiteSpace(model) || string.IsNullOrWhiteSpace(manufacturer))
+            return model;
+
+        if (model.StartsWith(manufacturer, StringComparison.OrdinalIgnoreCase))
+            return model[manufacturer.Length..].TrimStart(' ', '-', '_');
+
+        return model;
+    }
+
+    private static string DecodeManufacturerCode(string code)
+        => code.Trim().ToUpperInvariant() switch
         {
             "ACR" => "Acer",
             "ACI" => "Asus",
@@ -138,10 +177,15 @@ public static class MonitorNameResolver
             "VSC" => "ViewSonic",
             "BNQ" => "BenQ",
             "AOC" => "AOC",
-            _ => vendor
+            _ => code.Trim()
         };
 
-        return string.IsNullOrEmpty(model) ? mfrName : $"{mfrName} {model}";
+    public readonly record struct MonitorIdentity(
+        string ManufacturerName,
+        string ModelName,
+        string FriendlyName)
+    {
+        public static MonitorIdentity Unknown => new(string.Empty, "Unknown Monitor", "Unknown Monitor");
     }
 
     /// <summary>Clears the WMI cache so the next call re-queries (useful after Refresh).</summary>

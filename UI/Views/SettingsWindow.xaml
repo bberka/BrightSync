@@ -126,7 +126,7 @@
                                                        FontSize="13"
                                                        FontWeight="SemiBold"
                                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
-                                            <!-- Resolution + DDC status on one line -->
+                                         
                                             <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                                                 <TextBlock Text="{Binding ResolutionText}"
                                                            FontSize="11"
@@ -136,12 +136,27 @@
                                                         <Style TargetType="TextBlock">
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding SupportsDdcCi}" Value="True">
-                                                                    <Setter Property="Text" Value="· DDC/CI ✓"/>
+                                                                    <Setter Property="Text" Value="· DDC/CI"/>
                                                                     <Setter Property="Foreground" Value="#4CAF50"/>
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding SupportsDdcCi}" Value="False">
                                                                     <Setter Property="Text" Value="· No DDC/CI"/>
                                                                     <Setter Property="Foreground" Value="#FF7043"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <TextBlock Text="{Binding ConnectionText}"
+                                                           FontSize="11"
+                                                           Margin="6,0,0,0"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding ConnectionText}" Value="">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
