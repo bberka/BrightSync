@@ -43,11 +43,11 @@ public sealed class BrightSyncEngine : IDisposable
         _watcher.BrightnessChanged += OnInternalBrightnessChanged;
 
         // Capture current brightness immediately so external monitors sync on startup
-        int current = _watcher.ReadCurrentBrightness();
+        var current = _watcher.ReadCurrentBrightness();
         if (current >= 0)
         {
             _lastInternalBrightness = current;
-            SyncAllMonitors(current);
+            SyncAllMonitors();
         }
 
         _watcher.Start();
@@ -63,7 +63,7 @@ public sealed class BrightSyncEngine : IDisposable
     public int CalculateTarget(string monitorDeviceName, MonitorProfile profile)
     {
         if (_lastInternalBrightness < 0) return profile.MinBrightness;
-        double raw = _lastInternalBrightness * profile.Multiplier;
+        var raw = _lastInternalBrightness * profile.Multiplier;
         return (int)Math.Round(Math.Clamp(raw, profile.MinBrightness, profile.MaxBrightness));
     }
 
@@ -71,7 +71,7 @@ public sealed class BrightSyncEngine : IDisposable
     public void ForceSync()
     {
         if (_lastInternalBrightness >= 0)
-            SyncAllMonitors(_lastInternalBrightness);
+            SyncAllMonitors();
     }
 
     /// <summary>Call after monitor list or config changes to rebuild DDC handles.</summary>
@@ -87,10 +87,10 @@ public sealed class BrightSyncEngine : IDisposable
     {
         _lastInternalBrightness = brightness;
         InternalBrightnessChanged?.Invoke(this, brightness);
-        Task.Run(() => SyncAllMonitors(brightness));
+        Task.Run(() => SyncAllMonitors());
     }
 
-    private void SyncAllMonitors(int internalBrightness)
+    private void SyncAllMonitors()
     {
         foreach (var monitor in _ddc.GetMonitors())
         {
@@ -98,7 +98,7 @@ public sealed class BrightSyncEngine : IDisposable
             var profile = _config.GetOrCreateProfile(monitor.DeviceName);
             if (!profile.Enabled) continue;
 
-            int target = CalculateTarget(monitor.DeviceName, profile);
+            var target = CalculateTarget(monitor.DeviceName, profile);
             _ddc.SetBrightness(monitor, target);
         }
     }
@@ -115,7 +115,7 @@ public sealed class BrightSyncEngine : IDisposable
             if (monitor.LastCommandedPercent < 0) continue;
 
             // Verify actual value matches what we last set; if not, re-apply.
-            if (_ddc.TryGetBrightness(monitor, out int actual) &&
+            if (_ddc.TryGetBrightness(monitor, out var actual) &&
                 Math.Abs(actual - monitor.LastCommandedPercent) > 1)
             {
                 _ddc.SetBrightness(monitor, monitor.LastCommandedPercent);

@@ -30,7 +30,7 @@ public sealed class UpdateChecker : IDisposable
                 }
                 catch (Exception e)
                 {
-                    throw;
+                    throw; //TODO: Handle, log properly
                 }
             }, null, Timeout.InfiniteTimeSpan,
             Timeout.InfiniteTimeSpan);

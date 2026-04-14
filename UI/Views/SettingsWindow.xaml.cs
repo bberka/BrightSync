@@ -3,9 +3,10 @@ using System.Windows;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;
+using BrightSync.UI.ViewModels;
 using Wpf.Ui.Controls;
 
-namespace BrightSync.UI;
+namespace BrightSync.UI.Views;
 
 public partial class SettingsWindow : FluentWindow
 {

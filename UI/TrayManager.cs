@@ -1,55 +1,45 @@
-using System.Drawing;
 using System.Drawing.Drawing2D;
 using WpfApp = System.Windows.Application;
-using WpfWindowState = System.Windows.WindowState;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;
+using BrightSync.UI.Views;
 
 namespace BrightSync.UI;
 
 /// <summary>
 /// Manages the system tray icon, context menu, and the lifecycle of the settings window.
 /// </summary>
-public sealed class TrayManager : IDisposable
+public sealed class TrayManager(BrightSyncEngine engine, ConfigManager config, DdcCiService ddc)
+    : IDisposable
 {
     public event EventHandler? ExitRequested;
 
-    private readonly BrightSyncEngine _engine;
-    private readonly ConfigManager _config;
-    private readonly DdcCiService _ddc;
-    private System.Windows.Forms.NotifyIcon? _notifyIcon;
+    private NotifyIcon? _notifyIcon;
     private SettingsWindow? _settingsWindow;
     private bool _disposed;
 
-    public TrayManager(BrightSyncEngine engine, ConfigManager config, DdcCiService ddc)
-    {
-        _engine = engine;
-        _config = config;
-        _ddc = ddc;
-    }
-
     public void Initialize()
     {
-        _notifyIcon = new System.Windows.Forms.NotifyIcon
+        _notifyIcon = new NotifyIcon
         {
             Icon = BuildIcon(active: true),
             Text = "BrightSync — Running",
             Visible = true
         };
 
-        var menu = new System.Windows.Forms.ContextMenuStrip();
+        var menu = new ContextMenuStrip();
         menu.Items.Add("Settings", null, (_, _) => OpenSettings());
-        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+        menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Refresh Monitors", null, (_, _) => RefreshMonitors());
-        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+        menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Exit", null, (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty));
 
         _notifyIcon.ContextMenuStrip = menu;
         _notifyIcon.DoubleClick += (_, _) => OpenSettings();
 
         // Update tray tooltip when internal brightness changes
-        _engine.InternalBrightnessChanged += (_, b) =>
+        engine.InternalBrightnessChanged += (_, b) =>
         {
             if (_notifyIcon != null)
                 _notifyIcon.Text = $"BrightSync — Internal: {b}%";
@@ -62,7 +52,7 @@ public sealed class TrayManager : IDisposable
         {
             if (_settingsWindow == null || !_settingsWindow.IsLoaded)
             {
-                _settingsWindow = new SettingsWindow(_engine, _config, _ddc);
+                _settingsWindow = new SettingsWindow(engine, config, ddc);
                 _settingsWindow.Show();
             }
             else if (!_settingsWindow.IsVisible)
@@ -82,11 +72,11 @@ public sealed class TrayManager : IDisposable
     {
         Task.Run(() =>
         {
-            _engine.RefreshMonitors();
+            engine.RefreshMonitors();
             if (_notifyIcon != null)
                 _notifyIcon.ShowBalloonTip(2000, "BrightSync",
-                    $"Found {_ddc.GetMonitors().Count(m => m.SupportsDdcCi)} DDC/CI monitor(s).",
-                    System.Windows.Forms.ToolTipIcon.Info);
+                    $"Found {ddc.GetMonitors().Count(m => m.SupportsDdcCi)} DDC/CI monitor(s).",
+                    ToolTipIcon.Info);
         });
     }
 
@@ -103,9 +93,9 @@ public sealed class TrayManager : IDisposable
         using var pen = new Pen(fill, 1.5f);
 
         // Rays
-        for (int i = 0; i < 8; i++)
+        for (var i = 0; i < 8; i++)
         {
-            double angle = i * Math.PI / 4.0;
+            var angle = i * Math.PI / 4.0;
             float cx = 8f, cy = 8f;
             g.DrawLine(pen,
                 cx + (float)(5.5 * Math.Cos(angle)), cy + (float)(5.5 * Math.Sin(angle)),
@@ -115,7 +105,7 @@ public sealed class TrayManager : IDisposable
         // Centre circle
         g.FillEllipse(brush, 3.5f, 3.5f, 9f, 9f);
 
-        IntPtr hIcon = bmp.GetHicon();
+        var hIcon = bmp.GetHicon();
         return Icon.FromHandle(hIcon);
     }
 

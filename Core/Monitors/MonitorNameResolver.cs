@@ -14,7 +14,7 @@ public static class MonitorNameResolver
 {
     // hwId (e.g. "DEL4141") → friendly name from WMI
     private static Dictionary<string, string>? _wmiCache;
-    private static readonly object _cacheLock = new();
+    private static readonly Lock CacheLock = new();
 
     /// <summary>
     /// Returns a friendly display name for the monitor attached to <paramref name="adapterDeviceName"/>
@@ -22,12 +22,12 @@ public static class MonitorNameResolver
     /// </summary>
     public static string Resolve(string adapterDeviceName)
     {
-        string hwId = GetHardwareId(adapterDeviceName);
+        var hwId = GetHardwareId(adapterDeviceName);
         if (string.IsNullOrEmpty(hwId)) return "Unknown Monitor";
 
         EnsureCache();
 
-        if (_wmiCache!.TryGetValue(hwId, out string? friendly) && !string.IsNullOrWhiteSpace(friendly))
+        if (_wmiCache!.TryGetValue(hwId, out var friendly) && !string.IsNullOrWhiteSpace(friendly))
             return friendly;
 
         // Fallback: decode the PnP ID itself (first 3 chars = EISA manufacturer)
@@ -52,13 +52,13 @@ public static class MonitorNameResolver
             return string.Empty;
 
         // DeviceID looks like "MONITOR\DEL4141\{4D36E96E-...}\0002"
-        string[] parts = dd.DeviceID.Split('\\');
+        var parts = dd.DeviceID.Split('\\');
         return parts.Length >= 2 ? parts[1] : string.Empty;
     }
 
     private static void EnsureCache()
     {
-        lock (_cacheLock)
+        lock (CacheLock)
         {
             if (_wmiCache != null) return;
             _wmiCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -67,21 +67,25 @@ public static class MonitorNameResolver
                 using var searcher = new ManagementObjectSearcher(
                     @"root\WMI", "SELECT * FROM WmiMonitorID");
 
-                foreach (ManagementObject obj in searcher.Get())
+                foreach (var o in searcher.Get())
                 {
-                    string instanceName = obj["InstanceName"]?.ToString() ?? string.Empty;
+                    var obj = (ManagementObject)o;
+                    var instanceName = obj["InstanceName"]?.ToString() ?? string.Empty;
                     // InstanceName: "DISPLAY\DEL4141\5&abc&0&UID257_0"
-                    string[] parts = instanceName.Split('\\');
+                    var parts = instanceName.Split('\\');
                     if (parts.Length < 2) continue;
 
-                    string hwId = parts[1];
-                    string friendly = DecodeUshorts(obj["UserFriendlyName"] as ushort[]);
+                    var hwId = parts[1];
+                    var friendly = DecodeUshorts(obj["UserFriendlyName"] as ushort[]);
 
                     if (!string.IsNullOrWhiteSpace(friendly))
                         _wmiCache[hwId] = friendly;
                 }
             }
-            catch { /* WMI unavailable on some configurations */ }
+            catch
+            {
+                /* WMI unavailable on some configurations */
+            }
         }
     }
 
@@ -89,11 +93,12 @@ public static class MonitorNameResolver
     {
         if (arr == null) return string.Empty;
         var sb = new StringBuilder(arr.Length);
-        foreach (ushort c in arr)
+        foreach (var c in arr)
         {
             if (c == 0) break;
             sb.Append((char)c);
         }
+
         return sb.ToString().Trim();
     }
 
@@ -106,10 +111,10 @@ public static class MonitorNameResolver
         if (hwId.Length < 3) return hwId;
 
         // 3-char EISA/PnP vendor codes (ISA Plug and Play standard)
-        string vendor = hwId[..3].ToUpperInvariant();
-        string model = hwId.Length > 3 ? hwId[3..] : string.Empty;
+        var vendor = hwId[..3].ToUpperInvariant();
+        var model = hwId.Length > 3 ? hwId[3..] : string.Empty;
 
-        string mfrName = vendor switch
+        var mfrName = vendor switch
         {
             "ACR" => "Acer",
             "ACI" => "Asus",
@@ -142,7 +147,7 @@ public static class MonitorNameResolver
     /// <summary>Clears the WMI cache so the next call re-queries (useful after Refresh).</summary>
     public static void InvalidateCache()
     {
-        lock (_cacheLock)
+        lock (CacheLock)
             _wmiCache = null;
     }
 }

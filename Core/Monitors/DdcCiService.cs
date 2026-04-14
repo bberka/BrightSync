@@ -4,61 +4,6 @@ using BrightSync.Core.Interop;
 namespace BrightSync.Core.Monitors;
 
 /// <summary>
-/// Represents a DDC/CI-capable external monitor.
-/// </summary>
-public sealed class DdcMonitor
-{
-    /// <summary>Stable identifier — Windows device name, e.g. \\.\DISPLAY2</summary>
-    public string DeviceName { get; init; } = string.Empty;
-    /// <summary>Friendly name resolved from WMI (brand + model), e.g. "LG 27GP950-B".</summary>
-    public string FriendlyName { get; init; } = string.Empty;
-    /// <summary>Raw firmware description from the DDC/CI physical monitor struct.</summary>
-    public string Description { get; init; } = string.Empty;
-    /// <summary>Horizontal resolution in pixels.</summary>
-    public int ResolutionWidth { get; init; }
-    /// <summary>Vertical resolution in pixels.</summary>
-    public int ResolutionHeight { get; init; }
-    /// <summary>Whether the monitor responded to a DDC/CI brightness query.</summary>
-    public bool SupportsDdcCi { get; init; }
-    /// <summary>Maximum DDC/CI brightness value (usually 100, but can vary).</summary>
-    public int MaxDdcBrightness { get; init; } = 100;
-    /// <summary>Last brightness value we commanded, in percent (0–100). -1 = unknown.</summary>
-    public int LastCommandedPercent { get; set; } = -1;
-
-    internal IntPtr Handle { get; init; }
-    // Owning group — needed for DestroyPhysicalMonitors cleanup
-    internal PhysicalMonitorGroup? Group { get; init; }
-}
-
-/// <summary>
-/// Holds a PHYSICAL_MONITOR array obtained from a single HMONITOR so it can be
-/// properly destroyed via <see cref="NativeMethods.DestroyPhysicalMonitors"/>.
-/// </summary>
-internal sealed class PhysicalMonitorGroup : IDisposable
-{
-    private bool _disposed;
-    public NativeMethods.PHYSICAL_MONITOR[] Monitors { get; }
-    public string DeviceName { get; }
-
-    public PhysicalMonitorGroup(NativeMethods.PHYSICAL_MONITOR[] monitors, string deviceName)
-    {
-        Monitors = monitors;
-        DeviceName = deviceName;
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-        _disposed = true;
-        try
-        {
-            NativeMethods.DestroyPhysicalMonitors((uint)Monitors.Length, Monitors);
-        }
-        catch { /* best-effort */ }
-    }
-}
-
-/// <summary>
 /// Enumerates physical monitors and exposes DDC/CI brightness get/set operations.
 /// Thread-safe for concurrent brightness writes from the sync engine.
 /// </summary>
@@ -101,12 +46,12 @@ public sealed class DdcCiService : IDisposable
     public bool SetBrightness(DdcMonitor monitor, int brightnessPercent)
     {
         brightnessPercent = Math.Clamp(brightnessPercent, 0, 100);
-        uint ddcValue = (uint)Math.Round(brightnessPercent / 100.0 * monitor.MaxDdcBrightness);
+        var ddcValue = (uint)Math.Round(brightnessPercent / 100.0 * monitor.MaxDdcBrightness);
         // Acquire the lock so a concurrent Refresh() cannot destroy the handle mid-call.
         lock (_lock)
         {
             if (_disposed) return false;
-            bool ok = NativeMethods.SetVCPFeature(monitor.Handle, NativeMethods.VCP_BRIGHTNESS, ddcValue);
+            var ok = NativeMethods.SetVCPFeature(monitor.Handle, NativeMethods.VCP_BRIGHTNESS, ddcValue);
             if (ok)
                 monitor.LastCommandedPercent = brightnessPercent;
             return ok;
@@ -123,9 +68,9 @@ public sealed class DdcCiService : IDisposable
         lock (_lock)
         {
             if (_disposed) return false;
-            bool ok = NativeMethods.GetVCPFeatureAndVCPFeatureReply(
+            var ok = NativeMethods.GetVCPFeatureAndVCPFeatureReply(
                 monitor.Handle, NativeMethods.VCP_BRIGHTNESS,
-                out _, out uint current, out uint max);
+                out _, out var current, out var max);
             if (ok && max > 0)
             {
                 brightnessPercent = (int)Math.Round(current * 100.0 / max);
@@ -151,9 +96,9 @@ public sealed class DdcCiService : IDisposable
 
         foreach (var hMonitor in hMonitors)
         {
-            string deviceName = GetDeviceName(hMonitor, out int resW, out int resH);
+            var deviceName = GetDeviceName(hMonitor, out var resW, out var resH);
 
-            if (!NativeMethods.GetNumberOfPhysicalMonitorsFromHMONITOR(hMonitor, out uint count) || count == 0)
+            if (!NativeMethods.GetNumberOfPhysicalMonitorsFromHMONITOR(hMonitor, out var count) || count == 0)
                 continue;
 
             var physicals = new NativeMethods.PHYSICAL_MONITOR[count];
@@ -164,16 +109,16 @@ public sealed class DdcCiService : IDisposable
             _groups.Add(group);
 
             // Resolve friendly name once per HMONITOR (one monitor per adapter port)
-            string friendlyName = MonitorNameResolver.Resolve(deviceName);
+            var friendlyName = MonitorNameResolver.Resolve(deviceName);
 
-            for (int i = 0; i < physicals.Length; i++)
+            for (var i = 0; i < physicals.Length; i++)
             {
                 var pm = physicals[i];
-                bool supportsDdc = NativeMethods.GetVCPFeatureAndVCPFeatureReply(
+                var supportsDdc = NativeMethods.GetVCPFeatureAndVCPFeatureReply(
                     pm.hPhysicalMonitor, NativeMethods.VCP_BRIGHTNESS,
-                    out _, out uint current, out uint maxVal);
+                    out _, out var current, out var maxVal);
 
-                int maxBrightness = (supportsDdc && maxVal > 0) ? (int)maxVal : 100;
+                var maxBrightness = (supportsDdc && maxVal > 0) ? (int)maxVal : 100;
 
                 _monitors.Add(new DdcMonitor
                 {

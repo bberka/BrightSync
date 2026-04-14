@@ -24,10 +24,17 @@ public sealed class InternalBrightnessWatcher : IDisposable
             using var searcher = new ManagementObjectSearcher(
                 @"root\WMI",
                 "SELECT CurrentBrightness FROM WmiMonitorBrightness");
-            foreach (ManagementObject obj in searcher.Get())
+            foreach (var o in searcher.Get())
+            {
+                var obj = (ManagementObject)o;
                 return Convert.ToInt32(obj["CurrentBrightness"]);
+            }
         }
-        catch { /* DDC-only setup or elevated access needed */ }
+        catch
+        {
+            /* DDC-only setup or elevated access needed */
+        }
+
         return -1;
     }
 
@@ -69,11 +76,14 @@ public sealed class InternalBrightnessWatcher : IDisposable
         {
             if (e.NewEvent["TargetInstance"] is ManagementBaseObject target)
             {
-                int brightness = Convert.ToInt32(target["CurrentBrightness"]);
+                var brightness = Convert.ToInt32(target["CurrentBrightness"]);
                 FireIfChanged(brightness);
             }
         }
-        catch { /* ignore malformed events */ }
+        catch
+        {
+            /* ignore malformed events */
+        }
     }
 
     private void StartPolling()
@@ -81,7 +91,7 @@ public sealed class InternalBrightnessWatcher : IDisposable
         _pollTimer = new System.Timers.Timer(500);
         _pollTimer.Elapsed += (_, _) =>
         {
-            int b = ReadCurrentBrightness();
+            var b = ReadCurrentBrightness();
             if (b >= 0) FireIfChanged(b);
         };
         _pollTimer.Start();
