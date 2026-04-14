@@ -1,10 +1,10 @@
 using System.Windows;
-using BrightnessSync.Core.Brightness;
-using BrightnessSync.Core.Config;
-using BrightnessSync.Core.Monitors;
-using BrightnessSync.UI;
+using BrightSync.Core.Brightness;
+using BrightSync.Core.Config;
+using BrightSync.Core.Monitors;
+using BrightSync.UI;
 
-namespace BrightnessSync;
+namespace BrightSync;
 
 // Base class is declared in App.g.cs (System.Windows.Application) — not repeated here to avoid
 // the WpfApplication vs WinForms.Application ambiguity introduced by UseWindowsForms=true.
@@ -12,7 +12,7 @@ public partial class App
 {
     // Assigned together in OnStartup, all non-null after that.
     private TrayManager _trayManager = null!;
-    private BrightnessSyncEngine _syncEngine = null!;
+    private BrightSyncEngine _syncEngine = null!;
     private DdcCiService _ddcService = null!;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -24,7 +24,7 @@ public partial class App
         _ddcService = new DdcCiService();
         var watcher = new InternalBrightnessWatcher();
 
-        _syncEngine = new BrightnessSyncEngine(_ddcService, watcher, configManager);
+        _syncEngine = new BrightSyncEngine(_ddcService, watcher, configManager);
         _syncEngine.Start();
 
         _trayManager = new TrayManager(_syncEngine, configManager, _ddcService);

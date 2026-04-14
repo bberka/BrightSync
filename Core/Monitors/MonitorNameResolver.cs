@@ -1,9 +1,9 @@
 using System.Management;
 using System.Runtime.InteropServices;
 using System.Text;
-using BrightnessSync.Core.Interop;
+using BrightSync.Core.Interop;
 
-namespace BrightnessSync.Core.Monitors;
+namespace BrightSync.Core.Monitors;
 
 /// <summary>
 /// Resolves actual monitor brand/model names from WMI WmiMonitorID,

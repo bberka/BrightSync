@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
-using BrightnessSync.Core.Interop;
+using BrightSync.Core.Interop;
 
-namespace BrightnessSync.Core.Monitors;
+namespace BrightSync.Core.Monitors;
 
 /// <summary>
 /// Represents a DDC/CI-capable external monitor.

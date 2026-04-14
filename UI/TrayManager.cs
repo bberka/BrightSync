@@ -2,11 +2,11 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using WpfApp = System.Windows.Application;
 using WpfWindowState = System.Windows.WindowState;
-using BrightnessSync.Core.Brightness;
-using BrightnessSync.Core.Config;
-using BrightnessSync.Core.Monitors;
+using BrightSync.Core.Brightness;
+using BrightSync.Core.Config;
+using BrightSync.Core.Monitors;
 
-namespace BrightnessSync.UI;
+namespace BrightSync.UI;
 
 /// <summary>
 /// Manages the system tray icon, context menu, and the lifecycle of the settings window.
@@ -15,14 +15,14 @@ public sealed class TrayManager : IDisposable
 {
     public event EventHandler? ExitRequested;
 
-    private readonly BrightnessSyncEngine _engine;
+    private readonly BrightSyncEngine _engine;
     private readonly ConfigManager _config;
     private readonly DdcCiService _ddc;
     private System.Windows.Forms.NotifyIcon? _notifyIcon;
     private SettingsWindow? _settingsWindow;
     private bool _disposed;
 
-    public TrayManager(BrightnessSyncEngine engine, ConfigManager config, DdcCiService ddc)
+    public TrayManager(BrightSyncEngine engine, ConfigManager config, DdcCiService ddc)
     {
         _engine = engine;
         _config = config;
@@ -34,7 +34,7 @@ public sealed class TrayManager : IDisposable
         _notifyIcon = new System.Windows.Forms.NotifyIcon
         {
             Icon = BuildIcon(active: true),
-            Text = "BrightnessSync — Running",
+            Text = "BrightSync — Running",
             Visible = true
         };
 
@@ -52,7 +52,7 @@ public sealed class TrayManager : IDisposable
         _engine.InternalBrightnessChanged += (_, b) =>
         {
             if (_notifyIcon != null)
-                _notifyIcon.Text = $"BrightnessSync — Internal: {b}%";
+                _notifyIcon.Text = $"BrightSync — Internal: {b}%";
         };
     }
 
@@ -84,7 +84,7 @@ public sealed class TrayManager : IDisposable
         {
             _engine.RefreshMonitors();
             if (_notifyIcon != null)
-                _notifyIcon.ShowBalloonTip(2000, "BrightnessSync",
+                _notifyIcon.ShowBalloonTip(2000, "BrightSync",
                     $"Found {_ddc.GetMonitors().Count(m => m.SupportsDdcCi)} DDC/CI monitor(s).",
                     System.Windows.Forms.ToolTipIcon.Info);
         });

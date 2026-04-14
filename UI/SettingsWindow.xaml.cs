@@ -1,17 +1,17 @@
 using System.ComponentModel;
 using System.Windows;
-using BrightnessSync.Core.Brightness;
-using BrightnessSync.Core.Config;
-using BrightnessSync.Core.Monitors;
+using BrightSync.Core.Brightness;
+using BrightSync.Core.Config;
+using BrightSync.Core.Monitors;
 using Wpf.Ui.Controls;
 
-namespace BrightnessSync.UI;
+namespace BrightSync.UI;
 
 public partial class SettingsWindow : FluentWindow
 {
     private readonly SettingsWindowViewModel _vm;
 
-    public SettingsWindow(BrightnessSyncEngine engine, ConfigManager config, DdcCiService ddc)
+    public SettingsWindow(BrightSyncEngine engine, ConfigManager config, DdcCiService ddc)
     {
         InitializeComponent();
         _vm = new SettingsWindowViewModel(engine, config, ddc);

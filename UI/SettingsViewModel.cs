@@ -4,11 +4,11 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Windows.Data;
 using System.Windows.Input;
-using BrightnessSync.Core.Brightness;
-using BrightnessSync.Core.Config;
-using BrightnessSync.Core.Monitors;
+using BrightSync.Core.Brightness;
+using BrightSync.Core.Config;
+using BrightSync.Core.Monitors;
 
-namespace BrightnessSync.UI;
+namespace BrightSync.UI;
 
 // ---------------------------------------------------------------------------
 // Minimal ICommand implementation — no framework dependency
@@ -55,7 +55,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private readonly MonitorProfile _profile;
-    private readonly BrightnessSyncEngine _engine;
+    private readonly BrightSyncEngine _engine;
     private readonly string _displayName;
 
     public string DeviceName { get; }
@@ -136,7 +136,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     public MonitorRowViewModel(
         DdcMonitor monitor,
         MonitorProfile profile,
-        BrightnessSyncEngine engine)
+        BrightSyncEngine engine)
     {
         DeviceName = monitor.DeviceName;
         _displayName = !string.IsNullOrWhiteSpace(monitor.FriendlyName)
@@ -169,7 +169,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 {
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    private readonly BrightnessSyncEngine _engine;
+    private readonly BrightSyncEngine _engine;
     private readonly ConfigManager _config;
     private readonly DdcCiService _ddc;
 
@@ -213,7 +213,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     public string StatusText { get; private set; } = string.Empty;
 
     public SettingsWindowViewModel(
-        BrightnessSyncEngine engine,
+        BrightSyncEngine engine,
         ConfigManager config,
         DdcCiService ddc)
     {

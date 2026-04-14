@@ -1,8 +1,8 @@
-using BrightnessSync.Core.Config;
-using BrightnessSync.Core.Monitors;
+using BrightSync.Core.Config;
+using BrightSync.Core.Monitors;
 using Microsoft.Win32;
 
-namespace BrightnessSync.Core.Brightness;
+namespace BrightSync.Core.Brightness;
 
 /// <summary>
 /// Core sync engine.
@@ -11,7 +11,7 @@ namespace BrightnessSync.Core.Brightness;
 /// - Re-enforces brightness on a timer to recover from monitor power cycles.
 /// - Re-syncs on system resume from sleep/hibernate.
 /// </summary>
-public sealed class BrightnessSyncEngine : IDisposable
+public sealed class BrightSyncEngine : IDisposable
 {
     public event EventHandler<int>? InternalBrightnessChanged;
 
@@ -24,7 +24,7 @@ public sealed class BrightnessSyncEngine : IDisposable
 
     public int LastInternalBrightness => _lastInternalBrightness;
 
-    public BrightnessSyncEngine(
+    public BrightSyncEngine(
         DdcCiService ddc,
         InternalBrightnessWatcher watcher,
         ConfigManager config)

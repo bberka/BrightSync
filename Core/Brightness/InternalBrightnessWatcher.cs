@@ -1,6 +1,6 @@
 using System.Management;
 
-namespace BrightnessSync.Core.Brightness;
+namespace BrightSync.Core.Brightness;
 
 /// <summary>
 /// Watches for Windows internal display brightness changes via WMI.

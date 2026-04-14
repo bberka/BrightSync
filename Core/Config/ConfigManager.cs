@@ -3,7 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Win32;
 
-namespace BrightnessSync.Core.Config;
+namespace BrightSync.Core.Config;
 
 public sealed class MonitorProfile
 {
@@ -34,17 +34,17 @@ public sealed class AppConfig
     public Dictionary<string, MonitorProfile> Monitors { get; set; } = new();
     /// <summary>How often (seconds) the engine re-applies brightness to catch drift.</summary>
     public int EnforcementIntervalSeconds { get; set; } = 10;
-    /// <summary>Whether to launch BrightnessSync when the user logs in.</summary>
+    /// <summary>Whether to launch BrightSync when the user logs in.</summary>
     public bool StartWithWindows { get; set; } = false;
 }
 
 /// <summary>
-/// Loads and persists configuration to %APPDATA%\BrightnessSync\config.json.
+/// Loads and persists configuration to %APPDATA%\BrightSync\config.json.
 /// </summary>
 public sealed class ConfigManager
 {
     private static readonly string ConfigDir =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BrightnessSync");
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BrightSync");
     private static readonly string ConfigPath = Path.Combine(ConfigDir, "config.json");
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -99,7 +99,7 @@ public sealed class ConfigManager
     private static void ApplyStartWithWindows(bool enable)
     {
         const string KeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
-        const string ValueName = "BrightnessSync";
+        const string ValueName = "BrightSync";
         using var key = Registry.CurrentUser.OpenSubKey(KeyPath, writable: true);
         if (key == null) return;
 

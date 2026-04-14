@@ -1,0 +1,128 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - VERSION
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            self_contained: true
+            artifact_suffix: windows-x64-self-contained
+          - rid: win-x64
+            self_contained: false
+            artifact_suffix: windows-x64-framework-dependent
+          - rid: win-x86
+            self_contained: true
+            artifact_suffix: windows-x86-self-contained
+          - rid: win-x86
+            self_contained: false
+            artifact_suffix: windows-x86-framework-dependent
+
+    env:
+      PROJECT_PATH: BrightSync.csproj
+      CONFIGURATION: Release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Read version
+        id: version
+        shell: pwsh
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw "VERSION file is empty."
+          }
+
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=v$version" >> $env:GITHUB_OUTPUT
+
+      - name: Restore
+        run: dotnet restore ${{ env.PROJECT_PATH }}
+
+      - name: Publish
+        shell: pwsh
+        run: |
+          $publishDir = Join-Path $env:RUNNER_TEMP "${{ matrix.artifact_suffix }}"
+          dotnet publish ${{ env.PROJECT_PATH }} `
+            -c ${{ env.CONFIGURATION }} `
+            -r ${{ matrix.rid }} `
+            --self-contained ${{ matrix.self_contained }} `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:DebugType=None `
+            -p:DebugSymbols=false `
+            -p:Version=${{ steps.version.outputs.version }} `
+            -p:AssemblyVersion=${{ steps.version.outputs.version }} `
+            -p:FileVersion=${{ steps.version.outputs.version }} `
+            -p:InformationalVersion=${{ steps.version.outputs.version }} `
+            -o $publishDir
+
+      - name: Archive publish output
+        id: archive
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $zipName = "BrightSync-$version-${{ matrix.artifact_suffix }}.zip"
+          $publishDir = Join-Path $env:RUNNER_TEMP "${{ matrix.artifact_suffix }}"
+          $zipPath = Join-Path $env:RUNNER_TEMP $zipName
+
+          if (Test-Path $zipPath) {
+            Remove-Item -LiteralPath $zipPath -Force
+          }
+
+          Compress-Archive -Path (Join-Path $publishDir '*') -DestinationPath $zipPath
+          "zip_path=$zipPath" >> $env:GITHUB_OUTPUT
+
+      - name: Ensure release exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          $title = "BrightSync $tag"
+
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag `
+              --repo $env:GITHUB_REPOSITORY `
+              --title $title `
+              --notes "Automated release for version $tag."
+          }
+
+      - name: Upload asset to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          gh release upload "${{ steps.version.outputs.tag }}" "${{ steps.archive.outputs.zip_path }}" `
+            --repo $env:GITHUB_REPOSITORY `
+            --clobber

@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace BrightnessSync.Core.Interop;
+namespace BrightSync.Core.Interop;
 
 internal static class NativeMethods
 {
