@@ -7,14 +7,6 @@ public partial class QuickBrightnessWindow : Window
     public QuickBrightnessWindow()
     {
         InitializeComponent();
-        Loaded += (_, _) => PositionNearTray();
-    }
-
-    private void PositionNearTray()
-    {
-        var area = SystemParameters.WorkArea;
-        Left = area.Right - ActualWidth - 12;
-        Top = area.Bottom - ActualHeight - 16;
     }
 
     protected override void OnDeactivated(EventArgs e)
