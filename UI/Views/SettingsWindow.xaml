@@ -64,7 +64,7 @@
             <StackPanel>
 
                 <!-- ── Internal display ── -->
-                <TextBlock Style="{StaticResource SectionLabel}" Text="Internal Display" Margin="0,0,0,4"/>
+                <TextBlock Style="{StaticResource SectionLabel}" Text="Brightness" Margin="0,0,0,4"/>
                 <ui:Card Padding="12,10">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -92,8 +92,7 @@
                     </Grid>
                 </ui:Card>
 
-                <!-- ── External monitors ── -->
-                <TextBlock Style="{StaticResource SectionLabel}" Text="External Monitors"/>
+                <TextBlock Style="{StaticResource SectionLabel}" Text="Monitors"/>
 
                 <!-- Empty state -->
                 <TextBlock Text="{Binding EmptyStateText}"
