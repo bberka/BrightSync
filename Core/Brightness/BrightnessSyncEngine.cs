@@ -81,10 +81,21 @@ public sealed class BrightSyncEngine : IDisposable
         ForceSync();
     }
 
-    /// <summary>Sets the Windows internal brightness, which then drives external monitor sync.</summary>
+    /// <summary>
+    /// Sets the Windows internal brightness, which then drives external monitor sync.
+    /// On desktops without an internal display, still updates the virtual brightness
+    /// so external monitors can sync to the slider value.
+    /// </summary>
     public bool TrySetInternalBrightness(int brightness)
     {
-        return _watcher.TrySetBrightness(brightness);
+        var result = _watcher.TrySetBrightness(brightness);
+        if (!result)
+        {
+            _lastInternalBrightness = brightness;
+            InternalBrightnessChanged?.Invoke(this, brightness);
+            Task.Run(() => SyncAllMonitors());
+        }
+        return result;
     }
 
     // --- Private ---
@@ -111,6 +122,8 @@ public sealed class BrightSyncEngine : IDisposable
 
     private void Enforce()
     {
+        if (!_config.Config.EnforcementEnabled) return;
+
         // Re-apply without recalculating — just re-send the last commanded value.
         // This recovers monitors that were power-cycled or had their brightness reset.
         foreach (var monitor in _ddc.GetMonitors())

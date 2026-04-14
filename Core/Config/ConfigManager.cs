@@ -72,7 +72,7 @@ public sealed class ConfigManager
         {
             var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
             if (!string.IsNullOrEmpty(exePath))
-                key.SetValue(valueName, $"\"{exePath}\"");
+                key.SetValue(valueName, $"\"{exePath}\" --autostart");
         }
         else
         {

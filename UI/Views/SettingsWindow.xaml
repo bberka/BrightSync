@@ -1,308 +1,466 @@
-<ui:FluentWindow
-    x:Class="BrightSync.UI.Views.SettingsWindow"
+<Window x:Class="BrightSync.UI.Views.SettingsWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-    xmlns:local="clr-namespace:BrightSync.UI"
     Title="BrightSync"
-    Width="360"
-    MaxWidth="360"
-    MinHeight="200"
-    MaxHeight="680"
+    Width="420"
+    MaxWidth="420"
+    MinHeight="385"
+    MaxHeight="770"
     SizeToContent="Height"
     WindowStartupLocation="Manual"
     ResizeMode="NoResize"
     ShowInTaskbar="False"
-    ExtendsContentIntoTitleBar="True">
+    WindowStyle="None"
+    AllowsTransparency="True"
+    Topmost="True"
+    Background="Transparent">
 
-    <ui:FluentWindow.Resources>
-        <local:BoolToOpacityConverter x:Key="BoolToOpacity"/>
+    <Border CornerRadius="8"
+            Background="{DynamicResource ApplicationBackgroundBrush}"
+            BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+            BorderThickness="1">
 
-        <Style x:Key="SectionLabel" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}"/>
-            <Setter Property="Margin" Value="0,10,0,4"/>
+        <Border.Resources>
+            <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
 
-        </Style>
+            <!-- Chevron toggle with custom template to prevent WPF-UI blue hover -->
+            <Style x:Key="ChevronToggle" TargetType="ToggleButton">
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ToggleButton">
+                            <Border x:Name="Bd" Background="Transparent" CornerRadius="4">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background"
+                                            Value="{DynamicResource SubtleFillColorSecondaryBrush}"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Bd" Property="Background"
+                                            Value="{DynamicResource SubtleFillColorTertiaryBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/>
+                <Setter Property="FontSize" Value="10"/>
+                <Setter Property="Width" Value="24"/>
+                <Setter Property="Height" Value="24"/>
+                <Setter Property="Padding" Value="0"/>
+                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Content" Value="&#xE76C;"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}"/>
+                <Style.Triggers>
+                    <Trigger Property="IsChecked" Value="True">
+                        <Setter Property="Content" Value="&#xE70D;"/>
+                    </Trigger>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
 
-        <Style x:Key="SliderLabel" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Width" Value="40"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}"/>
-        </Style>
+            <!-- Title bar button (minimize to tray) -->
+            <Style x:Key="TitleBarButton" TargetType="Button">
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bd" Background="Transparent"
+                                    CornerRadius="4" Width="32" Height="28">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background"
+                                            Value="{DynamicResource SubtleFillColorSecondaryBrush}"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Bd" Property="Background"
+                                            Value="{DynamicResource SubtleFillColorTertiaryBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+                <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/>
+                <Setter Property="FontSize" Value="10"/>
+                <Setter Property="Cursor" Value="Hand"/>
+            </Style>
 
-        <Style x:Key="SliderValue" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Width" Value="38"/>
-            <Setter Property="TextAlignment" Value="Right"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
-        </Style>
-    </ui:FluentWindow.Resources>
+            <!-- Title bar close button (red hover) -->
+            <Style x:Key="TitleBarCloseButton" TargetType="Button">
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bd" Background="Transparent"
+                                    CornerRadius="4" Width="32" Height="28">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="#C42B1C"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="#B3271A"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+                <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/>
+                <Setter Property="FontSize" Value="10"/>
+                <Setter Property="Cursor" Value="Hand"/>
+            </Style>
 
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>  <!-- TitleBar -->
-            <RowDefinition Height="*"/>     <!-- Content -->
-        </Grid.RowDefinitions>
+            <!-- Section header -->
+            <Style x:Key="SectionHeader" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}"/>
+                <Setter Property="Margin" Value="0,12,0,6"/>
+            </Style>
 
-        <!-- Title bar — close only, no min/max -->
-        <ui:TitleBar
-            x:Name="WindowTitleBar"
-            Grid.Row="0"
-            Title="BrightSync"
-            ShowMinimize="False"
-            ShowMaximize="False"
-            ForceShutdown="False"/>
+            <!-- Slider row label -->
+            <Style x:Key="SliderLabel" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Width" Value="44"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}"/>
+            </Style>
 
-        <!-- Scrollable content -->
-        <ScrollViewer Grid.Row="1"
-                      VerticalScrollBarVisibility="Auto"
-                      Padding="14,4,14,14">
-            <StackPanel>
+            <!-- Slider row value -->
+            <Style x:Key="SliderValue" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Width" Value="42"/>
+                <Setter Property="TextAlignment" Value="Right"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+            </Style>
+        </Border.Resources>
 
-                <!-- ── Internal display ── -->
-                <TextBlock Style="{StaticResource SectionLabel}" Text="Brightness" Margin="0,0,0,4"/>
-                <ui:Card Padding="12,10">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="40"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0"
-                                   Style="{StaticResource SliderLabel}"
-                                   Text="Level"/>
-                        <Slider Grid.Column="1"
-                                Minimum="0"
-                                Maximum="100"
-                                Value="{Binding InternalBrightness, UpdateSourceTrigger=PropertyChanged}"
-                                TickFrequency="5"
-                                IsSnapToTickEnabled="True"
-                                VerticalAlignment="Center"
-                                Margin="0,0,12,0"
-                                IsEnabled="{Binding HasInternalBrightnessControl}"/>
-                        <TextBlock Grid.Column="2"
-                                   Text="{Binding InternalBrightnessText}"
-                                   FontSize="13" FontWeight="SemiBold"
-                                   VerticalAlignment="Center"
-                                   MinWidth="40" TextAlignment="Right"/>
-                    </Grid>
-                </ui:Card>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-                <TextBlock Style="{StaticResource SectionLabel}" Text="Monitors"/>
+            <!-- Custom title bar -->
+            <Border Grid.Row="0" Background="Transparent" Padding="12,6,6,6"
+                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                               Text="{Binding Title, RelativeSource={RelativeSource AncestorType=Window}}"
+                               FontSize="12" FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                    <Button Grid.Column="1"
+                            Style="{StaticResource TitleBarButton}"
+                            Content="&#xE921;"
+                            ToolTip="Send to Tray"
+                            Click="MinimizeToTray_Click"
+                            Margin="0,0,2,0"/>
+                    <Button Grid.Column="2"
+                            Style="{StaticResource TitleBarCloseButton}"
+                            Content="&#xE8BB;"
+                            ToolTip="Exit"
+                            Click="Exit_Click"/>
+                </Grid>
+            </Border>
 
-                <!-- Empty state -->
-                <TextBlock Text="{Binding EmptyStateText}"
-                           FontSize="12"
-                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                           HorizontalAlignment="Center"
-                           Margin="0,8,0,0"
-                           Visibility="{Binding HasMonitors,
-                               Converter={StaticResource BoolToOpacity},
-                               ConverterParameter=invert}">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding HasMonitors}" Value="False">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
+            <!-- Tab content -->
+            <TabControl Grid.Row="1" Margin="0" Padding="0" BorderThickness="0">
+                <TabControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Rows="1"/>
+                    </ItemsPanelTemplate>
+                </TabControl.ItemsPanel>
+                <TabControl.ItemContainerStyle>
+                    <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
+                        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                    </Style>
+                </TabControl.ItemContainerStyle>
 
-                <ItemsControl ItemsSource="{Binding Monitors}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <ui:Card Margin="0,0,0,6" Padding="12,10">
+                <!-- General Tab -->
+                <TabItem Header="General">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8,16,16">
+                        <StackPanel>
+                            <!-- Internal brightness -->
+                            <TextBlock Style="{StaticResource SectionHeader}" Text="Internal Brightness" Margin="0,4,0,6"/>
+                            <ui:Card Padding="12,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="44"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Style="{StaticResource SliderLabel}" Text="Level"/>
+                                    <Slider Grid.Column="1"
+                                            Minimum="0" Maximum="100"
+                                            Value="{Binding InternalBrightness, UpdateSourceTrigger=PropertyChanged}"
+                                            TickFrequency="5" IsSnapToTickEnabled="True"
+                                            IsMoveToPointEnabled="True"
+                                            VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                    <TextBlock Grid.Column="2"
+                                               Text="{Binding InternalBrightnessText}"
+                                               FontSize="13" FontWeight="SemiBold"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                               MinWidth="44" TextAlignment="Right"/>
+                                </Grid>
+                            </ui:Card>
+
+                            <!-- Options -->
+                            <TextBlock Style="{StaticResource SectionHeader}" Text="Options"/>
+                            <ui:Card Padding="12,10">
                                 <StackPanel>
-
-                                    <!-- Monitor header -->
-                                    <Grid Margin="0,0,0,8">
+                                    <!-- Start with Windows -->
+                                    <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Start with Windows"
+                                                   FontSize="13" VerticalAlignment="Center"/>
+                                        <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding StartWithWindows}"/>
+                                    </Grid>
 
+                                    <Border Height="1"
+                                            Background="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                            Margin="0,8"/>
+
+                                    <!-- Enforcement toggle -->
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding DisplayName}"
-                                                       FontSize="13"
-                                                       FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
-                                         
-                                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                                <TextBlock Text="{Binding ResolutionText}"
-                                                           FontSize="11"
-                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                                <TextBlock FontSize="11" Margin="6,0,0,0">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding SupportsDdcCi}" Value="True">
-                                                                    <Setter Property="Text" Value="· DDC/CI"/>
-                                                                    <Setter Property="Foreground" Value="#4CAF50"/>
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding SupportsDdcCi}" Value="False">
-                                                                    <Setter Property="Text" Value="· No DDC/CI"/>
-                                                                    <Setter Property="Foreground" Value="#FF7043"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                                <TextBlock Text="{Binding ConnectionText}"
-                                                           FontSize="11"
-                                                           Margin="6,0,0,0"
-                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding ConnectionText}" Value="">
-                                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </StackPanel>
+                                            <TextBlock Text="Enforce brightness" FontSize="13"/>
+                                            <TextBlock Text="Re-applies brightness periodically"
+                                                       FontSize="11"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                                         </StackPanel>
-
-                                        <!-- Enabled toggle -->
-                                        <ui:ToggleSwitch Grid.Column="1"
-                                                         IsChecked="{Binding Enabled}"
-                                                         VerticalAlignment="Center"
-                                                         Margin="8,0,0,0"/>
+                                        <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding EnforcementEnabled}"/>
                                     </Grid>
 
-                                    <!-- Sliders — faded out when no DDC/CI support -->
-                                    <StackPanel Opacity="{Binding SupportsDdcCi, Converter={StaticResource BoolToOpacity}}"
-                                                IsEnabled="{Binding SupportsDdcCi}">
-
-                                        <!-- Min brightness -->
-                                        <Grid Margin="0,2">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="40"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="38"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Style="{StaticResource SliderLabel}" Text="Min"/>
-                                            <Slider Grid.Column="1"
-                                                    Minimum="0" Maximum="100"
-                                                    Value="{Binding MinBrightness}"
-                                                    TickFrequency="5" IsSnapToTickEnabled="True"
-                                                    VerticalAlignment="Center"/>
-                                            <TextBlock Grid.Column="2" Style="{StaticResource SliderValue}"
-                                                       Text="{Binding MinBrightness, StringFormat='{}{0}%'}"/>
-                                        </Grid>
-
-                                        <!-- Max brightness -->
-                                        <Grid Margin="0,2">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="40"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="38"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Style="{StaticResource SliderLabel}" Text="Max"/>
-                                            <Slider Grid.Column="1"
-                                                    Minimum="0" Maximum="100"
-                                                    Value="{Binding MaxBrightness}"
-                                                    TickFrequency="5" IsSnapToTickEnabled="True"
-                                                    VerticalAlignment="Center"/>
-                                            <TextBlock Grid.Column="2" Style="{StaticResource SliderValue}"
-                                                       Text="{Binding MaxBrightness, StringFormat='{}{0}%'}"/>
-                                        </Grid>
-
-                                        <!-- Scale multiplier -->
-                                        <Grid Margin="0,2">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="40"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="38"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Style="{StaticResource SliderLabel}" Text="Scale"/>
-                                            <Slider Grid.Column="1"
-                                                    Minimum="0.1" Maximum="3.0"
-                                                    Value="{Binding Multiplier}"
-                                                    SmallChange="0.05" LargeChange="0.25"
-                                                    VerticalAlignment="Center"
-                                                    ToolTip="1.0 = match internal · 1.5 = 50% brighter · 0.8 = dimmer"/>
-                                            <TextBlock Grid.Column="2" Style="{StaticResource SliderValue}"
-                                                       Text="{Binding MultiplierDisplay}"/>
-                                        </Grid>
-
-                                        <!-- Live target -->
-                                        <TextBlock Text="{Binding TargetText}"
-                                                   FontSize="11"
-                                                   Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
-                                                   Margin="0,5,0,0"/>
-                                    </StackPanel>
-
-                                    <Grid Margin="0,8,0,0">
+                                    <!-- Enforcement interval (visible when enabled) -->
+                                    <Grid Margin="0,8,0,0"
+                                          Visibility="{Binding EnforcementEnabled, Converter={StaticResource BoolToVisibility}}">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="140"/>
                                         </Grid.ColumnDefinitions>
-                                        <ui:Button Grid.Column="1"
-                                                   Content="Reset"
-                                                   Command="{Binding ResetCommand}"
-                                                   Appearance="Secondary"/>
+                                        <TextBlock Grid.Column="0" Text="Interval"
+                                                   FontSize="13" VerticalAlignment="Center"
+                                                   Margin="16,0,0,0"/>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                                    HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <Slider Width="80"
+                                                    Minimum="5" Maximum="120"
+                                                    Value="{Binding EnforcementIntervalSeconds}"
+                                                    TickFrequency="5" IsSnapToTickEnabled="True"
+                                                    IsMoveToPointEnabled="True"
+                                                    VerticalAlignment="Center"/>
+                                            <TextBlock FontSize="13" VerticalAlignment="Center" Margin="8,0,0,0"
+                                                       MinWidth="32"
+                                                       Text="{Binding EnforcementIntervalSeconds, StringFormat='{}{0}s'}"/>
+                                        </StackPanel>
                                     </Grid>
-
                                 </StackPanel>
                             </ui:Card>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
 
-                <!-- ── Options ── -->
-                <TextBlock Style="{StaticResource SectionLabel}" Text="Options"/>
-                <ui:Card Padding="12,10">
-                    <StackPanel>
-                        <!-- Start with Windows -->
-                        <Grid Margin="0,0,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                <TextBlock Text="Start with Windows" FontSize="13"/>
-                            </StackPanel>
-                            <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding StartWithWindows}"/>
-                        </Grid>
+                <!-- Monitors Tab -->
+                <TabItem Header="Monitors">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8,16,16">
+                        <StackPanel>
+                            <!-- Empty state -->
+                            <TextBlock Text="{Binding EmptyStateText}"
+                                       FontSize="13"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,20,0,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasMonitors}" Value="False">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
 
-                        <!-- Enforcement interval -->
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="140"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                <TextBlock Text="Enforce every" FontSize="13"/>
-                                <TextBlock Text="Re-applies brightness after power cycles"
-                                           FontSize="11"
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                <Slider Width="80"
-                                        Minimum="5" Maximum="120"
-                                        Value="{Binding EnforcementIntervalSeconds}"
-                                        TickFrequency="5" IsSnapToTickEnabled="True"
-                                        VerticalAlignment="Center"/>
-                                <TextBlock FontSize="12" VerticalAlignment="Center" Margin="6,0,0,0"
-                                           MinWidth="32"
-                                           Text="{Binding EnforcementIntervalSeconds, StringFormat='{}{0}s'}"/>
-                            </StackPanel>
-                        </Grid>
-                    </StackPanel>
-                </ui:Card>
+                            <!-- Monitor list -->
+                            <ItemsControl ItemsSource="{Binding Monitors}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <ui:Card Margin="0,0,0,8" Padding="12,10">
+                                            <StackPanel>
+                                                <!-- Header row -->
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
 
-                <!-- ── Action buttons ── -->
-                <Grid Margin="0,10,0,0">
+                                                    <ToggleButton Grid.Column="0"
+                                                                  Style="{StaticResource ChevronToggle}"
+                                                                  IsChecked="{Binding IsExpanded}"
+                                                                  VerticalAlignment="Center"/>
+
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="8,0">
+                                                        <TextBlock Text="{Binding DisplayName}"
+                                                                   FontSize="13" FontWeight="SemiBold"
+                                                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                                                        <TextBlock Text="{Binding InfoLine}"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                                   Margin="0,2,0,0"/>
+                                                    </StackPanel>
+
+                                                    <ui:ToggleSwitch Grid.Column="2"
+                                                                     IsChecked="{Binding Enabled}"
+                                                                     VerticalAlignment="Center"
+                                                                     Margin="8,0,0,0"/>
+                                                </Grid>
+
+                                                <!-- Expandable content -->
+                                                <StackPanel Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}"
+                                                            IsEnabled="{Binding Enabled}"
+                                                            Margin="32,10,0,0">
+
+                                                    <!-- DDC/CI controls -->
+                                                    <StackPanel IsEnabled="{Binding SupportsDdcCi}">
+                                                        <!-- Min brightness -->
+                                                        <Grid Margin="0,2">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="44"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="42"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Style="{StaticResource SliderLabel}" Text="Min"/>
+                                                            <Slider Grid.Column="1"
+                                                                    Minimum="0" Maximum="100"
+                                                                    Value="{Binding MinBrightness}"
+                                                                    TickFrequency="5" IsSnapToTickEnabled="True"
+                                                                    IsMoveToPointEnabled="True"
+                                                                    VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="2" Style="{StaticResource SliderValue}"
+                                                                       Text="{Binding MinBrightness, StringFormat='{}{0}%'}"/>
+                                                        </Grid>
+
+                                                        <!-- Max brightness -->
+                                                        <Grid Margin="0,2">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="44"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="42"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Style="{StaticResource SliderLabel}" Text="Max"/>
+                                                            <Slider Grid.Column="1"
+                                                                    Minimum="0" Maximum="100"
+                                                                    Value="{Binding MaxBrightness}"
+                                                                    TickFrequency="5" IsSnapToTickEnabled="True"
+                                                                    IsMoveToPointEnabled="True"
+                                                                    VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="2" Style="{StaticResource SliderValue}"
+                                                                       Text="{Binding MaxBrightness, StringFormat='{}{0}%'}"/>
+                                                        </Grid>
+
+                                                        <!-- Scale multiplier -->
+                                                        <Grid Margin="0,2">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="44"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="42"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Style="{StaticResource SliderLabel}" Text="Scale"/>
+                                                            <Slider Grid.Column="1"
+                                                                    Minimum="0.1" Maximum="3.0"
+                                                                    Value="{Binding Multiplier}"
+                                                                    SmallChange="0.05" LargeChange="0.25"
+                                                                    IsMoveToPointEnabled="True"
+                                                                    VerticalAlignment="Center"
+                                                                    ToolTip="1.0 = match internal · 1.5 = 50% brighter"/>
+                                                            <TextBlock Grid.Column="2" Style="{StaticResource SliderValue}"
+                                                                       Text="{Binding MultiplierDisplay}"/>
+                                                        </Grid>
+
+                                                        <!-- Live target -->
+                                                        <TextBlock Text="{Binding TargetText}"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                                                                   Margin="0,6,0,0"/>
+                                                    </StackPanel>
+
+                                                    <!-- No DDC/CI notice -->
+                                                    <TextBlock FontSize="11"
+                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                               Margin="0,4,0,0">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding SupportsDdcCi}" Value="False">
+                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                        <Setter Property="Text" Value="DDC/CI not supported — brightness control unavailable"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+
+                                                    <!-- Reset button -->
+                                                    <Grid Margin="0,8,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <ui:Button Grid.Column="1"
+                                                                   Content="Reset"
+                                                                   Command="{Binding ResetCommand}"
+                                                                   Appearance="Secondary"/>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </ui:Card>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+            </TabControl>
+
+            <!-- Bottom action bar -->
+            <Border Grid.Row="2"
+                    BorderThickness="0,1,0,0"
+                    BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                    Padding="16,10">
+                <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
@@ -317,18 +475,19 @@
                     <ui:Button Grid.Column="1"
                                Content="Reset All"
                                Command="{Binding ResetAllCommand}"
+                               Appearance="Secondary"
                                Margin="0,0,6,0"/>
                     <ui:Button Grid.Column="2"
                                Content="Refresh"
                                Command="{Binding RefreshCommand}"
+                               Appearance="Secondary"
                                Margin="0,0,6,0"/>
                     <ui:Button Grid.Column="3"
                                Content="Save"
                                Command="{Binding SaveCommand}"
                                Appearance="Primary"/>
                 </Grid>
-
-            </StackPanel>
-        </ScrollViewer>
-    </Grid>
-</ui:FluentWindow>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

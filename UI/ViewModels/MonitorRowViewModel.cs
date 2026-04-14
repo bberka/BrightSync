@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using BrightSync.Core.Brightness;
@@ -19,6 +19,13 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     public string DeviceName { get; }
     public string BrandName { get; }
     public string ModelName { get; }
+
+    private bool _isExpanded;
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set { _isExpanded = value; OnChanged(); }
+    }
 
     private bool _enabled;
     public bool Enabled
@@ -71,7 +78,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         }
     }
 
-    public string MultiplierDisplay => $"{_multiplier:F2}×";
+    public string MultiplierDisplay => $"{_multiplier:F2}\u00d7";
 
     public bool SupportsDdcCi { get; }
     /// <summary>Raw DDC firmware string — shown as subtitle.</summary>
@@ -84,6 +91,19 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     public bool IsInternal { get; }
     public ICommand ResetCommand { get; }
 
+    /// <summary>Compact info line combining resolution, DDC status, and connection type.</summary>
+    public string InfoLine
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrEmpty(ResolutionText)) parts.Add(ResolutionText);
+            parts.Add(DdcStatusText);
+            if (!string.IsNullOrEmpty(ConnectionText)) parts.Add(ConnectionText);
+            return string.Join(" \u00b7 ", parts);
+        }
+    }
+
     public string TargetText
     {
         get
@@ -91,7 +111,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
             if (!SupportsDdcCi) return "No DDC/CI";
             if (!Enabled) return "Disabled";
             var b = _engine.LastInternalBrightness;
-            if (b < 0) return "—";
+            if (b < 0) return "\u2014";
             var t = _engine.CalculateTarget(DeviceName, _profile);
             return $"Target: {t}%  (internal {b}%)";
         }
@@ -131,6 +151,8 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         _min = _profile.MinBrightness;
         _max = _profile.MaxBrightness;
         _multiplier = _profile.Multiplier;
+        _isExpanded = false;
+        OnChanged(nameof(IsExpanded));
         OnChanged(nameof(Enabled));
         OnChanged(nameof(MinBrightness));
         OnChanged(nameof(MaxBrightness));

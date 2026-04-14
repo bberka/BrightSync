@@ -7,11 +7,8 @@ using BrightSync.UI;
 
 namespace BrightSync;
 
-// Base class is declared in App.g.cs (System.Windows.Application) — not repeated here to avoid
-// the WpfApplication vs WinForms.Application ambiguity introduced by UseWindowsForms=true.
 public partial class App
 {
-    // Assigned together in OnStartup, all non-null after that.
     private TrayManager _trayManager = null!;
     private BrightSyncEngine _syncEngine = null!;
     private DdcCiService _ddcService = null!;
@@ -20,7 +17,13 @@ public partial class App
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        Wpf.Ui.Appearance.ApplicationThemeManager.Apply(Wpf.Ui.Appearance.ApplicationTheme.Dark);
+
+        // Follow system theme instead of forcing Dark
+        Wpf.Ui.Appearance.ApplicationThemeManager.Apply(
+            Wpf.Ui.Appearance.ApplicationThemeManager.GetSystemTheme()
+                is Wpf.Ui.Appearance.SystemTheme.Dark
+                ? Wpf.Ui.Appearance.ApplicationTheme.Dark
+                : Wpf.Ui.Appearance.ApplicationTheme.Light);
 
         var configManager = new ConfigManager();
         _ddcService = new DdcCiService();
@@ -35,6 +38,12 @@ public partial class App
         _trayManager = new TrayManager(_syncEngine, configManager, _ddcService);
         _trayManager.ExitRequested += (_, _) => ExitApp();
         _trayManager.Initialize();
+
+        // Open settings on manual launch; stay hidden on auto-start
+        var isAutoStart = Environment.GetCommandLineArgs()
+            .Any(a => a.Equals("--autostart", StringComparison.OrdinalIgnoreCase));
+        if (!isAutoStart)
+            _trayManager.ShowSettings();
     }
 
     private void ExitApp()
@@ -48,7 +57,6 @@ public partial class App
 
     protected override void OnExit(ExitEventArgs e)
     {
-        // Guard: OnExit may fire before OnStartup finishes in edge cases.
         _syncEngine?.Dispose();
         _trayManager?.Dispose();
         _ddcService?.Dispose();

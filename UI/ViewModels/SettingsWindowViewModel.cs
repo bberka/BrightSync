@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
@@ -16,10 +16,11 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     private readonly ConfigManager _config;
     private readonly DdcCiService _ddc;
     private bool _isUpdatingInternalBrightness;
+    private System.Threading.Timer? _statusTimer;
+    private System.Threading.Timer? _brightnessDebounce;
 
     public ObservableCollection<MonitorRowViewModel> Monitors { get; } = new();
     public bool HasMonitors => Monitors.Count > 0;
-    public bool HasInternalBrightnessControl => _internalBrightness >= 0;
 
     private int _internalBrightness;
     public int InternalBrightness
@@ -27,35 +28,30 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         get => _internalBrightness;
         set
         {
-            var clamped = Math.Clamp(value, -1, 100);
+            var clamped = Math.Clamp(value, 0, 100);
             if (_internalBrightness == clamped) return;
 
-            var previous = _internalBrightness;
             _internalBrightness = clamped;
             OnChanged();
             OnChanged(nameof(InternalBrightnessText));
-            OnChanged(nameof(HasInternalBrightnessControl));
 
-            if (_isUpdatingInternalBrightness || clamped < 0) return;
+            if (_isUpdatingInternalBrightness) return;
 
-            if (!_engine.TrySetInternalBrightness(clamped))
+            _brightnessDebounce?.Dispose();
+            _brightnessDebounce = new System.Threading.Timer(_ =>
             {
-                _isUpdatingInternalBrightness = true;
-                _internalBrightness = previous;
-                OnChanged();
-                OnChanged(nameof(InternalBrightnessText));
-                OnChanged(nameof(HasInternalBrightnessControl));
-                _isUpdatingInternalBrightness = false;
-                StatusText = "Couldn't set internal brightness on this PC.";
-                OnChanged(nameof(StatusText));
-            }
+                if (!_engine.TrySetInternalBrightness(_internalBrightness))
+                {
+                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        SetStatus("Using as virtual reference for external monitors.");
+                    });
+                }
+            }, null, 300, System.Threading.Timeout.Infinite);
         }
     }
 
-    public string InternalBrightnessText =>
-        _internalBrightness >= 0
-            ? $"{_internalBrightness}%"
-            : "Not available (desktop-only setup?)";
+    public string InternalBrightnessText => $"{_internalBrightness}%";
 
     private int _enforcementInterval;
     public int EnforcementIntervalSeconds
@@ -65,6 +61,18 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         {
             _enforcementInterval = Math.Clamp(value, 5, 300);
             _config.Config.EnforcementIntervalSeconds = _enforcementInterval;
+            OnChanged();
+        }
+    }
+
+    private bool _enforcementEnabled;
+    public bool EnforcementEnabled
+    {
+        get => _enforcementEnabled;
+        set
+        {
+            _enforcementEnabled = value;
+            _config.Config.EnforcementEnabled = value;
             OnChanged();
         }
     }
@@ -92,8 +100,10 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _config = config;
         _ddc = ddc;
 
-        _internalBrightness = engine.LastInternalBrightness;
+        var initial = engine.LastInternalBrightness;
+        _internalBrightness = initial >= 0 ? initial : 50;
         _enforcementInterval = config.Config.EnforcementIntervalSeconds;
+        _enforcementEnabled = config.Config.EnforcementEnabled;
         _startWithWindows = config.Config.StartWithWindows;
 
         SaveCommand = new RelayCommand(Save);
@@ -126,7 +136,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
             _isUpdatingInternalBrightness = true;
-            InternalBrightness = brightness;
+            InternalBrightness = brightness >= 0 ? brightness : _internalBrightness;
             _isUpdatingInternalBrightness = false;
             foreach (var m in Monitors)
                 m.RefreshTargetText();
@@ -137,22 +147,19 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     {
         _config.Save();
         _engine.ForceSync();
-        StatusText = $"Saved at {DateTime.Now:HH:mm:ss}";
-        OnChanged(nameof(StatusText));
+        SetStatus($"Saved at {DateTime.Now:HH:mm:ss}");
     }
 
     private void Refresh()
     {
-        StatusText = "Refreshing monitors…";
-        OnChanged(nameof(StatusText));
+        SetStatus("Refreshing monitors\u2026");
         Task.Run(() =>
         {
             _engine.RefreshMonitors();
             System.Windows.Application.Current.Dispatcher.Invoke(() =>
             {
                 BuildMonitorList();
-                StatusText = $"Found {Monitors.Count} monitor(s)";
-                OnChanged(nameof(StatusText));
+                SetStatus($"Found {Monitors.Count} monitor(s)");
             });
         });
     }
@@ -161,19 +168,35 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     {
         _config.Config.Monitors.Clear();
         EnforcementIntervalSeconds = new AppConfig().EnforcementIntervalSeconds;
+        EnforcementEnabled = true;
         StartWithWindows = false;
 
         foreach (var monitor in Monitors)
             monitor.Reset();
 
-        StatusText = "Reset all settings to defaults. Save to persist.";
-        OnChanged(nameof(StatusText));
+        SetStatus("Reset all settings to defaults. Save to persist.");
     }
 
     private void OnMonitorReset()
     {
-        StatusText = "Monitor settings reset. Save to persist.";
+        SetStatus("Monitor settings reset. Save to persist.");
+    }
+
+    /// <summary>Sets the status text and auto-clears it after 10 seconds.</summary>
+    private void SetStatus(string text)
+    {
+        StatusText = text;
         OnChanged(nameof(StatusText));
+
+        _statusTimer?.Dispose();
+        _statusTimer = new System.Threading.Timer(_ =>
+        {
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                StatusText = string.Empty;
+                OnChanged(nameof(StatusText));
+            });
+        }, null, 10_000, System.Threading.Timeout.Infinite);
     }
 
     private void OnChanged([CallerMemberName] string? name = null)
@@ -181,6 +204,8 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     public void Dispose()
     {
+        _brightnessDebounce?.Dispose();
+        _statusTimer?.Dispose();
         _engine.InternalBrightnessChanged -= OnInternalBrightnessChanged;
     }
 }
