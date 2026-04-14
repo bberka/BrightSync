@@ -203,7 +203,7 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,8,8,8">
                         <StackPanel Width="390">
                             <!-- Internal brightness -->
-                            <TextBlock Style="{StaticResource SectionHeader}" Text="Internal Brightness" Margin="0,4,0,6"/>
+                            <TextBlock Style="{StaticResource SectionHeader}" Text="Brightness" Margin="0,4,0,6"/>
                             <ui:Card Padding="12,10">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -487,6 +487,49 @@
                                Command="{Binding SaveCommand}"
                                Appearance="Primary"/>
                 </Grid>
+            </Border>
+
+            <!-- Exit confirmation overlay -->
+            <Border x:Name="ExitOverlay"
+                    Grid.Row="0" Grid.RowSpan="3"
+                    Background="#80000000"
+                    Visibility="Collapsed">
+                <Border Background="{DynamicResource ApplicationBackgroundBrush}"
+                        BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="24,20"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        MinWidth="300"
+                        MaxWidth="340">
+                    <StackPanel>
+                        <TextBlock Text="Exit BrightSync"
+                                   FontSize="16" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                        <TextBlock Text="Are you sure you want to exit?&#x0a;BrightSync will stop syncing monitor brightness."
+                                   FontSize="13"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,8,0,16"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ui:Button Grid.Column="1"
+                                       Content="Cancel"
+                                       Appearance="Secondary"
+                                       Click="ExitOverlay_Cancel_Click"
+                                       Margin="0,0,6,0"/>
+                            <ui:Button Grid.Column="2"
+                                       Content="Exit"
+                                       Appearance="Danger"
+                                       Click="ExitOverlay_Confirm_Click"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
             </Border>
         </Grid>
     </Border>

@@ -47,22 +47,19 @@ public partial class SettingsWindow : Window
         Hide();
     }
 
-    private async void Exit_Click(object sender, RoutedEventArgs e)
+    private void Exit_Click(object sender, RoutedEventArgs e)
     {
-        var messageBox = new Wpf.Ui.Controls.MessageBox
-        {
-            Title = "Exit BrightSync",
-            Content = "Are you sure you want to exit?\nBrightSync will stop syncing monitor brightness.",
-            PrimaryButtonText = "Exit",
-            CloseButtonText = "Cancel",
-            Topmost = true
-        };
+        ExitOverlay.Visibility = Visibility.Visible;
+    }
 
-        var result = await messageBox.ShowDialogAsync();
-        if (result == Wpf.Ui.Controls.MessageBoxResult.Primary)
-        {
-            ExitRequested?.Invoke(this, EventArgs.Empty);
-        }
+    private void ExitOverlay_Cancel_Click(object sender, RoutedEventArgs e)
+    {
+        ExitOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private void ExitOverlay_Confirm_Click(object sender, RoutedEventArgs e)
+    {
+        ExitRequested?.Invoke(this, EventArgs.Empty);
     }
 
     protected override void OnClosing(CancelEventArgs e)
