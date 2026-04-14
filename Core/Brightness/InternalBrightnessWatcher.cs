@@ -47,6 +47,39 @@ public sealed class InternalBrightnessWatcher : IDisposable
         StartPolling();
     }
 
+    /// <summary>Sets the internal display brightness via WMI.</summary>
+    public bool TrySetBrightness(int brightness)
+    {
+        brightness = Math.Clamp(brightness, 0, 100);
+
+        try
+        {
+            var scope = new ManagementScope(@"root\WMI");
+            scope.Connect();
+
+            using var searcher = new ManagementObjectSearcher(
+                scope,
+                new ObjectQuery("SELECT * FROM WmiMonitorBrightnessMethods"));
+
+            var updated = false;
+            foreach (var o in searcher.Get())
+            {
+                var obj = (ManagementObject)o;
+                obj.InvokeMethod("WmiSetBrightness", [uint.MinValue, (byte)brightness]);
+                updated = true;
+            }
+
+            if (updated)
+                FireIfChanged(brightness);
+
+            return updated;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private bool TryStartEventWatcher()
     {
         try

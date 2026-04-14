@@ -81,6 +81,12 @@ public sealed class BrightSyncEngine : IDisposable
         ForceSync();
     }
 
+    /// <summary>Sets the Windows internal brightness, which then drives external monitor sync.</summary>
+    public bool TrySetInternalBrightness(int brightness)
+    {
+        return _watcher.TrySetBrightness(brightness);
+    }
+
     // --- Private ---
 
     private void OnInternalBrightnessChanged(object? sender, int brightness)

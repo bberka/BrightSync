@@ -68,16 +68,23 @@
                 <ui:Card Padding="12,10">
                     <Grid>
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="40"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <ProgressBar Grid.Column="0"
-                                     Height="4"
-                                     Minimum="0" Maximum="100"
-                                     Value="{Binding InternalBrightness, Mode=OneWay}"
-                                     VerticalAlignment="Center"
-                                     Margin="0,0,12,0"/>
-                        <TextBlock Grid.Column="1"
+                        <TextBlock Grid.Column="0"
+                                   Style="{StaticResource SliderLabel}"
+                                   Text="Level"/>
+                        <Slider Grid.Column="1"
+                                Minimum="0"
+                                Maximum="100"
+                                Value="{Binding InternalBrightness, UpdateSourceTrigger=PropertyChanged}"
+                                TickFrequency="5"
+                                IsSnapToTickEnabled="True"
+                                VerticalAlignment="Center"
+                                Margin="0,0,12,0"
+                                IsEnabled="{Binding HasInternalBrightnessControl}"/>
+                        <TextBlock Grid.Column="2"
                                    Text="{Binding InternalBrightnessText}"
                                    FontSize="13" FontWeight="SemiBold"
                                    VerticalAlignment="Center"

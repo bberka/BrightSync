@@ -15,15 +15,41 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     private readonly BrightSyncEngine _engine;
     private readonly ConfigManager _config;
     private readonly DdcCiService _ddc;
+    private bool _isUpdatingInternalBrightness;
 
     public ObservableCollection<MonitorRowViewModel> Monitors { get; } = new();
     public bool HasMonitors => Monitors.Count > 0;
+    public bool HasInternalBrightnessControl => _internalBrightness >= 0;
 
     private int _internalBrightness;
     public int InternalBrightness
     {
         get => _internalBrightness;
-        private set { _internalBrightness = value; OnChanged(); OnChanged(nameof(InternalBrightnessText)); }
+        set
+        {
+            var clamped = Math.Clamp(value, -1, 100);
+            if (_internalBrightness == clamped) return;
+
+            var previous = _internalBrightness;
+            _internalBrightness = clamped;
+            OnChanged();
+            OnChanged(nameof(InternalBrightnessText));
+            OnChanged(nameof(HasInternalBrightnessControl));
+
+            if (_isUpdatingInternalBrightness || clamped < 0) return;
+
+            if (!_engine.TrySetInternalBrightness(clamped))
+            {
+                _isUpdatingInternalBrightness = true;
+                _internalBrightness = previous;
+                OnChanged();
+                OnChanged(nameof(InternalBrightnessText));
+                OnChanged(nameof(HasInternalBrightnessControl));
+                _isUpdatingInternalBrightness = false;
+                StatusText = "Couldn't set internal brightness on this PC.";
+                OnChanged(nameof(StatusText));
+            }
+        }
     }
 
     public string InternalBrightnessText =>
@@ -99,7 +125,9 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     {
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
+            _isUpdatingInternalBrightness = true;
             InternalBrightness = brightness;
+            _isUpdatingInternalBrightness = false;
             foreach (var m in Monitors)
                 m.RefreshTargetText();
         });
