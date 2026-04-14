@@ -200,8 +200,8 @@
 
                 <!-- General Tab -->
                 <TabItem Header="General">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8,16,16">
-                        <StackPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,8,8,8">
+                        <StackPanel Width="390">
                             <!-- Internal brightness -->
                             <TextBlock Style="{StaticResource SectionHeader}" Text="Internal Brightness" Margin="0,4,0,6"/>
                             <ui:Card Padding="12,10">
@@ -293,7 +293,7 @@
                 <!-- Monitors Tab -->
                 <TabItem Header="Monitors">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8,16,16">
-                        <StackPanel>
+                        <StackPanel Width="390">
                             <!-- Empty state -->
                             <TextBlock Text="{Binding EmptyStateText}"
                                        FontSize="13"
