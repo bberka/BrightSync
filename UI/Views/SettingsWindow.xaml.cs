@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Windows;
+using BrightSync.Core;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;
@@ -15,6 +16,9 @@ public partial class SettingsWindow : FluentWindow
     public SettingsWindow(BrightSyncEngine engine, ConfigManager config, DdcCiService ddc)
     {
         InitializeComponent();
+        var windowTitle = AppVersionInfo.GetDisplayTitle();
+        Title = windowTitle;
+        WindowTitleBar.Title = windowTitle;
         _vm = new SettingsWindowViewModel(engine, config, ddc);
         DataContext = _vm;
         Loaded += (_, _) => PositionBottomRight();

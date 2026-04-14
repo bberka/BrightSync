@@ -1,7 +1,5 @@
 using System.Diagnostics;
-using System.IO;
 using System.Net.Http;
-using System.Reflection;
 using System.Text.Json;
 using BrightSync.Core.Config;
 using Timer = System.Threading.Timer;
@@ -63,7 +61,7 @@ public sealed class UpdateChecker : IDisposable
             _configManager.Config.LastUpdateCheckDate = today;
             _configManager.Save();
 
-            var currentVersion = GetCurrentVersion();
+            var currentVersion = AppVersionInfo.GetCurrentVersion();
             if (latestVersion is not null && currentVersion is not null && latestVersion > currentVersion)
             {
                 OpenReleasesPage();
@@ -108,37 +106,6 @@ public sealed class UpdateChecker : IDisposable
         }
 
         return TryParseVersion(tagProperty.GetString());
-    }
-
-    private static Version? GetCurrentVersion()
-    {
-        var assembly = Assembly.GetExecutingAssembly();
-
-        var informationalVersion = assembly
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-            .InformationalVersion?
-            .Split('+', 2)[0];
-
-        var parsedInformationalVersion = TryParseVersion(informationalVersion);
-        if (parsedInformationalVersion is not null)
-        {
-            return parsedInformationalVersion;
-        }
-
-        var fileVersion = assembly.GetCustomAttribute<AssemblyFileVersionAttribute>()?.Version;
-        var parsedFileVersion = TryParseVersion(fileVersion);
-        if (parsedFileVersion is not null && parsedFileVersion != new Version(1, 0, 0, 0))
-        {
-            return parsedFileVersion;
-        }
-
-        var versionFilePath = Path.Combine(AppContext.BaseDirectory, "VERSION");
-        if (File.Exists(versionFilePath))
-        {
-            return TryParseVersion(File.ReadAllText(versionFilePath).Trim());
-        }
-
-        return null;
     }
 
     private static Version? TryParseVersion(string? value)

@@ -50,6 +50,7 @@
 
         <!-- Title bar — close only, no min/max -->
         <ui:TitleBar
+            x:Name="WindowTitleBar"
             Grid.Row="0"
             Title="BrightSync"
             ShowMinimize="False"
