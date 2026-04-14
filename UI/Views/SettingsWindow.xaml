@@ -184,276 +184,259 @@
                 </Grid>
             </Border>
 
-            <!-- Tab content -->
-            <TabControl Grid.Row="1" Margin="0" Padding="0" BorderThickness="0">
-                <TabControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <UniformGrid Rows="1"/>
-                    </ItemsPanelTemplate>
-                </TabControl.ItemsPanel>
-                <TabControl.ItemContainerStyle>
-                    <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
-                        <Setter Property="HorizontalAlignment" Value="Stretch"/>
-                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                    </Style>
-                </TabControl.ItemContainerStyle>
+            <!-- Content -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="8,8,8,8">
+                <StackPanel Width="390">
+                    <!-- Internal brightness -->
+                    <TextBlock Style="{StaticResource SectionHeader}" Text="Brightness" Margin="0,4,0,6"/>
+                    <ui:Card Padding="12,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="44"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Style="{StaticResource SliderLabel}" Text="Level"/>
+                            <Slider Grid.Column="1"
+                                    Minimum="0" Maximum="100"
+                                    Value="{Binding InternalBrightness, UpdateSourceTrigger=PropertyChanged}"
+                                    TickFrequency="5" IsSnapToTickEnabled="True"
+                                    IsMoveToPointEnabled="True"
+                                    VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="2"
+                                       Text="{Binding InternalBrightnessText}"
+                                       FontSize="13" FontWeight="SemiBold"
+                                       VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                       MinWidth="44" TextAlignment="Right"/>
+                        </Grid>
+                    </ui:Card>
 
-                <!-- General Tab -->
-                <TabItem Header="General">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,8,8,8">
-                        <StackPanel Width="390">
-                            <!-- Internal brightness -->
-                            <TextBlock Style="{StaticResource SectionHeader}" Text="Brightness" Margin="0,4,0,6"/>
-                            <ui:Card Padding="12,10">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="44"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Style="{StaticResource SliderLabel}" Text="Level"/>
-                                    <Slider Grid.Column="1"
-                                            Minimum="0" Maximum="100"
-                                            Value="{Binding InternalBrightness, UpdateSourceTrigger=PropertyChanged}"
+                    <!-- Options -->
+                    <TextBlock Style="{StaticResource SectionHeader}" Text="Options"/>
+                    <ui:Card Padding="12,10">
+                        <StackPanel>
+                            <!-- Start with Windows -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Start with Windows"
+                                           FontSize="13" VerticalAlignment="Center"/>
+                                <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding StartWithWindows}"/>
+                            </Grid>
+
+                            <Border Height="1"
+                                    Background="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                    Margin="0,8"/>
+
+                            <!-- Enforcement toggle -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock Text="Enforce brightness" FontSize="13"/>
+                                    <TextBlock Text="Re-applies brightness periodically"
+                                               FontSize="11"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                </StackPanel>
+                                <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding EnforcementEnabled}"/>
+                            </Grid>
+
+                            <!-- Enforcement interval (visible when enabled) -->
+                            <Grid Margin="0,8,0,0"
+                                  Visibility="{Binding EnforcementEnabled, Converter={StaticResource BoolToVisibility}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="140"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Interval"
+                                           FontSize="13" VerticalAlignment="Center"
+                                           Margin="16,0,0,0"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                            HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <Slider Width="80"
+                                            Minimum="5" Maximum="120"
+                                            Value="{Binding EnforcementIntervalSeconds}"
                                             TickFrequency="5" IsSnapToTickEnabled="True"
                                             IsMoveToPointEnabled="True"
-                                            VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                    <TextBlock Grid.Column="2"
-                                               Text="{Binding InternalBrightnessText}"
-                                               FontSize="13" FontWeight="SemiBold"
-                                               VerticalAlignment="Center"
-                                               Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                                               MinWidth="44" TextAlignment="Right"/>
-                                </Grid>
-                            </ui:Card>
-
-                            <!-- Options -->
-                            <TextBlock Style="{StaticResource SectionHeader}" Text="Options"/>
-                            <ui:Card Padding="12,10">
-                                <StackPanel>
-                                    <!-- Start with Windows -->
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="Start with Windows"
-                                                   FontSize="13" VerticalAlignment="Center"/>
-                                        <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding StartWithWindows}"/>
-                                    </Grid>
-
-                                    <Border Height="1"
-                                            Background="{DynamicResource ControlStrokeColorDefaultBrush}"
-                                            Margin="0,8"/>
-
-                                    <!-- Enforcement toggle -->
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                            <TextBlock Text="Enforce brightness" FontSize="13"/>
-                                            <TextBlock Text="Re-applies brightness periodically"
-                                                       FontSize="11"
-                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                        </StackPanel>
-                                        <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding EnforcementEnabled}"/>
-                                    </Grid>
-
-                                    <!-- Enforcement interval (visible when enabled) -->
-                                    <Grid Margin="0,8,0,0"
-                                          Visibility="{Binding EnforcementEnabled, Converter={StaticResource BoolToVisibility}}">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="140"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="Interval"
-                                                   FontSize="13" VerticalAlignment="Center"
-                                                   Margin="16,0,0,0"/>
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal"
-                                                    HorizontalAlignment="Right" VerticalAlignment="Center">
-                                            <Slider Width="80"
-                                                    Minimum="5" Maximum="120"
-                                                    Value="{Binding EnforcementIntervalSeconds}"
-                                                    TickFrequency="5" IsSnapToTickEnabled="True"
-                                                    IsMoveToPointEnabled="True"
-                                                    VerticalAlignment="Center"/>
-                                            <TextBlock FontSize="13" VerticalAlignment="Center" Margin="8,0,0,0"
-                                                       MinWidth="32"
-                                                       Text="{Binding EnforcementIntervalSeconds, StringFormat='{}{0}s'}"/>
-                                        </StackPanel>
-                                    </Grid>
+                                            VerticalAlignment="Center"/>
+                                    <TextBlock FontSize="13" VerticalAlignment="Center" Margin="8,0,0,0"
+                                               MinWidth="32"
+                                               Text="{Binding EnforcementIntervalSeconds, StringFormat='{}{0}s'}"/>
                                 </StackPanel>
-                            </ui:Card>
+                            </Grid>
                         </StackPanel>
-                    </ScrollViewer>
-                </TabItem>
+                    </ui:Card>
 
-                <!-- Monitors Tab -->
-                <TabItem Header="Monitors">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8,16,16">
-                        <StackPanel Width="390">
-                            <!-- Empty state -->
-                            <TextBlock Text="{Binding EmptyStateText}"
-                                       FontSize="13"
-                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                       HorizontalAlignment="Center"
-                                       Margin="0,20,0,0">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding HasMonitors}" Value="False">
-                                                <Setter Property="Visibility" Value="Visible"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
+                    <!-- Monitors -->
+                    <TextBlock Style="{StaticResource SectionHeader}" Text="Monitors"/>
 
-                            <!-- Monitor list -->
-                            <ItemsControl ItemsSource="{Binding Monitors}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <ui:Card Margin="0,0,0,8" Padding="12,10">
-                                            <StackPanel>
-                                                <!-- Header row -->
-                                                <Grid>
+                    <!-- Empty state -->
+                    <TextBlock Text="{Binding EmptyStateText}"
+                               FontSize="13"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               HorizontalAlignment="Center"
+                               Margin="0,8,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasMonitors}" Value="False">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
+                    <!-- Monitor list -->
+                    <ItemsControl ItemsSource="{Binding Monitors}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <ui:Card Margin="0,0,0,8" Padding="12,10"
+                                        Cursor="Hand"
+                                        MouseLeftButtonDown="MonitorCard_MouseLeftButtonDown">
+                                    <StackPanel>
+                                        <!-- Header row -->
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <ToggleButton Grid.Column="0"
+                                                          Style="{StaticResource ChevronToggle}"
+                                                          IsChecked="{Binding IsExpanded}"
+                                                          IsHitTestVisible="False"
+                                                          VerticalAlignment="Center"/>
+
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="8,0">
+                                                <TextBlock Text="{Binding DisplayName}"
+                                                           FontSize="13" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                                                <TextBlock Text="{Binding InfoLine}"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                           Margin="0,2,0,0"/>
+                                            </StackPanel>
+
+                                            <ui:ToggleSwitch Grid.Column="2"
+                                                             IsChecked="{Binding Enabled}"
+                                                             IsEnabled="{Binding CanToggleEnabled}"
+                                                             VerticalAlignment="Center"
+                                                             Margin="8,0,0,0"/>
+                                        </Grid>
+
+                                        <!-- Expandable content -->
+                                        <StackPanel Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}"
+                                                    IsEnabled="{Binding Enabled}"
+                                                    Margin="32,10,0,0">
+
+                                            <!-- DDC/CI controls -->
+                                            <StackPanel IsEnabled="{Binding SupportsDdcCi}">
+                                                <!-- Min brightness -->
+                                                <Grid Margin="0,2">
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="44"/>
                                                         <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="42"/>
                                                     </Grid.ColumnDefinitions>
-
-                                                    <ToggleButton Grid.Column="0"
-                                                                  Style="{StaticResource ChevronToggle}"
-                                                                  IsChecked="{Binding IsExpanded}"
-                                                                  VerticalAlignment="Center"/>
-
-                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="8,0">
-                                                        <TextBlock Text="{Binding DisplayName}"
-                                                                   FontSize="13" FontWeight="SemiBold"
-                                                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
-                                                        <TextBlock Text="{Binding InfoLine}"
-                                                                   FontSize="11"
-                                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                                                   Margin="0,2,0,0"/>
-                                                    </StackPanel>
-
-                                                    <ui:ToggleSwitch Grid.Column="2"
-                                                                     IsChecked="{Binding Enabled}"
-                                                                     VerticalAlignment="Center"
-                                                                     Margin="8,0,0,0"/>
+                                                    <TextBlock Grid.Column="0" Style="{StaticResource SliderLabel}" Text="Min"/>
+                                                    <Slider Grid.Column="1"
+                                                            Minimum="0" Maximum="100"
+                                                            Value="{Binding MinBrightness}"
+                                                            TickFrequency="5" IsSnapToTickEnabled="True"
+                                                            IsMoveToPointEnabled="True"
+                                                            VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Style="{StaticResource SliderValue}"
+                                                               Text="{Binding MinBrightness, StringFormat='{}{0}%'}"/>
                                                 </Grid>
 
-                                                <!-- Expandable content -->
-                                                <StackPanel Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}"
-                                                            IsEnabled="{Binding Enabled}"
-                                                            Margin="32,10,0,0">
+                                                <!-- Max brightness -->
+                                                <Grid Margin="0,2">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="44"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="42"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Style="{StaticResource SliderLabel}" Text="Max"/>
+                                                    <Slider Grid.Column="1"
+                                                            Minimum="0" Maximum="100"
+                                                            Value="{Binding MaxBrightness}"
+                                                            TickFrequency="5" IsSnapToTickEnabled="True"
+                                                            IsMoveToPointEnabled="True"
+                                                            VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Style="{StaticResource SliderValue}"
+                                                               Text="{Binding MaxBrightness, StringFormat='{}{0}%'}"/>
+                                                </Grid>
 
-                                                    <!-- DDC/CI controls -->
-                                                    <StackPanel IsEnabled="{Binding SupportsDdcCi}">
-                                                        <!-- Min brightness -->
-                                                        <Grid Margin="0,2">
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="44"/>
-                                                                <ColumnDefinition Width="*"/>
-                                                                <ColumnDefinition Width="42"/>
-                                                            </Grid.ColumnDefinitions>
-                                                            <TextBlock Grid.Column="0" Style="{StaticResource SliderLabel}" Text="Min"/>
-                                                            <Slider Grid.Column="1"
-                                                                    Minimum="0" Maximum="100"
-                                                                    Value="{Binding MinBrightness}"
-                                                                    TickFrequency="5" IsSnapToTickEnabled="True"
-                                                                    IsMoveToPointEnabled="True"
-                                                                    VerticalAlignment="Center"/>
-                                                            <TextBlock Grid.Column="2" Style="{StaticResource SliderValue}"
-                                                                       Text="{Binding MinBrightness, StringFormat='{}{0}%'}"/>
-                                                        </Grid>
+                                                <!-- Scale multiplier -->
+                                                <Grid Margin="0,2">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="44"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="42"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Style="{StaticResource SliderLabel}" Text="Scale"/>
+                                                    <Slider Grid.Column="1"
+                                                            Minimum="0.1" Maximum="3.0"
+                                                            Value="{Binding Multiplier}"
+                                                            SmallChange="0.05" LargeChange="0.25"
+                                                            IsMoveToPointEnabled="True"
+                                                            VerticalAlignment="Center"
+                                                            ToolTip="1.0 = match internal · 1.5 = 50% brighter"/>
+                                                    <TextBlock Grid.Column="2" Style="{StaticResource SliderValue}"
+                                                               Text="{Binding MultiplierDisplay}"/>
+                                                </Grid>
 
-                                                        <!-- Max brightness -->
-                                                        <Grid Margin="0,2">
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="44"/>
-                                                                <ColumnDefinition Width="*"/>
-                                                                <ColumnDefinition Width="42"/>
-                                                            </Grid.ColumnDefinitions>
-                                                            <TextBlock Grid.Column="0" Style="{StaticResource SliderLabel}" Text="Max"/>
-                                                            <Slider Grid.Column="1"
-                                                                    Minimum="0" Maximum="100"
-                                                                    Value="{Binding MaxBrightness}"
-                                                                    TickFrequency="5" IsSnapToTickEnabled="True"
-                                                                    IsMoveToPointEnabled="True"
-                                                                    VerticalAlignment="Center"/>
-                                                            <TextBlock Grid.Column="2" Style="{StaticResource SliderValue}"
-                                                                       Text="{Binding MaxBrightness, StringFormat='{}{0}%'}"/>
-                                                        </Grid>
-
-                                                        <!-- Scale multiplier -->
-                                                        <Grid Margin="0,2">
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="44"/>
-                                                                <ColumnDefinition Width="*"/>
-                                                                <ColumnDefinition Width="42"/>
-                                                            </Grid.ColumnDefinitions>
-                                                            <TextBlock Grid.Column="0" Style="{StaticResource SliderLabel}" Text="Scale"/>
-                                                            <Slider Grid.Column="1"
-                                                                    Minimum="0.1" Maximum="3.0"
-                                                                    Value="{Binding Multiplier}"
-                                                                    SmallChange="0.05" LargeChange="0.25"
-                                                                    IsMoveToPointEnabled="True"
-                                                                    VerticalAlignment="Center"
-                                                                    ToolTip="1.0 = match internal · 1.5 = 50% brighter"/>
-                                                            <TextBlock Grid.Column="2" Style="{StaticResource SliderValue}"
-                                                                       Text="{Binding MultiplierDisplay}"/>
-                                                        </Grid>
-
-                                                        <!-- Live target -->
-                                                        <TextBlock Text="{Binding TargetText}"
-                                                                   FontSize="11"
-                                                                   Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
-                                                                   Margin="0,6,0,0"/>
-                                                    </StackPanel>
-
-                                                    <!-- No DDC/CI notice -->
-                                                    <TextBlock FontSize="11"
-                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                                               Margin="0,4,0,0">
-                                                        <TextBlock.Style>
-                                                            <Style TargetType="TextBlock">
-                                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding SupportsDdcCi}" Value="False">
-                                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                                        <Setter Property="Text" Value="DDC/CI not supported — brightness control unavailable"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </TextBlock.Style>
-                                                    </TextBlock>
-
-                                                    <!-- Reset button -->
-                                                    <Grid Margin="0,8,0,0">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <ui:Button Grid.Column="1"
-                                                                   Content="Reset"
-                                                                   Command="{Binding ResetCommand}"
-                                                                   Appearance="Secondary"/>
-                                                    </Grid>
-                                                </StackPanel>
+                                                <!-- Live target -->
+                                                <TextBlock Text="{Binding TargetText}"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                                                           Margin="0,6,0,0"/>
                                             </StackPanel>
-                                        </ui:Card>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </ScrollViewer>
-                </TabItem>
-            </TabControl>
+
+                                            <!-- No DDC/CI notice -->
+                                            <TextBlock FontSize="11"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                       Margin="0,4,0,0">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding SupportsDdcCi}" Value="False">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                <Setter Property="Text" Value="DDC/CI not supported — brightness control unavailable"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+
+                                            <!-- Reset button -->
+                                            <Grid Margin="0,8,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <ui:Button Grid.Column="1"
+                                                           Content="Reset"
+                                                           Command="{Binding ResetCommand}"
+                                                           Appearance="Secondary"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </ui:Card>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </ScrollViewer>
 
             <!-- Bottom action bar -->
             <Border Grid.Row="2"

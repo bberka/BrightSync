@@ -1,4 +1,5 @@
 using System.Drawing.Drawing2D;
+using System.Windows;
 using WpfApp = System.Windows.Application;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
@@ -104,6 +105,7 @@ public sealed class TrayManager(BrightSyncEngine engine, ConfigManager config, D
         {
             _quickVm = new QuickBrightnessViewModel(engine, ddc, config, ShowSettings);
             _quickPopup = new QuickBrightnessWindow { DataContext = _quickVm };
+            _quickPopup.Deactivated += (s, e) => _quickPopup.Hide(); // Hide when clicking away
             _quickPopup.IsVisibleChanged += (_, _) =>
             {
                 if (_quickPopup is { IsVisible: false })
@@ -115,8 +117,33 @@ public sealed class TrayManager(BrightSyncEngine engine, ConfigManager config, D
             _quickVm?.Refresh();
         }
 
+        PositionWindowAboveTray(_quickPopup);
+
         _quickPopup.Show();
         _quickPopup.Activate();
+    }
+
+    private void PositionWindowAboveTray(Window window)
+    {
+        // 1. Get the working area (excludes taskbar)
+        var desktopWorkingArea = SystemParameters.WorkArea;
+
+        // 2. Get current mouse position (near the tray icon)
+        var mousePos = System.Windows.Forms.Control.MousePosition;
+
+        // 3. Calculate Left (align center to mouse, or just snap to right)
+        // Most tray popups snap to the right edge of the screen
+        double padding = 12;
+        window.Left = desktopWorkingArea.Right - window.Width - padding;
+
+        // 4. Calculate Top
+        // Since SizeToContent="Height" is used, we must force a measure 
+        // to know the height before the window is actually rendered.
+        window.Measure(new System.Windows.Size(window.Width, double.PositiveInfinity));
+        var windowHeight = window.DesiredSize.Height;
+
+        // Position it exactly at the top edge of the taskbar minus our padding
+        window.Top = desktopWorkingArea.Bottom - windowHeight - padding;
     }
 
     private void RefreshMonitors()
