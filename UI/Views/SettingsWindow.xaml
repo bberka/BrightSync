@@ -443,51 +443,42 @@
                     BorderThickness="0,1,0,0"
                     BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
                     Padding="16,10">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0"
-                               Text="{Binding StatusText}"
+                <StackPanel>
+                    <TextBlock Text="{Binding StatusText}"
                                FontSize="11"
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                               VerticalAlignment="Center"/>
-                    <ui:Button Grid.Column="1"
-                               Content="&#xE777;"
-                               Command="{Binding ResetAllCommand}"
-                               Appearance="Secondary"
-                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
-                               FontSize="14"
-                               ToolTip="Reset All"
-                               Margin="0,0,6,0"/>
-                    <ui:Button Grid.Column="2"
-                               Content="&#xE895;"
-                               Command="{Binding CheckForUpdatesCommand}"
-                               Appearance="Secondary"
-                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
-                               FontSize="14"
-                               ToolTip="Check for Updates"
-                               Margin="0,0,6,0"/>
-                    <ui:Button Grid.Column="3"
-                               Content="&#xE72C;"
-                               Command="{Binding RefreshCommand}"
-                               Appearance="Secondary"
-                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
-                               FontSize="14"
-                               ToolTip="Refresh Monitors"
-                               Margin="0,0,6,0"/>
-                    <ui:Button Grid.Column="4"
-                               Content="&#xE74E;"
-                               Command="{Binding SaveCommand}"
-                               Appearance="Primary"
-                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
-                               FontSize="14"
-                               ToolTip="Save"/>
-                </Grid>
+                               TextWrapping="Wrap"
+                               MinHeight="16"
+                               Margin="0,0,0,8"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ui:Button Grid.Column="1"
+                                   Content="Reset All"
+                                   Command="{Binding ResetAllCommand}"
+                                   Appearance="Secondary"
+                                   Margin="0,0,6,0"/>
+                        <ui:Button Grid.Column="2"
+                                   Content="Check Updates"
+                                   Command="{Binding CheckForUpdatesCommand}"
+                                   Appearance="Secondary"
+                                   Margin="0,0,6,0"/>
+                        <ui:Button Grid.Column="3"
+                                   Content="Refresh"
+                                   Command="{Binding RefreshCommand}"
+                                   Appearance="Secondary"
+                                   Margin="0,0,6,0"/>
+                        <ui:Button Grid.Column="4"
+                                   Content="Save"
+                                   Command="{Binding SaveCommand}"
+                                   Appearance="Primary"/>
+                    </Grid>
+                </StackPanel>
             </Border>
 
             <!-- Exit confirmation overlay -->
