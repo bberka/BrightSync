@@ -37,8 +37,13 @@ public sealed class UpdateChecker : IDisposable
 
     public void Start()
     {
-        _ = CheckForUpdatesIfNeededAsync();
+        _ = CheckNowAsync();
         ScheduleNextMidnightCheck();
+    }
+
+    public async Task<UpdateCheckResult> CheckNowAsync(bool force = false)
+    {
+        return await CheckForUpdatesIfNeededAsync(force);
     }
 
     public void Dispose()
@@ -49,15 +54,15 @@ public sealed class UpdateChecker : IDisposable
         _timer.Dispose();
     }
 
-    private async Task CheckForUpdatesIfNeededAsync()
+    private async Task<UpdateCheckResult> CheckForUpdatesIfNeededAsync(bool force = false)
     {
         try
         {
             var today = DateOnly.FromDateTime(DateTime.Now);
-            if (_configManager.Config.LastUpdateCheckDate == today)
+            if (!force && _configManager.Config.LastUpdateCheckDate == today)
             {
                 Log.Debug("Update check skipped because it already ran on {Date}", today);
-                return;
+                return UpdateCheckResult.Skipped(today);
             }
 
             var latestVersion = await GetLatestReleaseVersionAsync();
@@ -73,22 +78,24 @@ public sealed class UpdateChecker : IDisposable
             }
 
             var currentVersion = AppVersionInfo.GetCurrentVersion();
-            if (latestVersion is not null && currentVersion is not null && latestVersion > currentVersion)
+            if (latestVersion is not null && currentVersion is not null && latestVersion != currentVersion)
             {
                 Log.Information("New version available. CurrentVersion={CurrentVersion}, LatestVersion={LatestVersion}",
                     currentVersion, latestVersion);
                 OpenReleasesPage();
+                return UpdateCheckResult.UpdateAvailable(currentVersion, latestVersion);
             }
-            else
-            {
-                Log.Debug("No update required. CurrentVersion={CurrentVersion}, LatestVersion={LatestVersion}",
-                    currentVersion, latestVersion);
-            }
+
+            Log.Debug("No update required. CurrentVersion={CurrentVersion}, LatestVersion={LatestVersion}",
+                currentVersion, latestVersion);
+            return latestVersion is null
+                ? UpdateCheckResult.Unavailable(currentVersion)
+                : UpdateCheckResult.UpToDate(currentVersion, latestVersion);
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "Update check failed but will be retried later");
-            // Ignore network or parsing failures and try again on the next schedule/startup.
+            return UpdateCheckResult.Failed(ex);
         }
         finally
         {
@@ -160,4 +167,36 @@ public sealed class UpdateChecker : IDisposable
         client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         return client;
     }
+}
+
+public sealed record UpdateCheckResult(
+    UpdateCheckStatus Status,
+    Version? CurrentVersion = null,
+    Version? LatestVersion = null,
+    DateOnly? LastCheckedDate = null,
+    Exception? Error = null)
+{
+    public static UpdateCheckResult Skipped(DateOnly date)
+        => new(UpdateCheckStatus.SkippedAlreadyCheckedToday, LastCheckedDate: date);
+
+    public static UpdateCheckResult UpdateAvailable(Version? currentVersion, Version latestVersion)
+        => new(UpdateCheckStatus.UpdateAvailable, currentVersion, latestVersion);
+
+    public static UpdateCheckResult UpToDate(Version? currentVersion, Version latestVersion)
+        => new(UpdateCheckStatus.UpToDate, currentVersion, latestVersion);
+
+    public static UpdateCheckResult Unavailable(Version? currentVersion)
+        => new(UpdateCheckStatus.LatestVersionUnavailable, currentVersion);
+
+    public static UpdateCheckResult Failed(Exception error)
+        => new(UpdateCheckStatus.Failed, Error: error);
+}
+
+public enum UpdateCheckStatus
+{
+    SkippedAlreadyCheckedToday,
+    UpdateAvailable,
+    UpToDate,
+    LatestVersionUnavailable,
+    Failed
 }

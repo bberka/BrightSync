@@ -5,6 +5,7 @@ using BrightSync.Core;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;
+using BrightSync.Core.Updates;
 using BrightSync.UI.ViewModels;
 
 namespace BrightSync.UI.Views;
@@ -15,11 +16,11 @@ public partial class SettingsWindow : Window
 
     private readonly SettingsWindowViewModel _vm;
 
-    public SettingsWindow(BrightSyncEngine engine, ConfigManager config, DdcCiService ddc)
+    public SettingsWindow(BrightSyncEngine engine, ConfigManager config, DdcCiService ddc, UpdateChecker updateChecker)
     {
         InitializeComponent();
         Title = AppVersionInfo.GetDisplayTitle();
-        _vm = new SettingsWindowViewModel(engine, config, ddc);
+        _vm = new SettingsWindowViewModel(engine, config, ddc, updateChecker);
         DataContext = _vm;
         Loaded += (_, _) => PositionBottomRight();
         SizeChanged += (_, _) =>

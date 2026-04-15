@@ -4,6 +4,7 @@ using WpfApp = System.Windows.Application;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;
+using BrightSync.Core.Updates;
 using BrightSync.UI.ViewModels;
 using BrightSync.UI.Views;
 using Serilog;
@@ -14,7 +15,7 @@ namespace BrightSync.UI;
 /// Manages the system tray icon, context menu, quick brightness popup, and the settings window.
 /// Left-click toggles the quick brightness popup; right-click shows the context menu.
 /// </summary>
-public sealed class TrayManager(BrightSyncEngine engine, ConfigManager config, DdcCiService ddc)
+public sealed class TrayManager(BrightSyncEngine engine, ConfigManager config, DdcCiService ddc, UpdateChecker updateChecker)
     : IDisposable
 {
     public event EventHandler? ExitRequested;
@@ -70,7 +71,7 @@ public sealed class TrayManager(BrightSyncEngine engine, ConfigManager config, D
 
             if (_settingsWindow == null || !_settingsWindow.IsLoaded)
             {
-                _settingsWindow = new SettingsWindow(engine, config, ddc);
+                _settingsWindow = new SettingsWindow(engine, config, ddc, updateChecker);
                 _settingsWindow.ExitRequested += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
                 _settingsWindow.Show();
             }

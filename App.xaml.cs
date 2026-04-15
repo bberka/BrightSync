@@ -65,7 +65,7 @@ public partial class App
         _updateChecker.Start();
         Log.Information("Update checker started");
 
-        _trayManager = new TrayManager(_syncEngine, configManager, _ddcService);
+        _trayManager = new TrayManager(_syncEngine, configManager, _ddcService, _updateChecker);
         _trayManager.ExitRequested += (_, _) => ExitApp();
         _trayManager.Initialize();
         Log.Information("Tray manager initialized");

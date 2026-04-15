@@ -5,6 +5,7 @@ using System.Windows.Input;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;
+using BrightSync.Core.Updates;
 using Serilog;
 
 namespace BrightSync.UI.ViewModels;
@@ -16,7 +17,9 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     private readonly BrightSyncEngine _engine;
     private readonly ConfigManager _config;
     private readonly DdcCiService _ddc;
+    private readonly UpdateChecker _updateChecker;
     private bool _isUpdatingInternalBrightness;
+    private bool _isCheckingForUpdates;
     private System.Threading.Timer? _statusTimer;
     private System.Threading.Timer? _brightnessDebounce;
 
@@ -89,6 +92,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     public ICommand SaveCommand { get; }
     public ICommand RefreshCommand { get; }
     public ICommand ResetAllCommand { get; }
+    public RelayCommand CheckForUpdatesCommand { get; }
 
     public string StatusText { get; private set; } = string.Empty;
     public string EmptyStateText { get; private set; } = string.Empty;
@@ -96,11 +100,13 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     public SettingsWindowViewModel(
         BrightSyncEngine engine,
         ConfigManager config,
-        DdcCiService ddc)
+        DdcCiService ddc,
+        UpdateChecker updateChecker)
     {
         _engine = engine;
         _config = config;
         _ddc = ddc;
+        _updateChecker = updateChecker;
 
         var initial = engine.LastInternalBrightness;
         _internalBrightness = initial >= 0 ? initial : 50;
@@ -111,6 +117,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         SaveCommand = new RelayCommand(Save);
         RefreshCommand = new RelayCommand(Refresh);
         ResetAllCommand = new RelayCommand(ResetAll);
+        CheckForUpdatesCommand = new RelayCommand(CheckForUpdates, () => !_isCheckingForUpdates);
 
         engine.InternalBrightnessChanged += OnInternalBrightnessChanged;
         BuildMonitorList();
@@ -190,6 +197,47 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
         SetStatus("Reset all settings to defaults. Save to persist.");
         Log.Warning("All settings were reset to defaults in the UI");
+    }
+
+    private void CheckForUpdates()
+    {
+        if (_isCheckingForUpdates)
+            return;
+
+        _isCheckingForUpdates = true;
+        CheckForUpdatesCommand.Raise();
+        SetStatus("Checking for updates...");
+
+        Task.Run(async () =>
+        {
+            var result = await _updateChecker.CheckNowAsync(force: true);
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                _isCheckingForUpdates = false;
+                CheckForUpdatesCommand.Raise();
+                SetStatus(BuildUpdateStatusText(result));
+            });
+        });
+    }
+
+    private static string BuildUpdateStatusText(UpdateCheckResult result)
+    {
+        return result.Status switch
+        {
+            UpdateCheckStatus.UpdateAvailable =>
+                $"Update available: v{result.LatestVersion} (current v{result.CurrentVersion}). Opening releases page.",
+            UpdateCheckStatus.UpToDate =>
+                result.CurrentVersion is null
+                    ? "You are up to date."
+                    : $"You are up to date (v{result.CurrentVersion}).",
+            UpdateCheckStatus.LatestVersionUnavailable =>
+                "Unable to determine the latest version from GitHub.",
+            UpdateCheckStatus.Failed =>
+                $"Update check failed: {result.Error?.Message ?? "Unknown error."}",
+            UpdateCheckStatus.SkippedAlreadyCheckedToday =>
+                $"Update check already ran today ({result.LastCheckedDate:yyyy-MM-dd}).",
+            _ => "Update check finished."
+        };
     }
 
     private void OnMonitorReset()
