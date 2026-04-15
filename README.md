@@ -8,10 +8,12 @@ On laptops and other systems where Windows exposes the built-in brightness slide
 
 ## Screenshots
 
-Quick Menu
+### Quick Menu
+
 ![App Screenshot](assets/quick_menu.png)
 
-Settings Menu
+### Settings Menu
+
 ![App Screenshot](assets/settings_menu.png)
 
 ## How It Works
