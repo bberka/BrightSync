@@ -6,6 +6,7 @@ using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;
 using BrightSync.UI.ViewModels;
 using BrightSync.UI.Views;
+using Serilog;
 
 namespace BrightSync.UI;
 
@@ -45,7 +46,10 @@ public sealed class TrayManager(BrightSyncEngine engine, ConfigManager config, D
         _notifyIcon.MouseClick += (_, e) =>
         {
             if (e.Button == MouseButtons.Left)
+            {
+                Log.Debug("Tray icon left click received");
                 ToggleQuickPopup();
+            }
         };
 
         engine.InternalBrightnessChanged += (_, b) =>
@@ -58,6 +62,7 @@ public sealed class TrayManager(BrightSyncEngine engine, ConfigManager config, D
     /// <summary>Opens the full settings window (used by context menu and quick popup).</summary>
     public void ShowSettings()
     {
+        Log.Information("Opening settings window");
         WpfApp.Current.Dispatcher.Invoke(() =>
         {
             _quickPopup?.Hide();
@@ -87,13 +92,17 @@ public sealed class TrayManager(BrightSyncEngine engine, ConfigManager config, D
         {
             if (_quickPopup?.IsVisible == true)
             {
+                Log.Debug("Hiding quick brightness popup");
                 _quickPopup.Hide();
                 return;
             }
 
             // Prevent re-show if just closed by deactivation (tray icon click steals focus)
             if ((DateTime.UtcNow - _lastPopupClosed).TotalMilliseconds < 300)
+            {
+                Log.Debug("Quick brightness popup reopen suppressed due to recent close");
                 return;
+            }
 
             ShowQuickPopup();
         });
@@ -123,6 +132,7 @@ public sealed class TrayManager(BrightSyncEngine engine, ConfigManager config, D
         PositionWindowAboveTray(_quickPopup);
         _quickPopup.Opacity = 1;
         _quickPopup.Activate();
+        Log.Debug("Quick brightness popup shown");
     }
 
     private void PositionWindowAboveTray(Window window)
@@ -138,6 +148,7 @@ public sealed class TrayManager(BrightSyncEngine engine, ConfigManager config, D
 
     private void RefreshMonitors()
     {
+        Log.Information("Tray action requested monitor refresh");
         Task.Run(() =>
         {
             engine.RefreshMonitors();
@@ -179,6 +190,7 @@ public sealed class TrayManager(BrightSyncEngine engine, ConfigManager config, D
     {
         if (_disposed) return;
         _disposed = true;
+        Log.Debug("Disposing tray manager");
         _quickVm?.Dispose();
         _quickPopup?.Close();
         _notifyIcon?.Dispose();

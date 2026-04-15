@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Net.Http;
 using System.Text.Json;
 using BrightSync.Core.Config;
+using Serilog;
 using Timer = System.Threading.Timer;
 
 namespace BrightSync.Core.Updates;
@@ -28,7 +29,7 @@ public sealed class UpdateChecker : IDisposable
                 }
                 catch (Exception e)
                 {
-                    throw; //TODO: Handle, log properly
+                    Log.Error(e, "Background update check failed");
                 }
             }, null, Timeout.InfiniteTimeSpan,
             Timeout.InfiniteTimeSpan);
@@ -44,6 +45,7 @@ public sealed class UpdateChecker : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        Log.Debug("Disposing update checker");
         _timer.Dispose();
     }
 
@@ -54,21 +56,38 @@ public sealed class UpdateChecker : IDisposable
             var today = DateOnly.FromDateTime(DateTime.Now);
             if (_configManager.Config.LastUpdateCheckDate == today)
             {
+                Log.Debug("Update check skipped because it already ran on {Date}", today);
                 return;
             }
 
             var latestVersion = await GetLatestReleaseVersionAsync();
             _configManager.Config.LastUpdateCheckDate = today;
             _configManager.Save();
+            if (latestVersion is null)
+            {
+                Log.Warning("Update check completed but no parseable release version was found");
+            }
+            else
+            {
+                Log.Information("Latest available version detected: {LatestVersion}", latestVersion);
+            }
 
             var currentVersion = AppVersionInfo.GetCurrentVersion();
             if (latestVersion is not null && currentVersion is not null && latestVersion > currentVersion)
             {
+                Log.Information("New version available. CurrentVersion={CurrentVersion}, LatestVersion={LatestVersion}",
+                    currentVersion, latestVersion);
                 OpenReleasesPage();
             }
+            else
+            {
+                Log.Debug("No update required. CurrentVersion={CurrentVersion}, LatestVersion={LatestVersion}",
+                    currentVersion, latestVersion);
+            }
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Warning(ex, "Update check failed but will be retried later");
             // Ignore network or parsing failures and try again on the next schedule/startup.
         }
         finally
@@ -90,6 +109,7 @@ public sealed class UpdateChecker : IDisposable
         }
 
         _timer.Change(dueTime, Timeout.InfiniteTimeSpan);
+        Log.Debug("Scheduled next update check in {DueTime}", dueTime);
     }
 
     private static async Task<Version?> GetLatestReleaseVersionAsync()

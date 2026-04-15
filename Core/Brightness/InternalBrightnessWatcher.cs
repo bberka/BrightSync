@@ -1,4 +1,5 @@
 using System.Management;
+using Serilog;
 
 namespace BrightSync.Core.Brightness;
 
@@ -30,9 +31,9 @@ public sealed class InternalBrightnessWatcher : IDisposable
                 return Convert.ToInt32(obj["CurrentBrightness"]);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            /* DDC-only setup or elevated access needed */
+            Log.Debug(ex, "Current internal brightness could not be read from WMI");
         }
 
         return -1;
@@ -42,9 +43,14 @@ public sealed class InternalBrightnessWatcher : IDisposable
     public void Start()
     {
         _lastBrightness = ReadCurrentBrightness();
-        if (TryStartEventWatcher()) return;
+        if (TryStartEventWatcher())
+        {
+            Log.Information("Internal brightness watcher started in WMI event mode");
+            return;
+        }
         // Fallback: poll every 500 ms
         StartPolling();
+        Log.Warning("Internal brightness watcher fell back to polling mode");
     }
 
     /// <summary>Sets the internal display brightness via WMI.</summary>
@@ -70,12 +76,20 @@ public sealed class InternalBrightnessWatcher : IDisposable
             }
 
             if (updated)
+            {
                 FireIfChanged(brightness);
+                Log.Debug("Internal brightness set through WMI to {Brightness}%", brightness);
+            }
+            else
+            {
+                Log.Warning("No WMI brightness targets were available for internal brightness update");
+            }
 
             return updated;
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Warning(ex, "Failed to set internal brightness through WMI");
             return false;
         }
     }
@@ -95,10 +109,11 @@ public sealed class InternalBrightnessWatcher : IDisposable
             _eventWatcher.Start();
             return true;
         }
-        catch
+        catch (Exception ex)
         {
             _eventWatcher?.Dispose();
             _eventWatcher = null;
+            Log.Warning(ex, "Failed to start WMI event watcher for internal brightness");
             return false;
         }
     }
@@ -113,9 +128,9 @@ public sealed class InternalBrightnessWatcher : IDisposable
                 FireIfChanged(brightness);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            /* ignore malformed events */
+            Log.Debug(ex, "Ignoring malformed internal brightness event");
         }
     }
 
@@ -128,6 +143,7 @@ public sealed class InternalBrightnessWatcher : IDisposable
             if (b >= 0) FireIfChanged(b);
         };
         _pollTimer.Start();
+        Log.Debug("Internal brightness polling timer started");
     }
 
     private void FireIfChanged(int brightness)
@@ -141,6 +157,7 @@ public sealed class InternalBrightnessWatcher : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        Log.Debug("Disposing internal brightness watcher");
         _eventWatcher?.Stop();
         _eventWatcher?.Dispose();
         _pollTimer?.Stop();

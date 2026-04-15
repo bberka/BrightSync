@@ -5,6 +5,7 @@ using System.Windows.Input;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;
+using Serilog;
 
 namespace BrightSync.UI.ViewModels;
 
@@ -40,6 +41,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             _brightnessDebounce?.Dispose();
             _brightnessDebounce = new System.Threading.Timer(_ =>
             {
+                Log.Debug("Settings window requested internal brightness change to {Brightness}%", _internalBrightness);
                 if (!_engine.TrySetInternalBrightness(_internalBrightness))
                 {
                     System.Windows.Application.Current.Dispatcher.Invoke(() =>
@@ -129,6 +131,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         else
             EmptyStateText = string.Empty;
         OnChanged(nameof(EmptyStateText));
+        Log.Information("Settings monitor list rebuilt. MonitorCount={MonitorCount}", Monitors.Count);
     }
 
     private void OnInternalBrightnessChanged(object? sender, int brightness)
@@ -148,10 +151,12 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _config.Save();
         _engine.ForceSync();
         SetStatus($"Saved at {DateTime.Now:HH:mm:ss}");
+        Log.Information("Settings saved from UI");
     }
 
     private void Refresh()
     {
+        Log.Information("Settings UI requested monitor refresh");
         SetStatus("Refreshing monitors\u2026");
         Task.Run(() =>
         {
@@ -175,6 +180,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             monitor.Reset();
 
         SetStatus("Reset all settings to defaults. Save to persist.");
+        Log.Warning("All settings were reset to defaults in the UI");
     }
 
     private void OnMonitorReset()
@@ -207,5 +213,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _brightnessDebounce?.Dispose();
         _statusTimer?.Dispose();
         _engine.InternalBrightnessChanged -= OnInternalBrightnessChanged;
+        Log.Debug("Disposed settings window view model");
     }
 }

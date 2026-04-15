@@ -5,6 +5,7 @@ using System.Windows.Input;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;
+using Serilog;
 
 namespace BrightSync.UI.ViewModels;
 
@@ -37,6 +38,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
                 _brightnessDebounce?.Dispose();
                 _brightnessDebounce = new System.Threading.Timer(_ =>
                 {
+                    Log.Debug("Quick popup requested internal brightness change to {Brightness}%", _internalBrightness);
                     _engine.TrySetInternalBrightness(_internalBrightness);
                 }, null, 300, System.Threading.Timeout.Infinite);
             }
@@ -71,6 +73,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
     /// <summary>Refreshes brightness + monitor targets — call when showing the popup.</summary>
     public void Refresh()
     {
+        Log.Debug("Refreshing quick brightness view model");
         _isUpdating = true;
         var b = _engine.LastInternalBrightness;
         InternalBrightness = b >= 0 ? b : _internalBrightness;
@@ -121,6 +124,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
     {
         _brightnessDebounce?.Dispose();
         _engine.InternalBrightnessChanged -= OnBrightnessChanged;
+        Log.Debug("Disposed quick brightness view model");
     }
 }
 

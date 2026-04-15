@@ -1,6 +1,7 @@
 using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;
 using Microsoft.Win32;
+using Serilog;
 
 namespace BrightSync.Core.Brightness;
 
@@ -47,11 +48,18 @@ public sealed class BrightSyncEngine : IDisposable
         if (current >= 0)
         {
             _lastInternalBrightness = current;
+            Log.Information("Initial internal brightness detected at {Brightness}%", current);
             SyncAllMonitors();
+        }
+        else
+        {
+            Log.Warning("No internal brightness source detected during startup; virtual brightness fallback may be used");
         }
 
         _watcher.Start();
         _enforcementTimer.Start();
+        Log.Debug("Brightness watcher and enforcement timer started. IntervalSeconds={IntervalSeconds}",
+            Math.Max(5, _config.Config.EnforcementIntervalSeconds));
 
         SystemEvents.PowerModeChanged += OnPowerModeChanged;
     }
@@ -71,13 +79,22 @@ public sealed class BrightSyncEngine : IDisposable
     public void ForceSync()
     {
         if (_lastInternalBrightness >= 0)
+        {
+            Log.Debug("Force sync requested at internal brightness {Brightness}%", _lastInternalBrightness);
             SyncAllMonitors();
+        }
+        else
+        {
+            Log.Debug("Force sync skipped because no internal brightness value is available");
+        }
     }
 
     /// <summary>Call after monitor list or config changes to rebuild DDC handles.</summary>
     public void RefreshMonitors()
     {
+        Log.Information("Refreshing monitor list");
         _ddc.Refresh();
+        Log.Information("Monitor refresh complete. KnownMonitors={MonitorCount}", _ddc.GetMonitors().Count);
         ForceSync();
     }
 
@@ -92,8 +109,14 @@ public sealed class BrightSyncEngine : IDisposable
         if (!result)
         {
             _lastInternalBrightness = brightness;
+            Log.Warning("Internal brightness could not be set through WMI; using virtual brightness fallback at {Brightness}%",
+                brightness);
             InternalBrightnessChanged?.Invoke(this, brightness);
             Task.Run(() => SyncAllMonitors());
+        }
+        else
+        {
+            Log.Debug("Requested internal brightness update to {Brightness}%", brightness);
         }
         return result;
     }
@@ -103,21 +126,42 @@ public sealed class BrightSyncEngine : IDisposable
     private void OnInternalBrightnessChanged(object? sender, int brightness)
     {
         _lastInternalBrightness = brightness;
+        Log.Debug("Internal brightness changed to {Brightness}%", brightness);
         InternalBrightnessChanged?.Invoke(this, brightness);
         Task.Run(() => SyncAllMonitors());
     }
 
     private void SyncAllMonitors()
     {
+        var appliedCount = 0;
+        var skippedCount = 0;
+
         foreach (var monitor in _ddc.GetMonitors())
         {
-            if (!monitor.SupportsDdcCi) continue;
+            if (!monitor.SupportsDdcCi)
+            {
+                skippedCount++;
+                continue;
+            }
             var profile = _config.GetOrCreateProfile(monitor.DeviceName);
-            if (!profile.Enabled) continue;
+            if (!profile.Enabled)
+            {
+                skippedCount++;
+                continue;
+            }
 
             var target = CalculateTarget(monitor.DeviceName, profile);
-            _ddc.SetBrightness(monitor, target);
+            if (_ddc.SetBrightness(monitor, target))
+            {
+                appliedCount++;
+            }
+            else
+            {
+                Log.Warning("Failed to set brightness for monitor {Monitor}", monitor.FriendlyName);
+            }
         }
+
+        Log.Debug("Monitor sync finished. Applied={AppliedCount}, Skipped={SkippedCount}", appliedCount, skippedCount);
     }
 
     private void Enforce()
@@ -126,6 +170,7 @@ public sealed class BrightSyncEngine : IDisposable
 
         // Re-apply without recalculating — just re-send the last commanded value.
         // This recovers monitors that were power-cycled or had their brightness reset.
+        var reappliedCount = 0;
         foreach (var monitor in _ddc.GetMonitors())
         {
             if (!monitor.SupportsDdcCi) continue;
@@ -138,7 +183,13 @@ public sealed class BrightSyncEngine : IDisposable
                 Math.Abs(actual - monitor.LastCommandedPercent) > 1)
             {
                 _ddc.SetBrightness(monitor, monitor.LastCommandedPercent);
+                reappliedCount++;
             }
+        }
+
+        if (reappliedCount > 0)
+        {
+            Log.Information("Brightness enforcement reapplied values to {MonitorCount} monitor(s)", reappliedCount);
         }
     }
 
@@ -146,6 +197,7 @@ public sealed class BrightSyncEngine : IDisposable
     {
         if (e.Mode == PowerModes.Resume)
         {
+            Log.Information("System resume detected; scheduling monitor refresh");
             // Give displays a moment to initialise after wake
             Task.Delay(2000).ContinueWith(_ =>
             {
@@ -159,6 +211,7 @@ public sealed class BrightSyncEngine : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        Log.Debug("Disposing brightness sync engine");
         SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         _watcher.BrightnessChanged -= OnInternalBrightnessChanged;
         _enforcementTimer.Stop();

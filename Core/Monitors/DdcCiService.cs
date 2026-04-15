@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using BrightSync.Core.Interop;
+using Serilog;
 
 namespace BrightSync.Core.Monitors;
 
@@ -29,6 +30,8 @@ public sealed class DdcCiService : IDisposable
             _groups = new List<PhysicalMonitorGroup>();
             _monitors = new List<DdcMonitor>();
             EnumerateMonitors();
+            Log.Information("DDC/CI refresh finished. TotalMonitors={TotalMonitors}, ControllableMonitors={ControllableMonitors}",
+                _monitors.Count, _monitors.Count(m => m.SupportsDdcCi));
         }
     }
 
@@ -53,7 +56,16 @@ public sealed class DdcCiService : IDisposable
             if (_disposed) return false;
             var ok = NativeMethods.SetVCPFeature(monitor.Handle, NativeMethods.VCP_BRIGHTNESS, ddcValue);
             if (ok)
+            {
                 monitor.LastCommandedPercent = brightnessPercent;
+                Log.Debug("Set monitor brightness. Monitor={Monitor}, Brightness={Brightness}%, DdcValue={DdcValue}",
+                    monitor.FriendlyName, brightnessPercent, ddcValue);
+            }
+            else
+            {
+                Log.Warning("Native DDC/CI brightness update failed. Monitor={Monitor}, Brightness={Brightness}%",
+                    monitor.FriendlyName, brightnessPercent);
+            }
             return ok;
         }
     }
@@ -75,6 +87,11 @@ public sealed class DdcCiService : IDisposable
             {
                 brightnessPercent = (int)Math.Round(current * 100.0 / max);
                 return true;
+            }
+
+            if (!ok)
+            {
+                Log.Debug("Unable to read current DDC/CI brightness for monitor {Monitor}", monitor.FriendlyName);
             }
 
             return false;
@@ -100,11 +117,17 @@ public sealed class DdcCiService : IDisposable
             var deviceName = GetDeviceName(hMonitor, out var resW, out var resH);
 
             if (!NativeMethods.GetNumberOfPhysicalMonitorsFromHMONITOR(hMonitor, out var count) || count == 0)
+            {
+                Log.Debug("No physical monitors found for HMONITOR {Handle}", hMonitor);
                 continue;
+            }
 
             var physicals = new NativeMethods.PHYSICAL_MONITOR[count];
             if (!NativeMethods.GetPhysicalMonitorsFromHMONITOR(hMonitor, count, physicals))
+            {
+                Log.Warning("Failed to resolve physical monitor handles for device {DeviceName}", deviceName);
                 continue;
+            }
 
             var group = new PhysicalMonitorGroup(physicals, deviceName);
             _groups.Add(group);
@@ -145,6 +168,9 @@ public sealed class DdcCiService : IDisposable
                     Handle = pm.hPhysicalMonitor,
                     Group = group
                 });
+
+                Log.Debug("Detected monitor. Device={DeviceName}, FriendlyName={FriendlyName}, SupportsDdcCi={SupportsDdcCi}, IsInternal={IsInternal}",
+                    deviceName, friendlyName, supportsDdc, displayConfig.IsInternal);
             }
         }
     }
@@ -190,6 +216,7 @@ public sealed class DdcCiService : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        Log.Debug("Disposing DDC/CI service");
         lock (_lock)
             DisposeGroups();
     }
