@@ -5,6 +5,7 @@ using BrightSync.Core.Logging;
 using BrightSync.Core.Monitors;
 using BrightSync.Core.Updates;
 using BrightSync.UI;
+using Microsoft.Win32;
 using Serilog;
 
 namespace BrightSync;
@@ -15,6 +16,7 @@ public partial class App
     private BrightSyncEngine _syncEngine = null!;
     private DdcCiService _ddcService = null!;
     private UpdateChecker _updateChecker = null!;
+    private Wpf.Ui.Appearance.ApplicationTheme? _appliedTheme;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -46,12 +48,8 @@ public partial class App
             args.SetObserved();
         };
 
-        // Follow system theme instead of forcing Dark
-        Wpf.Ui.Appearance.ApplicationThemeManager.Apply(
-            Wpf.Ui.Appearance.ApplicationThemeManager.GetSystemTheme()
-                is Wpf.Ui.Appearance.SystemTheme.Dark
-                ? Wpf.Ui.Appearance.ApplicationTheme.Dark
-                : Wpf.Ui.Appearance.ApplicationTheme.Light);
+        ApplySystemTheme(force: true);
+        SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
 
         var configManager = new ConfigManager();
         _ddcService = new DdcCiService();
@@ -91,11 +89,40 @@ public partial class App
     protected override void OnExit(ExitEventArgs e)
     {
         Log.Information("Application exiting with code {ExitCode}", e.ApplicationExitCode);
+        SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
         _syncEngine?.Dispose();
         _trayManager?.Dispose();
         _ddcService?.Dispose();
         _updateChecker?.Dispose();
         base.OnExit(e);
         Log.CloseAndFlush();
+    }
+
+    private void OnUserPreferenceChanged(object? sender, UserPreferenceChangedEventArgs e)
+    {
+        if (e.Category is not (
+            UserPreferenceCategory.General or
+            UserPreferenceCategory.VisualStyle or
+            UserPreferenceCategory.Color))
+        {
+            return;
+        }
+
+        Dispatcher.Invoke(() => ApplySystemTheme());
+    }
+
+    private void ApplySystemTheme(bool force = false)
+    {
+        var systemTheme = Wpf.Ui.Appearance.ApplicationThemeManager.GetSystemTheme();
+        var targetTheme = systemTheme is Wpf.Ui.Appearance.SystemTheme.Dark
+            ? Wpf.Ui.Appearance.ApplicationTheme.Dark
+            : Wpf.Ui.Appearance.ApplicationTheme.Light;
+
+        if (!force && _appliedTheme == targetTheme)
+            return;
+
+        Wpf.Ui.Appearance.ApplicationThemeManager.Apply(targetTheme);
+        _appliedTheme = targetTheme;
+        Log.Information("Applied system theme: {Theme}", targetTheme);
     }
 }
