@@ -25,6 +25,7 @@ public sealed class TrayManager(BrightSyncEngine engine, ConfigManager config, D
     private QuickBrightnessViewModel? _quickVm;
     private DateTime _lastPopupClosed = DateTime.MinValue;
     private bool _disposed;
+    private int _refreshInProgress;
 
     public void Initialize()
     {
@@ -149,13 +150,46 @@ public sealed class TrayManager(BrightSyncEngine engine, ConfigManager config, D
     private void RefreshMonitors()
     {
         Log.Information("Tray action requested monitor refresh");
+        RefreshMonitorsCore(showBalloonTip: true, statusText: "Refreshing monitors...");
+    }
+
+    public void HandleDisplayConfigurationChanged()
+    {
+        Log.Information("Refreshing monitor UI after display configuration change");
+        RefreshMonitorsCore(showBalloonTip: false, statusText: "Displays changed. Refreshing monitors...");
+    }
+
+    private void RefreshMonitorsCore(bool showBalloonTip, string statusText)
+    {
+        if (Interlocked.Exchange(ref _refreshInProgress, 1) == 1)
+        {
+            Log.Debug("Monitor refresh request ignored because a refresh is already in progress");
+            return;
+        }
+
         Task.Run(() =>
         {
-            engine.RefreshMonitors();
-            if (_notifyIcon != null)
-                _notifyIcon.ShowBalloonTip(2000, "BrightSync",
-                    $"Found {ddc.GetMonitors().Count(m => m.SupportsDdcCi)} DDC/CI monitor(s).",
-                    ToolTipIcon.Info);
+            try
+            {
+                engine.RefreshMonitors();
+
+                WpfApp.Current.Dispatcher.Invoke(() =>
+                {
+                    _quickVm?.Refresh();
+                    _settingsWindow?.RefreshMonitors(statusText);
+                });
+
+                if (showBalloonTip && _notifyIcon != null)
+                {
+                    _notifyIcon.ShowBalloonTip(2000, "BrightSync",
+                        $"Found {ddc.GetMonitors().Count(m => m.SupportsDdcCi)} DDC/CI monitor(s).",
+                        ToolTipIcon.Info);
+                }
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _refreshInProgress, 0);
+            }
         });
     }
 

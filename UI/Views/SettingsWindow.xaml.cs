@@ -36,6 +36,14 @@ public partial class SettingsWindow : Window
         Top  = area.Bottom - ActualHeight - 12;
     }
 
+    public void RefreshMonitors(string? statusText = null)
+    {
+        _vm.RefreshMonitorList(
+            string.IsNullOrWhiteSpace(statusText)
+                ? null
+                : $"{statusText} Found {{0}} monitor(s).");
+    }
+
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.LeftButton == MouseButtonState.Pressed)

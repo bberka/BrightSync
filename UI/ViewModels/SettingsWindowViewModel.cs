@@ -157,16 +157,25 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     private void Refresh()
     {
         Log.Information("Settings UI requested monitor refresh");
-        SetStatus("Refreshing monitors\u2026");
+        SetStatus("Refreshing monitors...");
         Task.Run(() =>
         {
             _engine.RefreshMonitors();
             System.Windows.Application.Current.Dispatcher.Invoke(() =>
             {
-                BuildMonitorList();
-                SetStatus($"Found {Monitors.Count} monitor(s)");
+                RefreshMonitorList("Found {0} monitor(s)");
             });
         });
+    }
+
+    public void RefreshMonitorList(string? statusFormat = null)
+    {
+        BuildMonitorList();
+        foreach (var monitor in Monitors)
+            monitor.RefreshTargetText();
+
+        if (!string.IsNullOrWhiteSpace(statusFormat))
+            SetStatus(string.Format(statusFormat, Monitors.Count));
     }
 
     private void ResetAll()

@@ -17,6 +17,7 @@ public partial class App
     private DdcCiService _ddcService = null!;
     private UpdateChecker _updateChecker = null!;
     private Wpf.Ui.Appearance.ApplicationTheme? _appliedTheme;
+    private System.Threading.Timer? _displayRefreshDebounce;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -50,6 +51,7 @@ public partial class App
 
         ApplySystemTheme(force: true);
         SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
+        SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
 
         var configManager = new ConfigManager();
         _ddcService = new DdcCiService();
@@ -90,6 +92,8 @@ public partial class App
     {
         Log.Information("Application exiting with code {ExitCode}", e.ApplicationExitCode);
         SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+        SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+        _displayRefreshDebounce?.Dispose();
         _syncEngine?.Dispose();
         _trayManager?.Dispose();
         _ddcService?.Dispose();
@@ -124,5 +128,16 @@ public partial class App
         Wpf.Ui.Appearance.ApplicationThemeManager.Apply(targetTheme);
         _appliedTheme = targetTheme;
         Log.Information("Applied system theme: {Theme}", targetTheme);
+    }
+
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e)
+    {
+        Log.Information("Display settings change detected; scheduling monitor refresh");
+
+        _displayRefreshDebounce?.Dispose();
+        _displayRefreshDebounce = new System.Threading.Timer(_ =>
+        {
+            _trayManager?.HandleDisplayConfigurationChanged();
+        }, null, 750, Timeout.Infinite);
     }
 }
