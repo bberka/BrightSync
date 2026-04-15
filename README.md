@@ -1,8 +1,18 @@
 # BrightSync
 
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/bberka/BrightSync) ![GitHub top language](https://img.shields.io/github/languages/top/bberka/BrightSync) ![GitHub License](https://img.shields.io/github/license/bberka/BrightSync)
+
 BrightSync is a Windows app that keeps the brightness of your DDC/CI-compatible monitors in sync with a single global brightness value.
 
 On laptops and other systems where Windows exposes the built-in brightness slider, BrightSync listens to that slider and mirrors the change to all supported external monitors. On desktops, or on systems where Windows does not provide a brightness slider, BrightSync gives you a tray icon with a quick brightness popup so you can control all supported monitors from one place.
+
+## Screenshots
+
+Quick Menu
+![App Screenshot](assets/quick_menu.png)
+
+Settings Menu
+![App Screenshot](assets/settings_menu.png)
 
 ## How It Works
 
