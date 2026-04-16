@@ -78,6 +78,7 @@ public partial class App
         _trayManager = new TrayManager(_syncEngine, _autoBrightnessService, _idleReductionService, configManager, _ddcService, _updateChecker);
         _trayManager.ExitRequested += (_, _) => ExitApp();
         _trayManager.Initialize();
+        _trayManager.RefreshTrayIconAppearance();
         Log.Information("Tray manager initialized");
 
         // Open settings on manual launch; stay hidden on auto-start
@@ -137,10 +138,14 @@ public partial class App
             : Wpf.Ui.Appearance.ApplicationTheme.Light;
 
         if (!force && _appliedTheme == targetTheme)
+        {
+            _trayManager?.RefreshTrayIconAppearance();
             return;
+        }
 
         Wpf.Ui.Appearance.ApplicationThemeManager.Apply(targetTheme);
         _appliedTheme = targetTheme;
+        _trayManager?.RefreshTrayIconAppearance();
         Log.Information("Applied system theme: {Theme}", targetTheme);
     }
 

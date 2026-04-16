@@ -1,4 +1,6 @@
+using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
 using System.Windows;
 using WpfApp = System.Windows.Application;
 using BrightSync.Core.Brightness;
@@ -7,6 +9,7 @@ using BrightSync.Core.Monitors;
 using BrightSync.Core.Updates;
 using BrightSync.UI.ViewModels;
 using BrightSync.UI.Views;
+using Microsoft.Win32;
 using Serilog;
 
 namespace BrightSync.UI;
@@ -33,12 +36,13 @@ public sealed class TrayManager(
     private DateTime _lastPopupClosed = DateTime.MinValue;
     private bool _disposed;
     private int _refreshInProgress;
+    private bool? _lastTaskbarUsesLightTheme;
 
     public void Initialize()
     {
         _notifyIcon = new NotifyIcon
         {
-            Icon = BuildIcon(),
+            Icon = BuildIcon(taskbarUsesLightTheme: GetTaskbarUsesLightTheme()),
             Text = "BrightSync \u2014 Running",
             Visible = true
         };
@@ -65,6 +69,22 @@ public sealed class TrayManager(
             if (_notifyIcon != null)
                 _notifyIcon.Text = $"BrightSync \u2014 Internal: {b}%";
         };
+    }
+
+    public void RefreshTrayIconAppearance()
+    {
+        var notifyIcon = _notifyIcon;
+        if (notifyIcon == null)
+            return;
+
+        var taskbarUsesLightTheme = GetTaskbarUsesLightTheme();
+        if (_lastTaskbarUsesLightTheme == taskbarUsesLightTheme)
+            return;
+
+        var previousIcon = notifyIcon.Icon;
+        notifyIcon.Icon = BuildIcon(taskbarUsesLightTheme);
+        previousIcon?.Dispose();
+        Log.Information("Updated tray icon for {TaskbarTheme} taskbar", taskbarUsesLightTheme ? "light" : "dark");
     }
 
     /// <summary>Opens the full settings window (used by context menu and quick popup).</summary>
@@ -205,31 +225,59 @@ public sealed class TrayManager(
         });
     }
 
-    /// <summary>Simple monochrome sun outline — white on transparent, no color.</summary>
-    private static Icon BuildIcon()
+    /// <summary>Builds a small sun icon with contrast tuned for the current taskbar theme.</summary>
+    private Icon BuildIcon(bool taskbarUsesLightTheme)
     {
         using var bmp = new Bitmap(16, 16);
         using var g = Graphics.FromImage(bmp);
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.Clear(Color.Transparent);
 
-        using var pen = new Pen(Color.White, 1.2f);
+        var foreground = taskbarUsesLightTheme ? Color.FromArgb(24, 24, 24) : Color.White;
+        using var pen = new Pen(foreground, 1.8f)
+        {
+            StartCap = LineCap.Round,
+            EndCap = LineCap.Round
+        };
+        using var fill = new SolidBrush(foreground);
         float cx = 8f, cy = 8f;
 
-        // Circle outline
-        g.DrawEllipse(pen, cx - 3f, cy - 3f, 6f, 6f);
+        // Filled center improves readability at 16x16 while keeping the icon recognizable.
+        g.FillEllipse(fill, cx - 2.6f, cy - 2.6f, 5.2f, 5.2f);
+        g.DrawEllipse(pen, cx - 3.2f, cy - 3.2f, 6.4f, 6.4f);
 
         // 8 rays
         for (var i = 0; i < 8; i++)
         {
             var angle = i * Math.PI / 4.0;
             g.DrawLine(pen,
-                cx + (float)(5.0 * Math.Cos(angle)), cy + (float)(5.0 * Math.Sin(angle)),
-                cx + (float)(6.8 * Math.Cos(angle)), cy + (float)(6.8 * Math.Sin(angle)));
+                cx + (float)(4.7 * Math.Cos(angle)), cy + (float)(4.7 * Math.Sin(angle)),
+                cx + (float)(7.0 * Math.Cos(angle)), cy + (float)(7.0 * Math.Sin(angle)));
         }
 
         var hIcon = bmp.GetHicon();
-        return Icon.FromHandle(hIcon);
+        try
+        {
+            using var icon = Icon.FromHandle(hIcon);
+            _lastTaskbarUsesLightTheme = taskbarUsesLightTheme;
+            return (Icon)icon.Clone();
+        }
+        finally
+        {
+            DestroyIcon(hIcon);
+        }
+    }
+
+    private static bool GetTaskbarUsesLightTheme()
+    {
+        const string personalizeKey = @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize";
+        const string valueName = "SystemUsesLightTheme";
+
+        using var key = Registry.CurrentUser.OpenSubKey(personalizeKey);
+        if (key?.GetValue(valueName) is int themeValue)
+            return themeValue != 0;
+
+        return false;
     }
 
     public void Dispose()
@@ -241,4 +289,8 @@ public sealed class TrayManager(
         _quickPopup?.Close();
         _notifyIcon?.Dispose();
     }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DestroyIcon(IntPtr hIcon);
 }
