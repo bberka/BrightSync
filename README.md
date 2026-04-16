@@ -40,6 +40,7 @@ BrightSync also includes an optional automatic brightness mode. When enabled, th
 - Per-monitor brightness scaling multiplier
 - Optional auto start with Windows
 - Optional `Disable on lock screen` setting to pause monitor access while the Windows session is locked
+- Optional idle dimming that reduces external monitor targets after inactivity
 - Optional brightness enforcement that re-applies brightness if a monitor changes it
 - Monitor refresh action from the tray or settings window
 - Update check against GitHub releases
@@ -57,6 +58,8 @@ Notes:
 - Windows may only show the native brightness slider on systems with a compatible internal display. When it does not, use the BrightSync tray slider instead.
 - When automatic brightness is enabled, manual brightness sliders stay visible as read-only status indicators.
 - When `Disable on lock screen` is enabled, BrightSync pauses external monitor reads and writes while the Windows session is locked, then refreshes monitors after unlock.
+- When idle dimming is enabled, BrightSync can dim external monitor targets after a configurable idle timeout and restore them when activity resumes.
+- Idle dimming can optionally ignore idle time while media playback is active.
 
 ## Install
 
@@ -91,6 +94,10 @@ In settings, you can:
 - Adjust the automatic-brightness curve visually across `0-24` hours
 - Enable `Start with Windows`
 - Enable `Disable on lock screen`
+- Enable idle dimming
+- Set the idle timeout
+- Choose whether idle dimming scales targets or uses each monitor's minimum brightness
+- Optionally ignore idle dimming while media is playing
 - Enable periodic brightness enforcement and choose its interval
 
 Settings sections are organized as:

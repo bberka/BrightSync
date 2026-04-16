@@ -17,6 +17,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     private readonly BrightSyncEngine _engine;
     private readonly AutoBrightnessService _autoBrightness;
+    private readonly IdleReductionService _idleReduction;
     private readonly ConfigManager _config;
     private readonly DdcCiService _ddc;
     private readonly UpdateChecker _updateChecker;
@@ -151,6 +152,125 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         }
     }
 
+    private bool _idleReductionEnabled;
+    public bool IdleReductionEnabled
+    {
+        get => _idleReductionEnabled;
+        set
+        {
+            if (_idleReductionEnabled == value)
+                return;
+
+            _idleReductionEnabled = value;
+            _config.Config.IdleReductionEnabled = value;
+            OnChanged();
+            OnChanged(nameof(IdleReductionStatusText));
+            _idleReduction.ReevaluateNow();
+            RefreshTargets();
+        }
+    }
+
+    private int _idleTimeoutMinutes;
+    public int IdleTimeoutMinutes
+    {
+        get => _idleTimeoutMinutes;
+        set
+        {
+            var clamped = Math.Clamp(value, 1, 120);
+            if (_idleTimeoutMinutes == clamped)
+                return;
+
+            _idleTimeoutMinutes = clamped;
+            _config.Config.IdleTimeoutMinutes = clamped;
+            OnChanged();
+            OnChanged(nameof(IdleTimeoutText));
+            OnChanged(nameof(IdleReductionStatusText));
+            _idleReduction.ReevaluateNow();
+        }
+    }
+
+    public string IdleTimeoutText => $"{_idleTimeoutMinutes} min";
+
+    private bool _idleReductionToMinimum;
+    public bool IdleReductionToMinimum
+    {
+        get => _idleReductionToMinimum;
+        set
+        {
+            if (_idleReductionToMinimum == value)
+                return;
+
+            _idleReductionToMinimum = value;
+            _config.Config.IdleReductionToMinimum = value;
+            OnChanged();
+            OnChanged(nameof(IsIdleReductionPercentVisible));
+            OnChanged(nameof(IdleReductionStatusText));
+            if (_engine.IsIdleReductionActive)
+                _engine.ForceSync();
+            else
+                RefreshTargets();
+        }
+    }
+
+    public bool IsIdleReductionPercentVisible => !_idleReductionToMinimum;
+
+    private int _idleReductionPercent;
+    public int IdleReductionPercent
+    {
+        get => _idleReductionPercent;
+        set
+        {
+            var clamped = Math.Clamp(value, 10, 100);
+            if (_idleReductionPercent == clamped)
+                return;
+
+            _idleReductionPercent = clamped;
+            _config.Config.IdleReductionPercent = clamped;
+            OnChanged();
+            OnChanged(nameof(IdleReductionPercentText));
+            OnChanged(nameof(IdleReductionStatusText));
+            if (_engine.IsIdleReductionActive)
+                _engine.ForceSync();
+            else
+                RefreshTargets();
+        }
+    }
+
+    public string IdleReductionPercentText => $"{_idleReductionPercent}%";
+
+    private bool _idleIgnoreMediaPlayback;
+    public bool IdleIgnoreMediaPlayback
+    {
+        get => _idleIgnoreMediaPlayback;
+        set
+        {
+            if (_idleIgnoreMediaPlayback == value)
+                return;
+
+            _idleIgnoreMediaPlayback = value;
+            _config.Config.IdleIgnoreMediaPlayback = value;
+            OnChanged();
+            OnChanged(nameof(IdleReductionStatusText));
+            _idleReduction.ReevaluateNow();
+        }
+    }
+
+    public string IdleReductionStatusText
+    {
+        get
+        {
+            if (!IdleReductionEnabled)
+                return "Idle dimming is off.";
+
+            var action = IdleReductionToMinimum
+                ? "set external monitor targets to their configured minimum"
+                : $"scale external monitor targets to {IdleReductionPercentText}";
+            var mediaText = IdleIgnoreMediaPlayback ? " Media playback pauses idle dimming." : string.Empty;
+            var activeText = _engine.IsIdleReductionActive ? " Active now." : string.Empty;
+            return $"After {IdleTimeoutText} of no input, BrightSync will {action}.{mediaText}{activeText}";
+        }
+    }
+
     public ICommand SaveCommand { get; }
     public ICommand RefreshCommand { get; }
     public ICommand ResetAllCommand { get; }
@@ -163,12 +283,14 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     public SettingsWindowViewModel(
         BrightSyncEngine engine,
         AutoBrightnessService autoBrightness,
+        IdleReductionService idleReduction,
         ConfigManager config,
         DdcCiService ddc,
         UpdateChecker updateChecker)
     {
         _engine = engine;
         _autoBrightness = autoBrightness;
+        _idleReduction = idleReduction;
         _config = config;
         _ddc = ddc;
         _updateChecker = updateChecker;
@@ -179,6 +301,11 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _enforcementEnabled = config.Config.EnforcementEnabled;
         _startWithWindows = config.Config.StartWithWindows;
         _disableMonitorAccessWhileLocked = config.Config.DisableMonitorAccessWhileLocked;
+        _idleReductionEnabled = config.Config.IdleReductionEnabled;
+        _idleTimeoutMinutes = Math.Clamp(config.Config.IdleTimeoutMinutes, 1, 120);
+        _idleReductionToMinimum = config.Config.IdleReductionToMinimum;
+        _idleReductionPercent = Math.Clamp(config.Config.IdleReductionPercent, 10, 100);
+        _idleIgnoreMediaPlayback = config.Config.IdleIgnoreMediaPlayback;
 
         SaveCommand = new RelayCommand(Save);
         RefreshCommand = new RelayCommand(Refresh);
@@ -187,7 +314,9 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         CheckForUpdatesCommand = new RelayCommand(CheckForUpdates, () => !_isCheckingForUpdates);
 
         engine.InternalBrightnessChanged += OnInternalBrightnessChanged;
+        engine.TargetsChanged += OnTargetsChanged;
         autoBrightness.StateChanged += OnAutoBrightnessChanged;
+        idleReduction.StateChanged += OnIdleReductionChanged;
         BuildMonitorList();
     }
 
@@ -249,8 +378,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     public void RefreshMonitorList(string? statusFormat = null)
     {
         BuildMonitorList();
-        foreach (var monitor in Monitors)
-            monitor.RefreshTargetText();
+        RefreshTargets();
 
         if (!string.IsNullOrWhiteSpace(statusFormat))
             SetStatus(string.Format(statusFormat, Monitors.Count));
@@ -263,6 +391,11 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         EnforcementIntervalSeconds = new AppConfig().EnforcementIntervalSeconds;
         EnforcementEnabled = true;
         DisableMonitorAccessWhileLocked = false;
+        IdleReductionEnabled = false;
+        IdleTimeoutMinutes = new AppConfig().IdleTimeoutMinutes;
+        IdleReductionToMinimum = false;
+        IdleReductionPercent = new AppConfig().IdleReductionPercent;
+        IdleIgnoreMediaPlayback = true;
         StartWithWindows = false;
 
         foreach (var monitor in Monitors)
@@ -273,6 +406,10 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         OnChanged(nameof(AutoBrightnessStatusText));
         OnChanged(nameof(AutoBrightnessCurvePoints));
         OnChanged(nameof(AutoBrightnessPreviewText));
+        OnChanged(nameof(IdleReductionStatusText));
+        OnChanged(nameof(IsIdleReductionPercentVisible));
+        OnChanged(nameof(IdleTimeoutText));
+        OnChanged(nameof(IdleReductionPercentText));
         AutoBrightnessCurveChanged?.Invoke(this, EventArgs.Empty);
         SetStatus("Reset all settings to defaults. Save to persist.");
         Log.Warning("All settings were reset to defaults in the UI");
@@ -340,6 +477,30 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             foreach (var monitor in Monitors)
                 monitor.RefreshTargetText();
         });
+    }
+
+    private void OnTargetsChanged(object? sender, EventArgs e)
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            RefreshTargets();
+            OnChanged(nameof(IdleReductionStatusText));
+        });
+    }
+
+    private void OnIdleReductionChanged(object? sender, EventArgs e)
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            RefreshTargets();
+            OnChanged(nameof(IdleReductionStatusText));
+        });
+    }
+
+    private void RefreshTargets()
+    {
+        foreach (var monitor in Monitors)
+            monitor.RefreshTargetText();
     }
 
     private void CheckForUpdates()
@@ -413,7 +574,9 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _brightnessDebounce?.Dispose();
         _statusTimer?.Dispose();
         _engine.InternalBrightnessChanged -= OnInternalBrightnessChanged;
+        _engine.TargetsChanged -= OnTargetsChanged;
         _autoBrightness.StateChanged -= OnAutoBrightnessChanged;
+        _idleReduction.StateChanged -= OnIdleReductionChanged;
         Log.Debug("Disposed settings window view model");
     }
 }

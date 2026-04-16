@@ -18,6 +18,7 @@ namespace BrightSync.UI;
 public sealed class TrayManager(
     BrightSyncEngine engine,
     AutoBrightnessService autoBrightness,
+    IdleReductionService idleReduction,
     ConfigManager config,
     DdcCiService ddc,
     UpdateChecker updateChecker)
@@ -76,7 +77,7 @@ public sealed class TrayManager(
 
             if (_settingsWindow == null || !_settingsWindow.IsLoaded)
             {
-                _settingsWindow = new SettingsWindow(engine, autoBrightness, config, ddc, updateChecker);
+                _settingsWindow = new SettingsWindow(engine, autoBrightness, idleReduction, config, ddc, updateChecker);
                 _settingsWindow.ExitRequested += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
                 _settingsWindow.Show();
             }

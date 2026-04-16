@@ -69,6 +69,10 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
     public string AutoBrightnessStatusText => AutoBrightnessEnabled
         ? $"Automatic brightness is on. Current {InternalBrightnessText}."
         : "Automatic brightness is off.";
+    public bool IsIdleReductionActive => _engine.IsIdleReductionActive;
+    public string IdleReductionStatusText => _engine.IsIdleReductionActive
+        ? "Idle dimming is active."
+        : string.Empty;
 
     public ICommand OpenSettingsCommand { get; }
 
@@ -90,6 +94,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
         OpenSettingsCommand = new RelayCommand(openSettings);
 
         engine.InternalBrightnessChanged += OnBrightnessChanged;
+        engine.TargetsChanged += OnTargetsChanged;
         autoBrightness.StateChanged += OnAutoBrightnessChanged;
         RefreshMonitorTargets();
     }
@@ -105,6 +110,8 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
         OnChanged(nameof(AutoBrightnessEnabled));
         OnChanged(nameof(IsManualBrightnessEnabled));
         OnChanged(nameof(AutoBrightnessStatusText));
+        OnChanged(nameof(IsIdleReductionActive));
+        OnChanged(nameof(IdleReductionStatusText));
         RefreshMonitorTargets();
     }
 
@@ -139,6 +146,16 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
         System.Windows.Application.Current.Dispatcher.Invoke(Refresh);
     }
 
+    private void OnTargetsChanged(object? sender, EventArgs e)
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            OnChanged(nameof(IsIdleReductionActive));
+            OnChanged(nameof(IdleReductionStatusText));
+            RefreshMonitorTargets();
+        });
+    }
+
     private static string BuildDisplayName(DdcMonitor monitor)
     {
         if (!string.IsNullOrWhiteSpace(monitor.ManufacturerName) &&
@@ -156,6 +173,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
     {
         _brightnessDebounce?.Dispose();
         _engine.InternalBrightnessChanged -= OnBrightnessChanged;
+        _engine.TargetsChanged -= OnTargetsChanged;
         _autoBrightness.StateChanged -= OnAutoBrightnessChanged;
         Log.Debug("Disposed quick brightness view model");
     }

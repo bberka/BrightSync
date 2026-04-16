@@ -24,13 +24,14 @@ public partial class SettingsWindow : Window
     public SettingsWindow(
         BrightSyncEngine engine,
         AutoBrightnessService autoBrightness,
+        IdleReductionService idleReduction,
         ConfigManager config,
         DdcCiService ddc,
         UpdateChecker updateChecker)
     {
         InitializeComponent();
         Title = AppVersionInfo.GetDisplayTitle();
-        _vm = new SettingsWindowViewModel(engine, autoBrightness, config, ddc, updateChecker);
+        _vm = new SettingsWindowViewModel(engine, autoBrightness, idleReduction, config, ddc, updateChecker);
         DataContext = _vm;
         _vm.AutoBrightnessCurveChanged += OnAutoBrightnessCurveChanged;
         Loaded += (_, _) =>

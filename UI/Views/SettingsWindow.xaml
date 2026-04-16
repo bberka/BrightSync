@@ -250,6 +250,125 @@
                                     Background="{DynamicResource ControlStrokeColorDefaultBrush}"
                                     Margin="0,8"/>
 
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock Text="Idle dimming" FontSize="13"/>
+                                    <TextBlock Text="{Binding IdleReductionStatusText}"
+                                               FontSize="11"
+                                               TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                </StackPanel>
+                                <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding IdleReductionEnabled}"/>
+                            </Grid>
+
+                            <Grid Margin="0,8,0,0"
+                                  Visibility="{Binding IdleReductionEnabled, Converter={StaticResource BoolToVisibility}}">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <Grid Grid.Row="0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="140"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Text="Timeout"
+                                               FontSize="13"
+                                               VerticalAlignment="Center"
+                                               Margin="16,0,0,0"/>
+                                    <StackPanel Grid.Column="1"
+                                                Orientation="Horizontal"
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Center">
+                                        <Slider Width="80"
+                                                Minimum="1"
+                                                Maximum="60"
+                                                Value="{Binding IdleTimeoutMinutes}"
+                                                TickFrequency="1"
+                                                IsSnapToTickEnabled="True"
+                                                IsMoveToPointEnabled="True"
+                                                VerticalAlignment="Center"/>
+                                        <TextBlock FontSize="13"
+                                                   VerticalAlignment="Center"
+                                                   Margin="8,0,0,0"
+                                                   MinWidth="48"
+                                                   Text="{Binding IdleTimeoutText}"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Grid Grid.Row="1" Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="16,0,0,0">
+                                        <TextBlock Text="Reduce to minimum" FontSize="13"/>
+                                        <TextBlock Text="Otherwise BrightSync scales the normal target"
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                    </StackPanel>
+                                    <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding IdleReductionToMinimum}"/>
+                                </Grid>
+
+                                <Grid Grid.Row="2"
+                                      Margin="0,8,0,0"
+                                      Visibility="{Binding IsIdleReductionPercentVisible, Converter={StaticResource BoolToVisibility}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="140"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Text="Scale"
+                                               FontSize="13"
+                                               VerticalAlignment="Center"
+                                               Margin="16,0,0,0"/>
+                                    <StackPanel Grid.Column="1"
+                                                Orientation="Horizontal"
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Center">
+                                        <Slider Width="80"
+                                                Minimum="10"
+                                                Maximum="100"
+                                                Value="{Binding IdleReductionPercent}"
+                                                TickFrequency="5"
+                                                IsSnapToTickEnabled="True"
+                                                IsMoveToPointEnabled="True"
+                                                VerticalAlignment="Center"/>
+                                        <TextBlock FontSize="13"
+                                                   VerticalAlignment="Center"
+                                                   Margin="8,0,0,0"
+                                                   MinWidth="40"
+                                                   Text="{Binding IdleReductionPercentText}"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Grid Grid.Row="3" Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="16,0,0,0">
+                                        <TextBlock Text="Ignore while media is playing" FontSize="13"/>
+                                        <TextBlock Text="Prevents dimming during active playback sessions"
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                    </StackPanel>
+                                    <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding IdleIgnoreMediaPlayback}"/>
+                                </Grid>
+                            </Grid>
+
+                            <Border Height="1"
+                                    Background="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                    Margin="0,8"/>
+
                             <!-- Enforcement toggle -->
                             <Grid>
                                 <Grid.ColumnDefinitions>

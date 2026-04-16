@@ -15,6 +15,7 @@ namespace BrightSync.Core.Brightness;
 public sealed class BrightSyncEngine : IDisposable
 {
     public event EventHandler<int>? InternalBrightnessChanged;
+    public event EventHandler? TargetsChanged;
 
     private readonly DdcCiService _ddc;
     private readonly InternalBrightnessWatcher _watcher;
@@ -22,10 +23,12 @@ public sealed class BrightSyncEngine : IDisposable
     private readonly System.Timers.Timer _enforcementTimer;
     private int _lastInternalBrightness = -1;
     private bool _isSessionLocked;
+    private bool _idleReductionActive;
     private bool _disposed;
 
     public int LastInternalBrightness => _lastInternalBrightness;
     public bool IsMonitorAccessSuspended => _config.Config.DisableMonitorAccessWhileLocked && _isSessionLocked;
+    public bool IsIdleReductionActive => _config.Config.IdleReductionEnabled && _idleReductionActive;
 
     public BrightSyncEngine(
         DdcCiService ddc,
@@ -75,7 +78,16 @@ public sealed class BrightSyncEngine : IDisposable
     {
         if (_lastInternalBrightness < 0) return profile.MinBrightness;
         var raw = _lastInternalBrightness * profile.Multiplier;
-        return (int)Math.Round(Math.Clamp(raw, profile.MinBrightness, profile.MaxBrightness));
+        var target = (int)Math.Round(Math.Clamp(raw, profile.MinBrightness, profile.MaxBrightness));
+
+        if (!IsIdleReductionActive)
+            return target;
+
+        if (_config.Config.IdleReductionToMinimum)
+            return profile.MinBrightness;
+
+        var scale = Math.Clamp(_config.Config.IdleReductionPercent, 10, 100) / 100.0;
+        return (int)Math.Round(Math.Clamp(target * scale, profile.MinBrightness, profile.MaxBrightness));
     }
 
     /// <summary>Forces an immediate re-sync of all monitors (e.g. after settings change).</summary>
@@ -90,6 +102,8 @@ public sealed class BrightSyncEngine : IDisposable
         {
             Log.Debug("Force sync skipped because no internal brightness value is available");
         }
+
+        RaiseTargetsChanged();
     }
 
     /// <summary>Call after monitor list or config changes to rebuild DDC handles.</summary>
@@ -131,6 +145,21 @@ public sealed class BrightSyncEngine : IDisposable
     public bool ApplyAutomaticBrightness(int brightness)
     {
         return ApplyBrightness(brightness, allowManualWhenAutoEnabled: true, source: "auto");
+    }
+
+    public bool SetIdleReductionActive(bool active)
+    {
+        if (_idleReductionActive == active)
+            return false;
+
+        _idleReductionActive = active;
+        Log.Information("Idle brightness reduction {State}", active ? "activated" : "cleared");
+
+        if (_lastInternalBrightness >= 0)
+            Task.Run(SyncAllMonitors);
+
+        RaiseTargetsChanged();
+        return true;
     }
 
     // --- Private ---
@@ -240,6 +269,11 @@ public sealed class BrightSyncEngine : IDisposable
         {
             Log.Information("Brightness enforcement reapplied values to {MonitorCount} monitor(s)", reappliedCount);
         }
+    }
+
+    private void RaiseTargetsChanged()
+    {
+        TargetsChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)

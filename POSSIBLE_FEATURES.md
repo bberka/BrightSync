@@ -14,6 +14,17 @@ Current behavior:
 - After unlock, BrightSync refreshes monitors and resumes sync.
 - The option is available in Settings as `Disable on lock screen`.
 
+### Idle Detection With Brightness Reduction
+
+Implemented.
+
+Current behavior:
+
+- BrightSync can detect Windows input idle time and dim external monitor targets after a configurable timeout.
+- Idle dimming can either set targets to each monitor's minimum or scale the normal target to a configured percentage.
+- BrightSync restores the normal target brightness when activity resumes.
+- Media playback can optionally suppress idle dimming.
+
 ## 1. Localization
 
 Add support for multiple UI languages.
@@ -85,33 +96,6 @@ Possible behavior:
 - Require a monitor refresh or app restart after changing the setting.
 - Clearly label it as a compatibility option.
 
-## 5. Idle Detection With Brightness Reduction
-
-Detect when the computer is idle and temporarily reduce brightness.
-
-Why this may help:
-
-- Saves power and reduces eye strain when the PC is left unattended.
-- Can complement automatic brightness instead of replacing it.
-
-Requested behavior:
-
-- When the computer becomes idle, reduce all brightness values to minimum or to a percentage of the intended value, such as `50%`.
-- If media is playing, do not treat the system as idle.
-
-Possible behavior:
-
-- Add an idle timeout setting.
-- Add idle action choices such as:
-  - set all monitors to minimum brightness
-  - scale target brightness to a configurable percentage
-- Restore the normal target brightness when activity resumes.
-
-Implementation notes:
-
-- Idle detection would likely need Windows input idle time APIs.
-- Media playback detection may need session/media API integration so video playback does not trigger dimming.
-
-## 6. Open Feature Slot
+## 5. Open Feature Slot
 
 Reserved for another future feature idea.

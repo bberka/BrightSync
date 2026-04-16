@@ -12,6 +12,16 @@ public sealed class AppConfig
     public bool EnforcementEnabled { get; set; } = true;
     /// <summary>Whether external monitor access should pause while the Windows session is locked.</summary>
     public bool DisableMonitorAccessWhileLocked { get; set; }
+    /// <summary>Whether BrightSync should dim external monitor targets after the system is idle.</summary>
+    public bool IdleReductionEnabled { get; set; }
+    /// <summary>Minutes of no input before BrightSync treats the system as idle.</summary>
+    public int IdleTimeoutMinutes { get; set; } = 10;
+    /// <summary>Whether idle dimming should set targets directly to each monitor profile's minimum.</summary>
+    public bool IdleReductionToMinimum { get; set; }
+    /// <summary>Percentage of the normal target to use while idle when not reducing directly to minimum.</summary>
+    public int IdleReductionPercent { get; set; } = 50;
+    /// <summary>Whether active media playback should suppress idle dimming.</summary>
+    public bool IdleIgnoreMediaPlayback { get; set; } = true;
     /// <summary>Whether to launch BrightSync when the user logs in.</summary>
     public bool StartWithWindows { get; set; }
     /// <summary>The last local calendar date when BrightSync checked for updates.</summary>
