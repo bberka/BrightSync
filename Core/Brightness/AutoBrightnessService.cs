@@ -26,6 +26,7 @@ public sealed class AutoBrightnessService : IDisposable
     }
 
     public bool IsEnabled => _config.Config.AutoBrightness.Enabled;
+    public bool IsLockEnabled => _config.Config.AutoBrightness.LockWhenManualBrightnessChanges;
 
     public int LastAppliedBrightness => _lastAppliedBrightness >= 0
         ? _lastAppliedBrightness
@@ -122,6 +123,15 @@ public sealed class AutoBrightnessService : IDisposable
 
         if (WasRecentlyAppliedByAuto(brightness))
             return;
+
+        if (IsLockEnabled)
+        {
+            Log.Information(
+                "Detected external Windows brightness change to {Brightness}% while auto brightness lock was enabled; re-applying the auto brightness target",
+                brightness);
+            RecalculateNow();
+            return;
+        }
 
         Log.Information(
             "Detected external Windows brightness change to {Brightness}% while auto brightness was enabled; disabling auto brightness",

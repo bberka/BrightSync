@@ -33,6 +33,7 @@ BrightSync also includes an optional automatic brightness mode. When enabled, th
 - Tray icon with a quick popup slider for desktops and unsupported internal-brightness scenarios
 - Optional automatic brightness mode with a smooth 24-hour curve
 - Visual curve editor in Settings for tuning brightness through the day
+- Optional lock that keeps automatic brightness enabled even after manual Windows brightness changes
 - One global brightness value for all supported monitors
 - Per-monitor enable or disable control
 - Per-monitor minimum brightness
@@ -59,6 +60,7 @@ Notes:
 - If monitor detection is unreliable on your system, try enabling `Legacy DDC/CI detection` in Settings and then refresh monitors or restart the app.
 - Windows may only show the native brightness slider on systems with a compatible internal display. When it does not, use the BrightSync tray slider instead.
 - When automatic brightness is enabled, manual brightness sliders stay visible as read-only status indicators.
+- In `Settings > Automatic Brightness`, `Lock automatic brightness` keeps manual Windows brightness changes from turning automatic brightness off and immediately restores the auto-brightness target. It is off by default and is not shown in the quick menu.
 - When `Disable on lock screen` is enabled, BrightSync pauses external monitor reads and writes while the Windows session is locked, then refreshes monitors after unlock.
 - When idle dimming is enabled, BrightSync can dim external monitor targets after a configurable idle timeout and restore them when activity resumes.
 - Idle dimming can optionally ignore idle time while media playback is active.
@@ -93,6 +95,7 @@ In settings, you can:
 - Set a maximum brightness per monitor
 - Apply a brightness multiplier per monitor
 - Enable `Automatic Brightness`
+- Enable `Lock automatic brightness` so only the app can turn automatic brightness off
 - Adjust the automatic-brightness curve visually across `0-24` hours
 - Enable `Start with Windows`
 - Enable `Legacy DDC/CI detection` for compatibility, then refresh monitors or restart the app

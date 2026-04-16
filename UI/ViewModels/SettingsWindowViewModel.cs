@@ -87,6 +87,21 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     }
 
     public bool IsManualBrightnessEnabled => !AutoBrightnessEnabled;
+    public bool AutoBrightnessLockEnabled
+    {
+        get => _config.Config.AutoBrightness.LockWhenManualBrightnessChanges;
+        set
+        {
+            if (_config.Config.AutoBrightness.LockWhenManualBrightnessChanges == value)
+                return;
+
+            _config.Config.AutoBrightness.LockWhenManualBrightnessChanges = value;
+            OnChanged();
+            OnChanged(nameof(AutoBrightnessStatusText));
+            OnChanged(nameof(AutoBrightnessLockDescription));
+        }
+    }
+
     public string AutoBrightnessStatusText
     {
         get
@@ -95,9 +110,14 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
                 return "Automatic brightness is off.";
 
             var now = DateTime.Now;
-            return $"Automatic brightness is on. Current {InternalBrightnessText} at {now:HH:mm}.";
+            var lockText = AutoBrightnessLockEnabled ? " Locked against manual brightness changes." : string.Empty;
+            return $"Automatic brightness is on. Current {InternalBrightnessText} at {now:HH:mm}.{lockText}";
         }
     }
+
+    public string AutoBrightnessLockDescription => AutoBrightnessLockEnabled
+        ? "Manual brightness changes will not turn off automatic brightness. Disable it from the app when needed."
+        : "When enabled, BrightSync turns off automatic brightness after a manual Windows brightness change.";
 
     public IReadOnlyList<AutoBrightnessControlPoint> AutoBrightnessCurvePoints => _config.Config.AutoBrightness.Curve;
     public string AutoBrightnessPreviewText
@@ -420,8 +440,10 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             monitor.Reset();
 
         OnChanged(nameof(AutoBrightnessEnabled));
+        OnChanged(nameof(AutoBrightnessLockEnabled));
         OnChanged(nameof(IsManualBrightnessEnabled));
         OnChanged(nameof(AutoBrightnessStatusText));
+        OnChanged(nameof(AutoBrightnessLockDescription));
         OnChanged(nameof(AutoBrightnessCurvePoints));
         OnChanged(nameof(AutoBrightnessPreviewText));
         OnChanged(nameof(IdleReductionStatusText));
@@ -458,12 +480,16 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     private void ResetCurve()
     {
         var currentEnabled = _config.Config.AutoBrightness.Enabled;
+        var currentLockEnabled = _config.Config.AutoBrightness.LockWhenManualBrightnessChanges;
         _config.Config.AutoBrightness = AutoBrightnessSettings.CreateDefault();
         _config.Config.AutoBrightness.Enabled = currentEnabled;
+        _config.Config.AutoBrightness.LockWhenManualBrightnessChanges = currentLockEnabled;
 
         OnChanged(nameof(AutoBrightnessEnabled));
+        OnChanged(nameof(AutoBrightnessLockEnabled));
         OnChanged(nameof(IsManualBrightnessEnabled));
         OnChanged(nameof(AutoBrightnessStatusText));
+        OnChanged(nameof(AutoBrightnessLockDescription));
         OnChanged(nameof(AutoBrightnessCurvePoints));
         OnChanged(nameof(AutoBrightnessPreviewText));
         AutoBrightnessCurveChanged?.Invoke(this, EventArgs.Empty);
@@ -488,8 +514,10 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             InternalBrightness = _autoBrightness.GetCurrentBrightness();
             _isUpdatingInternalBrightness = false;
             OnChanged(nameof(AutoBrightnessEnabled));
+            OnChanged(nameof(AutoBrightnessLockEnabled));
             OnChanged(nameof(IsManualBrightnessEnabled));
             OnChanged(nameof(AutoBrightnessStatusText));
+            OnChanged(nameof(AutoBrightnessLockDescription));
             OnChanged(nameof(AutoBrightnessPreviewText));
             AutoBrightnessCurveChanged?.Invoke(this, EventArgs.Empty);
             foreach (var monitor in Monitors)

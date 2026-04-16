@@ -5,6 +5,7 @@ public sealed class AutoBrightnessSettings
     public const int CurrentCurveVersion = 1;
 
     public bool Enabled { get; set; }
+    public bool LockWhenManualBrightnessChanges { get; set; }
     public int CurveVersion { get; set; } = CurrentCurveVersion;
     public List<AutoBrightnessControlPoint> Curve { get; set; } = [];
 
@@ -13,6 +14,7 @@ public sealed class AutoBrightnessSettings
         return new AutoBrightnessSettings
         {
             Enabled = false,
+            LockWhenManualBrightnessChanges = false,
             CurveVersion = CurrentCurveVersion,
             Curve = BuildDefaultCurve()
         };
