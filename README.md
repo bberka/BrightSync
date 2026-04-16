@@ -2,131 +2,129 @@
 
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/bberka/BrightSync) ![GitHub top language](https://img.shields.io/github/languages/top/bberka/BrightSync) ![GitHub License](https://img.shields.io/github/license/bberka/BrightSync)
 
-BrightSync is a Windows app that keeps the brightness of your DDC/CI-compatible monitors in sync with a single global brightness value.
+BrightSync is a Windows tray app that keeps the brightness of your DDC/CI-compatible external monitors aligned to one shared brightness value.
 
-On laptops and other systems where Windows exposes the built-in brightness slider, BrightSync listens to that slider and mirrors the change to all supported external monitors. On desktops, or on systems where Windows does not provide a brightness slider, BrightSync gives you a tray icon with a quick brightness popup so you can control all supported monitors from one place.
+On laptops, that shared value usually comes from the normal Windows brightness slider. On desktops, or on systems where Windows does not expose a brightness slider, BrightSync provides its own tray popup so you can control all supported monitors from one place.
 
-BrightSync also includes an optional automatic brightness mode. When enabled, the app drives brightness from a smooth 24-hour curve so your displays brighten through the day and dim at night.
+It also includes optional automatic brightness, idle dimming, per-monitor limits, and recovery features for monitors that forget their brightness after sleep or power changes.
 
 ## Screenshots
 
-### Quick Menu
+### Quick menu
 
-![App Screenshot](assets/quick_menu.png)
+![Quick menu screenshot](assets/quick_menu.png)
 
-### Settings Menu
+### Settings window
 
-![App Screenshot](assets/settings_menu.png)
+![Settings window screenshot](assets/settings_menu.png)
 
-## How It Works
+## What BrightSync Does
 
-- If Windows has an internal-display brightness control, BrightSync syncs that value to your external monitors.
-- If Windows does not have a brightness control, BrightSync uses its own tray slider as the global brightness source.
-- If automatic brightness is enabled, BrightSync updates the global brightness from its 24-hour curve instead of allowing manual slider control.
-- BrightSync applies that global value to each enabled DDC/CI monitor.
-- Per-monitor settings let you clamp or scale the final brightness for each display.
+- Uses one global brightness value as the source for all enabled external monitors.
+- Reads the Windows brightness level when an internal display exposes it.
+- Falls back to BrightSync's own tray slider when Windows has no usable brightness control.
+- Applies that value to external monitors through DDC/CI.
+- Lets you adjust each monitor with its own enable flag, minimum, maximum, and multiplier.
+- Can drive brightness automatically from a 24-hour curve instead of manual input.
 
 ## Features
 
 - Works on both laptops and desktops
-- Syncs with the Windows brightness slider when Windows exposes one
-- Tray icon with a quick popup slider for desktops and unsupported internal-brightness scenarios
-- Optional automatic brightness mode with a smooth 24-hour curve
-- Visual curve editor in Settings for tuning brightness through the day
-- Optional lock that keeps automatic brightness enabled even after manual Windows brightness changes
-- One global brightness value for all supported monitors
+- Tray icon with quick brightness popup
+- Sync with the Windows brightness slider when Windows exposes one
+- Automatic brightness based on a smooth 24-hour curve
+- Visual curve editor in Settings
+- Optional lock that keeps automatic brightness enabled after manual Windows brightness changes
 - Per-monitor enable or disable control
-- Per-monitor minimum brightness
-- Per-monitor maximum brightness
-- Per-monitor brightness scaling multiplier
-- Optional auto start with Windows
-- Optional `Legacy DDC/CI detection` compatibility mode for older or unusual monitors
-- Optional `Disable on lock screen` setting to pause monitor access while the Windows session is locked
-- Optional idle dimming that reduces external monitor targets after inactivity
-- Optional brightness enforcement that re-applies brightness if a monitor changes it
-- Monitor refresh action from the tray or settings window
-- Update check against GitHub releases
+- Per-monitor minimum brightness, maximum brightness, and multiplier
+- Optional idle dimming after inactivity
+- Optional pause while Windows is locked
+- Optional brightness enforcement to re-apply values if a monitor changes them
+- Optional legacy DDC/CI detection mode for compatibility
+- Refresh monitors from the tray or Settings window
+- Start with Windows
+- GitHub release update checks
 
 ## Requirements
 
 - Windows
-- DDC/CI-compatible monitors for external brightness control
+- One or more DDC/CI-compatible external monitors for external brightness control
 
-Notes:
+Important notes:
 
-- External monitors are controlled through DDC/CI.
-- Built-in laptop panels are controlled through the normal Windows brightness API, not DDC/CI.
-- If an external monitor does not support DDC/CI, it will still appear in the app, but BrightSync cannot change its brightness.
-- If monitor detection is unreliable on your system, try enabling `Legacy DDC/CI detection` in Settings and then refresh monitors or restart the app.
-- Windows may only show the native brightness slider on systems with a compatible internal display. When it does not, use the BrightSync tray slider instead.
-- When automatic brightness is enabled, manual brightness sliders stay visible as read-only status indicators.
-- In `Settings > Automatic Brightness`, `Lock automatic brightness` keeps manual Windows brightness changes from turning automatic brightness off and immediately restores the auto-brightness target. It is off by default and is not shown in the quick menu.
-- When `Disable on lock screen` is enabled, BrightSync pauses external monitor reads and writes while the Windows session is locked, then refreshes monitors after unlock.
-- When idle dimming is enabled, BrightSync can dim external monitor targets after a configurable idle timeout and restore them when activity resumes.
-- Idle dimming can optionally ignore idle time while media playback is active.
+- BrightSync controls external monitors through DDC/CI.
+- Built-in laptop panels are handled through the normal Windows brightness APIs, not DDC/CI.
+- A monitor may still appear in the app even if BrightSync cannot change its brightness.
+- If Windows does not show a native brightness slider, use the BrightSync tray slider instead.
 
 ## Install
 
-1. Go to the [latest release](https://github.com/bberka/BrightSync/releases/latest).
-2. Download the newest `.zip` file that matches your system.
-3. Extract the zip to any folder.
+1. Open the [latest release](https://github.com/bberka/BrightSync/releases/latest).
+2. Download the `.zip` file you want.
+3. Extract it anywhere.
 4. Run `BrightSync.exe`.
 
-If you are not sure which file to choose, try the `windows-x64-self-contained` zip first.
+If you are unsure which package to pick, start with `windows-x64-self-contained`.
 
-## Usage
+## Daily Use
 
 1. Start BrightSync.
-2. Change the Windows brightness slider if your system has one.
-3. If Windows does not expose a brightness slider, use the BrightSync tray icon and quick popup slider.
-4. Open `Settings` to configure brightness behavior, monitor-specific behavior, and automatic brightness.
+2. Change brightness with the Windows slider if your system has one.
+3. Otherwise, use the BrightSync tray icon and quick popup slider.
+4. Open `Settings` for monitor-specific options and advanced behavior.
 
-Quick menu:
+Behavior to know:
 
-- When automatic brightness is off, the quick menu slider works normally.
-- When automatic brightness is on, the quick menu slider is disabled and shows the current brightness chosen by BrightSync.
-- The quick menu also includes an `Automatic Brightness` switch so you can turn the feature on or off quickly.
+- When automatic brightness is off, the slider works normally.
+- When automatic brightness is on, BrightSync controls the brightness value and the slider becomes read-only.
+- The quick popup includes an `Automatic Brightness` toggle for fast on/off control.
+- Most settings changes are only persisted after clicking `Save`.
 
-In settings, you can:
+## Settings Overview
 
-- Use the normal brightness slider when automatic brightness is off
-- Turn sync on or off for each monitor
-- Set a minimum brightness per monitor
-- Set a maximum brightness per monitor
-- Apply a brightness multiplier per monitor
-- Enable `Automatic Brightness`
-- Enable `Lock automatic brightness` so only the app can turn automatic brightness off
-- Adjust the automatic-brightness curve visually across `0-24` hours
-- Enable `Start with Windows`
-- Enable `Legacy DDC/CI detection` for compatibility, then refresh monitors or restart the app
-- Enable `Disable on lock screen`
-- Enable idle dimming
-- Set the idle timeout
-- Choose whether idle dimming scales targets or uses each monitor's minimum brightness
-- Optionally ignore idle dimming while media is playing
-- Enable periodic brightness enforcement and choose its interval
+### Brightness
 
-Settings sections are organized as:
+- Adjust the shared brightness value when automatic brightness is off.
 
-1. Normal brightness slider
-2. Options
-3. Monitor configs
-4. Automatic brightness
+### Monitor Configs
+
+- Enable or disable individual monitors.
+- Clamp each monitor with minimum and maximum brightness.
+- Scale a monitor brighter or dimmer with a multiplier.
+
+### Automatic Brightness
+
+- Enable a 24-hour brightness curve.
+- Drag curve points in Settings to tune brightness through the day.
+- Use `Lock automatic brightness` if you want BrightSync to ignore manual Windows brightness changes and immediately restore the automatic target.
+
+### Other Options
+
+- `Start with Windows`
+- `Legacy DDC/CI detection`
+- `Disable on lock screen`
+- `Idle dimming`
+- `Brightness enforcement`
+- `Check for updates`
+
+## Compatibility and Troubleshooting
+
+- If monitor detection is unreliable, enable `Legacy DDC/CI detection`, then refresh monitors or restart the app.
+- If `Disable on lock screen` is enabled, BrightSync pauses external monitor reads and writes while Windows is locked and refreshes monitors after unlock.
+- Idle dimming can either scale targets down by a percentage or reduce each monitor to its configured minimum brightness.
+- Idle dimming can optionally ignore idle time while media playback is active.
+- Brightness enforcement helps recover from monitors that reset brightness after sleep, power cycling, or input changes.
+- Automatic brightness recalculates through the day and after resume or system time changes.
+
+## Configuration
+
+BrightSync stores its configuration at:
+
+`%APPDATA%\BrightSync\config.json`
 
 ## Updates
 
-BrightSync checks GitHub releases for updates and opens the releases page when a newer version is available.
-
-## Builds and Releases
-
-This repository uses GitHub Actions for releases.
-
-- Workflow file: [`.github/workflows/release.yml`](.github/workflows/release.yml)
-- Trigger: update the `VERSION` file and push to `main` or `master`
-- Manual trigger: run the workflow from the GitHub Actions tab
-- Output: release zip files for `win-x64` and `win-x86`, in both self-contained and framework-dependent versions
-
-The workflow publishes the app, creates zip files, and uploads them to the matching GitHub release.
+BrightSync can check GitHub releases for updates. If a newer version is found, it opens the releases page.
 
 ## Build Locally
 
@@ -141,3 +139,18 @@ Build:
 dotnet restore
 dotnet publish BrightSync.csproj -c Release
 ```
+
+## Release Automation
+
+This repository uses GitHub Actions to build and publish releases.
+
+- Workflow: [`.github/workflows/release.yml`](.github/workflows/release.yml)
+- Automatic trigger: update `VERSION` and push to `main` or `master`
+- Manual trigger: run the workflow from the GitHub Actions tab
+- Output packages:
+  - `win-x64` self-contained single-file
+  - `win-x64` framework-dependent
+  - `win-x86` self-contained single-file
+  - `win-x86` framework-dependent
+
+The workflow reads the version from `VERSION`, publishes the app, creates zip archives, and uploads them to the matching GitHub release.
