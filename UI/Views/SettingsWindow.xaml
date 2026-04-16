@@ -425,14 +425,14 @@
                                             <!-- No DDC/CI notice -->
                                             <TextBlock FontSize="11"
                                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                                       Margin="0,4,0,0">
+                                                       Margin="0,4,0,0"
+                                                       Text="{Binding CapabilityNoticeText}">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Visibility" Value="Collapsed"/>
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding SupportsDdcCi}" Value="False">
+                                                            <DataTrigger Binding="{Binding HasCapabilityNotice}" Value="True">
                                                                 <Setter Property="Visibility" Value="Visible"/>
-                                                                <Setter Property="Text" Value="DDC/CI not supported — brightness control unavailable"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>

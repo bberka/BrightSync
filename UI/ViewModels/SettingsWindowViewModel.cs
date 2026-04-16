@@ -189,7 +189,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
         OnChanged(nameof(HasMonitors));
         if (Monitors.Count == 0)
-            EmptyStateText = "No DDC/CI monitors detected. Try Refresh.";
+            EmptyStateText = "No displays detected. Try Refresh.";
         else
             EmptyStateText = string.Empty;
         OnChanged(nameof(EmptyStateText));

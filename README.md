@@ -50,8 +50,9 @@ BrightSync also includes an optional automatic brightness mode. When enabled, th
 
 Notes:
 
-- BrightSync can only control monitors that support DDC/CI brightness commands.
-- If a monitor does not support DDC/CI, it will still appear in the app, but BrightSync cannot change its brightness.
+- External monitors are controlled through DDC/CI.
+- Built-in laptop panels are controlled through the normal Windows brightness API, not DDC/CI.
+- If an external monitor does not support DDC/CI, it will still appear in the app, but BrightSync cannot change its brightness.
 - Windows may only show the native brightness slider on systems with a compatible internal display. When it does not, use the BrightSync tray slider instead.
 - When automatic brightness is enabled, manual brightness sliders stay visible as read-only status indicators.
 

@@ -40,6 +40,8 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
 
     public bool CanToggleEnabled => SupportsDdcCi;
     public bool CanExpand => SupportsDdcCi;
+    public bool UsesWindowsBrightnessControl => IsInternal;
+    public bool SupportsBrightnessControl => SupportsDdcCi || UsesWindowsBrightnessControl;
 
     private int _min;
     public int MinBrightness
@@ -94,9 +96,17 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     public string DisplayName => _displayName;
     public string ResolutionText { get; }
     public string ConnectionText { get; }
-    public string DdcStatusText => SupportsDdcCi ? "DDC/CI" : "No DDC/CI";
+    public string DdcStatusText => UsesWindowsBrightnessControl
+        ? "Windows brightness"
+        : SupportsDdcCi
+            ? "DDC/CI"
+            : "No DDC/CI";
     public bool IsInternal { get; }
     public ICommand ResetCommand { get; }
+    public bool HasCapabilityNotice => UsesWindowsBrightnessControl || !SupportsDdcCi;
+    public string CapabilityNoticeText => UsesWindowsBrightnessControl
+        ? "Built-in panel brightness is controlled through Windows. Use the main Brightness slider above."
+        : "DDC/CI not supported - brightness control unavailable";
 
     /// <summary>Compact info line combining resolution, DDC status, and connection type.</summary>
     public string InfoLine
@@ -115,12 +125,19 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     {
         get
         {
+            if (UsesWindowsBrightnessControl)
+            {
+                var b = _engine.LastInternalBrightness;
+                return b >= 0
+                    ? $"Controlled by Windows slider ({b}%)"
+                    : "Controlled by Windows slider";
+            }
             if (!SupportsDdcCi) return "No DDC/CI";
             if (!Enabled) return "Disabled";
-            var b = _engine.LastInternalBrightness;
-            if (b < 0) return "\u2014";
+            var currentBrightness = _engine.LastInternalBrightness;
+            if (currentBrightness < 0) return "\u2014";
             var t = _engine.CalculateTarget(DeviceName, _profile);
-            return $"Target: {t}%  (internal {b}%)";
+            return $"Target: {t}%  (internal {currentBrightness}%)";
         }
     }
 

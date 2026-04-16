@@ -1,7 +1,7 @@
 ﻿namespace BrightSync.Core.Monitors;
 
 /// <summary>
-/// Represents a DDC/CI-capable external monitor.
+/// Represents a connected display that BrightSync can inspect and, in some cases, control.
 /// </summary>
 public sealed class DdcMonitor
 {
