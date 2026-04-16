@@ -122,6 +122,11 @@ public sealed class TrayManager(
             _quickVm = new QuickBrightnessViewModel(engine, autoBrightness, ddc, config, ShowSettings);
             _quickPopup = new QuickBrightnessWindow { DataContext = _quickVm };
             _quickPopup.Deactivated += (s, e) => _quickPopup.Hide(); // Hide when clicking away
+            _quickPopup.SizeChanged += (_, _) =>
+            {
+                if (_quickPopup.IsVisible)
+                    PositionWindowAboveTray(_quickPopup);
+            };
             _quickPopup.IsVisibleChanged += (_, _) =>
             {
                 if (_quickPopup is { IsVisible: false })
