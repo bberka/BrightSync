@@ -139,6 +139,18 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         set { _startWithWindows = value; _config.Config.StartWithWindows = value; OnChanged(); }
     }
 
+    private bool _disableMonitorAccessWhileLocked;
+    public bool DisableMonitorAccessWhileLocked
+    {
+        get => _disableMonitorAccessWhileLocked;
+        set
+        {
+            _disableMonitorAccessWhileLocked = value;
+            _config.Config.DisableMonitorAccessWhileLocked = value;
+            OnChanged();
+        }
+    }
+
     public ICommand SaveCommand { get; }
     public ICommand RefreshCommand { get; }
     public ICommand ResetAllCommand { get; }
@@ -166,6 +178,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _enforcementInterval = config.Config.EnforcementIntervalSeconds;
         _enforcementEnabled = config.Config.EnforcementEnabled;
         _startWithWindows = config.Config.StartWithWindows;
+        _disableMonitorAccessWhileLocked = config.Config.DisableMonitorAccessWhileLocked;
 
         SaveCommand = new RelayCommand(Save);
         RefreshCommand = new RelayCommand(Refresh);
@@ -249,6 +262,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _config.Config.AutoBrightness = AutoBrightnessSettings.CreateDefault();
         EnforcementIntervalSeconds = new AppConfig().EnforcementIntervalSeconds;
         EnforcementEnabled = true;
+        DisableMonitorAccessWhileLocked = false;
         StartWithWindows = false;
 
         foreach (var monitor in Monitors)

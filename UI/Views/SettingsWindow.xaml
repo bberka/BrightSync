@@ -232,6 +232,24 @@
                                     Background="{DynamicResource ControlStrokeColorDefaultBrush}"
                                     Margin="0,8"/>
 
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock Text="Disable on lock screen" FontSize="13"/>
+                                    <TextBlock Text="Pause monitor reads and writes while Windows is locked"
+                                               FontSize="11"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                </StackPanel>
+                                <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding DisableMonitorAccessWhileLocked}"/>
+                            </Grid>
+
+                            <Border Height="1"
+                                    Background="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                    Margin="0,8"/>
+
                             <!-- Enforcement toggle -->
                             <Grid>
                                 <Grid.ColumnDefinitions>

@@ -21,9 +21,11 @@ public sealed class BrightSyncEngine : IDisposable
     private readonly ConfigManager _config;
     private readonly System.Timers.Timer _enforcementTimer;
     private int _lastInternalBrightness = -1;
+    private bool _isSessionLocked;
     private bool _disposed;
 
     public int LastInternalBrightness => _lastInternalBrightness;
+    public bool IsMonitorAccessSuspended => _config.Config.DisableMonitorAccessWhileLocked && _isSessionLocked;
 
     public BrightSyncEngine(
         DdcCiService ddc,
@@ -62,6 +64,7 @@ public sealed class BrightSyncEngine : IDisposable
             Math.Max(5, _config.Config.EnforcementIntervalSeconds));
 
         SystemEvents.PowerModeChanged += OnPowerModeChanged;
+        SystemEvents.SessionSwitch += OnSessionSwitch;
     }
 
     /// <summary>
@@ -92,6 +95,12 @@ public sealed class BrightSyncEngine : IDisposable
     /// <summary>Call after monitor list or config changes to rebuild DDC handles.</summary>
     public void RefreshMonitors()
     {
+        if (IsMonitorAccessSuspended)
+        {
+            Log.Information("Monitor refresh skipped because monitor access is paused while the session is locked");
+            return;
+        }
+
         Log.Information("Refreshing monitor list");
         _ddc.Refresh();
         Log.Information("Monitor refresh complete. KnownMonitors={MonitorCount}", _ddc.GetMonitors().Count);
@@ -161,6 +170,12 @@ public sealed class BrightSyncEngine : IDisposable
 
     private void SyncAllMonitors()
     {
+        if (IsMonitorAccessSuspended)
+        {
+            Log.Debug("Monitor sync skipped because monitor access is paused while the session is locked");
+            return;
+        }
+
         var appliedCount = 0;
         var skippedCount = 0;
 
@@ -194,6 +209,12 @@ public sealed class BrightSyncEngine : IDisposable
 
     private void Enforce()
     {
+        if (IsMonitorAccessSuspended)
+        {
+            Log.Debug("Brightness enforcement skipped because monitor access is paused while the session is locked");
+            return;
+        }
+
         if (!_config.Config.EnforcementEnabled) return;
 
         // Re-apply without recalculating — just re-send the last commanded value.
@@ -227,11 +248,30 @@ public sealed class BrightSyncEngine : IDisposable
         {
             Log.Information("System resume detected; scheduling monitor refresh");
             // Give displays a moment to initialise after wake
-            Task.Delay(2000).ContinueWith(_ =>
-            {
-                _ddc.Refresh();
-                ForceSync();
-            });
+            Task.Delay(2000).ContinueWith(_ => RefreshMonitors());
+        }
+    }
+
+    private void OnSessionSwitch(object sender, SessionSwitchEventArgs e)
+    {
+        switch (e.Reason)
+        {
+            case SessionSwitchReason.SessionLock:
+                _isSessionLocked = true;
+                if (_config.Config.DisableMonitorAccessWhileLocked)
+                    Log.Information("Windows session locked; pausing external monitor access");
+                break;
+
+            case SessionSwitchReason.SessionUnlock:
+                var wasSuspended = IsMonitorAccessSuspended;
+                _isSessionLocked = false;
+
+                if (!wasSuspended)
+                    return;
+
+                Log.Information("Windows session unlocked; scheduling monitor refresh");
+                Task.Delay(1500).ContinueWith(_ => RefreshMonitors());
+                break;
         }
     }
 
@@ -241,6 +281,7 @@ public sealed class BrightSyncEngine : IDisposable
         _disposed = true;
         Log.Debug("Disposing brightness sync engine");
         SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+        SystemEvents.SessionSwitch -= OnSessionSwitch;
         _watcher.BrightnessChanged -= OnInternalBrightnessChanged;
         _enforcementTimer.Stop();
         _enforcementTimer.Dispose();

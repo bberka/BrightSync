@@ -10,6 +10,8 @@ public sealed class AppConfig
     public int EnforcementIntervalSeconds { get; set; } = 10;
     /// <summary>Whether periodic brightness enforcement is enabled.</summary>
     public bool EnforcementEnabled { get; set; } = true;
+    /// <summary>Whether external monitor access should pause while the Windows session is locked.</summary>
+    public bool DisableMonitorAccessWhileLocked { get; set; }
     /// <summary>Whether to launch BrightSync when the user logs in.</summary>
     public bool StartWithWindows { get; set; }
     /// <summary>The last local calendar date when BrightSync checked for updates.</summary>

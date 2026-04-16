@@ -2,23 +2,19 @@
 
 This document collects feature ideas that could be added to BrightSync in future releases.
 
-## 1. Disable on Lock Screen
+## Implemented
 
-Do not access monitors while the Windows session is locked.
+### Disable on Lock Screen
 
-Why this may help:
+Implemented.
 
-- Avoids monitor-control conflicts in multi-user environments.
-- Reduces the chance of brightness changes while another user is signing in.
-- Prevents unnecessary DDC/CI traffic while the session is inactive.
+Current behavior:
 
-Possible behavior:
+- BrightSync can pause external monitor reads and writes while the Windows session is locked.
+- After unlock, BrightSync refreshes monitors and resumes sync.
+- The option is available in Settings as `Disable on lock screen`.
 
-- Pause monitor reads and writes when the session is locked.
-- Resume and refresh monitors after unlock.
-- Add a setting such as `Disable monitor access while locked`.
-
-## 2. Localization
+## 1. Localization
 
 Add support for multiple UI languages.
 
@@ -33,7 +29,7 @@ Possible scope:
 - Start with a resource-based system so adding languages stays maintainable.
 - Ship English first as default, then add community-contributed translations.
 
-## 3. Better Visible Tray Icon
+## 2. Better Visible Tray Icon
 
 Improve tray icon visibility across light and dark taskbars.
 
@@ -48,7 +44,7 @@ Possible ideas:
 - Detect Windows theme and switch icon automatically.
 - Consider a slightly bolder shape or filled icon for small-size readability.
 
-## 4. Improved Detection Support
+## 3. Improved Detection Support
 
 Expand monitor detection and brightness-control compatibility, similar to the broader approach used by tools such as Twinkle Tray.
 
@@ -74,7 +70,7 @@ Possible implementation direction:
 - Store which backend detected a monitor for diagnostics.
 - Expose a simple diagnostics view so users can see why a monitor is or is not controllable.
 
-## 5. Legacy DDC/CI Detection Method
+## 4. Legacy DDC/CI Detection Method
 
 Add an optional legacy DDC/CI detection mode, based on the older detection behavior from v1.15.5.
 
@@ -89,7 +85,7 @@ Possible behavior:
 - Require a monitor refresh or app restart after changing the setting.
 - Clearly label it as a compatibility option.
 
-## 6. Idle Detection With Brightness Reduction
+## 5. Idle Detection With Brightness Reduction
 
 Detect when the computer is idle and temporarily reduce brightness.
 
@@ -116,6 +112,6 @@ Implementation notes:
 - Idle detection would likely need Windows input idle time APIs.
 - Media playback detection may need session/media API integration so video playback does not trigger dimming.
 
-## 7. Open Feature Slot
+## 6. Open Feature Slot
 
 Reserved for another future feature idea.
