@@ -22,6 +22,8 @@ public sealed class AppConfig
     public int IdleReductionPercent { get; set; } = 50;
     /// <summary>Whether active media playback should suppress idle dimming.</summary>
     public bool IdleIgnoreMediaPlayback { get; set; } = true;
+    /// <summary>Whether to use the older, simpler DDC/CI monitor detection path for compatibility.</summary>
+    public bool UseLegacyDdcCiDetection { get; set; }
     /// <summary>Whether to launch BrightSync when the user logs in.</summary>
     public bool StartWithWindows { get; set; }
     /// <summary>The last local calendar date when BrightSync checked for updates.</summary>

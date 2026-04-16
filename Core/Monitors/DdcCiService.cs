@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using BrightSync.Core.Config;
 using BrightSync.Core.Interop;
 using Serilog;
 
@@ -10,13 +11,15 @@ namespace BrightSync.Core.Monitors;
 /// </summary>
 public sealed class DdcCiService : IDisposable
 {
+    private readonly ConfigManager _config;
     private readonly object _lock = new();
     private List<DdcMonitor> _monitors = new();
     private List<PhysicalMonitorGroup> _groups = new();
     private bool _disposed;
 
-    public DdcCiService()
+    public DdcCiService(ConfigManager config)
     {
+        _config = config;
         Refresh();
     }
 
@@ -26,12 +29,15 @@ public sealed class DdcCiService : IDisposable
         MonitorNameResolver.InvalidateCache();
         lock (_lock)
         {
+            var useLegacyDetection = _config.Config.UseLegacyDdcCiDetection;
             DisposeGroups();
             _groups = new List<PhysicalMonitorGroup>();
             _monitors = new List<DdcMonitor>();
-            EnumerateMonitors();
-            Log.Information("DDC/CI refresh finished. TotalMonitors={TotalMonitors}, ControllableMonitors={ControllableMonitors}",
-                _monitors.Count, _monitors.Count(m => m.SupportsDdcCi));
+            EnumerateMonitors(useLegacyDetection);
+            Log.Information("DDC/CI refresh finished. DetectionMode={DetectionMode}, TotalMonitors={TotalMonitors}, ControllableMonitors={ControllableMonitors}",
+                useLegacyDetection ? "Legacy" : "Modern",
+                _monitors.Count,
+                _monitors.Count(m => m.SupportsDdcCi));
         }
     }
 
@@ -100,7 +106,7 @@ public sealed class DdcCiService : IDisposable
 
     // --- Private ---
 
-    private void EnumerateMonitors()
+    private void EnumerateMonitors(bool useLegacyDetection)
     {
         var hMonitors = new List<IntPtr>();
         NativeMethods.EnumDisplayMonitors(
@@ -132,14 +138,19 @@ public sealed class DdcCiService : IDisposable
             var group = new PhysicalMonitorGroup(physicals, deviceName);
             _groups.Add(group);
 
-            // Resolve friendly name once per HMONITOR (one monitor per adapter port)
-            var identity = MonitorNameResolver.ResolveIdentity(deviceName);
-            var displayConfig = DisplayConfigResolver.Resolve(deviceName);
-            var friendlyName = !string.IsNullOrWhiteSpace(identity.FriendlyName)
-                ? identity.FriendlyName
-                : (!string.IsNullOrWhiteSpace(displayConfig.FriendlyTargetName)
-                    ? displayConfig.FriendlyTargetName
-                    : deviceName);
+            var identity = useLegacyDetection
+                ? MonitorNameResolver.MonitorIdentity.Unknown
+                : MonitorNameResolver.ResolveIdentity(deviceName);
+            var displayConfig = useLegacyDetection
+                ? default(DisplayConfigInfo)
+                : DisplayConfigResolver.Resolve(deviceName);
+            var friendlyName = useLegacyDetection
+                ? MonitorNameResolver.Resolve(deviceName)
+                : (!string.IsNullOrWhiteSpace(identity.FriendlyName)
+                    ? identity.FriendlyName
+                    : (!string.IsNullOrWhiteSpace(displayConfig.FriendlyTargetName)
+                        ? displayConfig.FriendlyTargetName
+                        : deviceName));
 
             for (var i = 0; i < physicals.Length; i++)
             {
@@ -153,15 +164,15 @@ public sealed class DdcCiService : IDisposable
                 _monitors.Add(new DdcMonitor
                 {
                     DeviceName = deviceName,
-                    ManufacturerName = identity.ManufacturerName,
-                    ModelName = identity.ModelName,
+                    ManufacturerName = useLegacyDetection ? string.Empty : identity.ManufacturerName,
+                    ModelName = useLegacyDetection ? string.Empty : identity.ModelName,
                     FriendlyName = friendlyName,
                     Description = pm.szPhysicalMonitorDescription?.Trim() ?? deviceName,
                     ResolutionWidth = resW,
                     ResolutionHeight = resH,
-                    RefreshRateHz = GetRefreshRate(deviceName),
-                    ConnectionType = displayConfig.ConnectionType,
-                    IsInternal = displayConfig.IsInternal,
+                    RefreshRateHz = useLegacyDetection ? 0 : GetRefreshRate(deviceName),
+                    ConnectionType = useLegacyDetection ? string.Empty : displayConfig.ConnectionType,
+                    IsInternal = useLegacyDetection ? false : displayConfig.IsInternal,
                     SupportsDdcCi = supportsDdc,
                     MaxDdcBrightness = maxBrightness,
                     LastCommandedPercent = supportsDdc ? (int)Math.Round(current * 100.0 / maxBrightness) : -1,
@@ -169,8 +180,12 @@ public sealed class DdcCiService : IDisposable
                     Group = group
                 });
 
-                Log.Debug("Detected monitor. Device={DeviceName}, FriendlyName={FriendlyName}, SupportsDdcCi={SupportsDdcCi}, IsInternal={IsInternal}",
-                    deviceName, friendlyName, supportsDdc, displayConfig.IsInternal);
+                Log.Debug("Detected monitor. DetectionMode={DetectionMode}, Device={DeviceName}, FriendlyName={FriendlyName}, SupportsDdcCi={SupportsDdcCi}, IsInternal={IsInternal}",
+                    useLegacyDetection ? "Legacy" : "Modern",
+                    deviceName,
+                    friendlyName,
+                    supportsDdc,
+                    useLegacyDetection ? false : displayConfig.IsInternal);
             }
         }
     }

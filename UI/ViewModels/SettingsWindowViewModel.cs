@@ -140,6 +140,22 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         set { _startWithWindows = value; _config.Config.StartWithWindows = value; OnChanged(); }
     }
 
+    private bool _useLegacyDdcCiDetection;
+    public bool UseLegacyDdcCiDetection
+    {
+        get => _useLegacyDdcCiDetection;
+        set
+        {
+            if (_useLegacyDdcCiDetection == value)
+                return;
+
+            _useLegacyDdcCiDetection = value;
+            _config.Config.UseLegacyDdcCiDetection = value;
+            OnChanged();
+            SetStatus("DDC/CI detection mode changed. Refresh monitors or restart the app to apply it.");
+        }
+    }
+
     private bool _disableMonitorAccessWhileLocked;
     public bool DisableMonitorAccessWhileLocked
     {
@@ -300,6 +316,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _enforcementInterval = config.Config.EnforcementIntervalSeconds;
         _enforcementEnabled = config.Config.EnforcementEnabled;
         _startWithWindows = config.Config.StartWithWindows;
+        _useLegacyDdcCiDetection = config.Config.UseLegacyDdcCiDetection;
         _disableMonitorAccessWhileLocked = config.Config.DisableMonitorAccessWhileLocked;
         _idleReductionEnabled = config.Config.IdleReductionEnabled;
         _idleTimeoutMinutes = Math.Clamp(config.Config.IdleTimeoutMinutes, 1, 120);
@@ -397,6 +414,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         IdleReductionPercent = new AppConfig().IdleReductionPercent;
         IdleIgnoreMediaPlayback = true;
         StartWithWindows = false;
+        UseLegacyDdcCiDetection = false;
 
         foreach (var monitor in Monitors)
             monitor.Reset();

@@ -56,7 +56,7 @@ public partial class App
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
 
         var configManager = new ConfigManager();
-        _ddcService = new DdcCiService();
+        _ddcService = new DdcCiService(configManager);
         var watcher = new InternalBrightnessWatcher();
 
         _syncEngine = new BrightSyncEngine(_ddcService, watcher, configManager);
