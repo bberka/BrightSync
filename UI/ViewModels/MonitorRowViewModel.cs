@@ -39,6 +39,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     }
 
     public bool CanToggleEnabled => SupportsDdcCi;
+    public bool CanExpand => SupportsDdcCi;
 
     private int _min;
     public int MinBrightness

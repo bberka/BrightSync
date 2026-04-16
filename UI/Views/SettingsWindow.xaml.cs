@@ -86,9 +86,9 @@ public partial class SettingsWindow : Window
         ExitRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    private void MonitorCard_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void MonitorHeader_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: MonitorRowViewModel vm })
+        if (sender is FrameworkElement { DataContext: MonitorRowViewModel vm } && vm.CanExpand)
             vm.IsExpanded = !vm.IsExpanded;
     }
 

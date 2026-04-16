@@ -298,12 +298,21 @@
                     <ItemsControl ItemsSource="{Binding Monitors}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <ui:Card Margin="0,0,0,8" Padding="12,10"
-                                        Cursor="Hand"
-                                        MouseLeftButtonDown="MonitorCard_MouseLeftButtonDown">
+                                <ui:Card Margin="0,0,0,8" Padding="12,10">
                                     <StackPanel>
                                         <!-- Header row -->
-                                        <Grid>
+                                        <Border Background="Transparent">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Cursor" Value="Arrow"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding CanExpand}" Value="True">
+                                                            <Setter Property="Cursor" Value="Hand"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <Grid MouseLeftButtonDown="MonitorHeader_MouseLeftButtonDown">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
@@ -311,10 +320,20 @@
                                             </Grid.ColumnDefinitions>
 
                                             <ToggleButton Grid.Column="0"
-                                                          Style="{StaticResource ChevronToggle}"
                                                           IsChecked="{Binding IsExpanded}"
                                                           IsHitTestVisible="False"
-                                                          VerticalAlignment="Center"/>
+                                                          VerticalAlignment="Center">
+                                                <ToggleButton.Style>
+                                                    <Style TargetType="ToggleButton" BasedOn="{StaticResource ChevronToggle}">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding CanExpand}" Value="False">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </ToggleButton.Style>
+                                            </ToggleButton>
 
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="8,0">
                                                 <TextBlock Text="{Binding DisplayName}"
@@ -331,7 +350,8 @@
                                                              IsEnabled="{Binding CanToggleEnabled}"
                                                              VerticalAlignment="Center"
                                                              Margin="8,0,0,0"/>
-                                        </Grid>
+                                            </Grid>
+                                        </Border>
 
                                         <!-- Expandable content -->
                                         <StackPanel Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}"
