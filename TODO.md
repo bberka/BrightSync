@@ -42,3 +42,7 @@ Possible implementation direction:
 - Add a layered detection pipeline with multiple fallback methods.
 - Store which backend detected a monitor for diagnostics.
 - Expose a simple diagnostics view so users can see why a monitor is or is not controllable.
+
+## 3. Bug: System Theme Sync
+
+- When app is open and system theme changes, app does not update its own theme. It requires full app restart manually by user.
