@@ -82,11 +82,80 @@ internal static class DisplayConfigResolver
         NativeMethods.DISPLAYCONFIG_TARGET_DEVICE_NAME? target)
     {
         var technology = target?.outputTechnology ?? path.targetInfo.outputTechnology;
+        var hdrInfo = ReadHdrInfo(path.targetInfo.adapterId, path.targetInfo.id);
         return new DisplayConfigInfo(
             MapConnectionType(technology),
             IsInternal(technology),
-            target?.monitorFriendlyDeviceName?.Trim() ?? string.Empty);
+            target?.monitorFriendlyDeviceName?.Trim() ?? string.Empty,
+            hdrInfo);
     }
+
+    private static HdrDisplayInfo ReadHdrInfo(NativeMethods.LUID adapterId, uint targetId)
+    {
+        try
+        {
+            var advancedColor2 = new NativeMethods.DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO_2
+            {
+                header = new NativeMethods.DISPLAYCONFIG_DEVICE_INFO_HEADER
+                {
+                    type = NativeMethods.DISPLAYCONFIG_DEVICE_INFO_TYPE.GetAdvancedColorInfo2,
+                    size = (uint)Marshal.SizeOf<NativeMethods.DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO_2>(),
+                    adapterId = adapterId,
+                    id = targetId
+                }
+            };
+
+            var advancedColor = new NativeMethods.DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO
+            {
+                header = new NativeMethods.DISPLAYCONFIG_DEVICE_INFO_HEADER
+                {
+                    type = NativeMethods.DISPLAYCONFIG_DEVICE_INFO_TYPE.GetAdvancedColorInfo,
+                    size = (uint)Marshal.SizeOf<NativeMethods.DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO>(),
+                    adapterId = adapterId,
+                    id = targetId
+                }
+            };
+
+            var advancedColorInfo2Result = NativeMethods.DisplayConfigGetDeviceInfo(ref advancedColor2);
+            var advancedColorInfoResult = NativeMethods.DisplayConfigGetDeviceInfo(ref advancedColor);
+            if (advancedColorInfo2Result != 0 && advancedColorInfoResult != 0)
+                return HdrDisplayInfo.Empty;
+
+            var whiteLevel = new NativeMethods.DISPLAYCONFIG_SDR_WHITE_LEVEL
+            {
+                header = new NativeMethods.DISPLAYCONFIG_DEVICE_INFO_HEADER
+                {
+                    type = NativeMethods.DISPLAYCONFIG_DEVICE_INFO_TYPE.GetSdrWhiteLevel,
+                    size = (uint)Marshal.SizeOf<NativeMethods.DISPLAYCONFIG_SDR_WHITE_LEVEL>(),
+                    adapterId = adapterId,
+                    id = targetId
+                }
+            };
+
+            var sdrWhiteLevelNits = NativeMethods.DisplayConfigGetDeviceInfo(ref whiteLevel) == 0
+                ? (int)Math.Round(whiteLevel.SDRWhiteLevel * 80.0 / 1000.0)
+                : 0;
+
+            return new HdrDisplayInfo(
+                advancedColorInfo2Result == 0
+                    ? IsHdrSupported(advancedColor2)
+                    : false,
+                advancedColorInfo2Result == 0
+                    ? IsHdrEnabled(advancedColor2)
+                    : false,
+                sdrWhiteLevelNits);
+        }
+        catch
+        {
+            return HdrDisplayInfo.Empty;
+        }
+    }
+
+    private static bool IsHdrSupported(NativeMethods.DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO_2 info)
+        => (info.value & 0x10u) != 0;
+
+    private static bool IsHdrEnabled(NativeMethods.DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO_2 info)
+        => (info.value & 0x20u) != 0 || info.activeColorMode == NativeMethods.DISPLAYCONFIG_ADVANCED_COLOR_MODE.Hdr;
 
     internal static bool IsInternal(NativeMethods.DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY technology)
         => technology is NativeMethods.DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY.Internal
@@ -117,7 +186,8 @@ internal static class DisplayConfigResolver
 internal readonly record struct DisplayConfigInfo(
     string ConnectionType,
     bool IsInternal,
-    string FriendlyTargetName)
+    string FriendlyTargetName,
+    HdrDisplayInfo HdrInfo)
 {
-    public static DisplayConfigInfo Empty => new(string.Empty, false, string.Empty);
+    public static DisplayConfigInfo Empty => new(string.Empty, false, string.Empty, HdrDisplayInfo.Empty);
 }

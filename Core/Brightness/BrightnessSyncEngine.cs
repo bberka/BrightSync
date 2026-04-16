@@ -256,6 +256,21 @@ public sealed class BrightSyncEngine : IDisposable
             if (!profile.Enabled) continue;
             if (monitor.LastCommandedPercent < 0) continue;
 
+            if (!monitor.SupportsBrightnessRead)
+            {
+                Log.Debug("Brightness enforcement skipped readback for monitor {Monitor} because backend {Backend} does not support brightness reads",
+                    monitor.FriendlyName,
+                    monitor.BrightnessBackend);
+                continue;
+            }
+
+            if (monitor.IsHdrEnabled)
+            {
+                Log.Debug("Brightness enforcement skipped readback for monitor {Monitor} because HDR is enabled",
+                    monitor.FriendlyName);
+                continue;
+            }
+
             // Verify actual value matches what we last set; if not, re-apply.
             if (_ddc.TryGetBrightness(monitor, out var actual) &&
                 Math.Abs(actual - monitor.LastCommandedPercent) > 1)

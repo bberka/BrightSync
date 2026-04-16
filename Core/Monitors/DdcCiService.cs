@@ -11,6 +11,8 @@ namespace BrightSync.Core.Monitors;
 /// </summary>
 public sealed class DdcCiService : IDisposable
 {
+    private const int RetryDelayMilliseconds = 60;
+
     private readonly ConfigManager _config;
     private readonly object _lock = new();
     private List<DdcMonitor> _monitors = new();
@@ -55,22 +57,28 @@ public sealed class DdcCiService : IDisposable
     public bool SetBrightness(DdcMonitor monitor, int brightnessPercent)
     {
         brightnessPercent = Math.Clamp(brightnessPercent, 0, 100);
-        var ddcValue = (uint)Math.Round(brightnessPercent / 100.0 * monitor.MaxDdcBrightness);
         // Acquire the lock so a concurrent Refresh() cannot destroy the handle mid-call.
         lock (_lock)
         {
             if (_disposed) return false;
-            var ok = NativeMethods.SetVCPFeature(monitor.Handle, NativeMethods.VCP_BRIGHTNESS, ddcValue);
+            var ok = monitor.BrightnessBackendType switch
+            {
+                MonitorBrightnessBackend.HighLevelApi => TrySetHighLevelBrightness(monitor, brightnessPercent),
+                MonitorBrightnessBackend.WriteOnlyDdcCi => TrySetVcpBrightness(monitor, brightnessPercent, retryCount: 2),
+                MonitorBrightnessBackend.LowLevelDdcCi => TrySetVcpBrightness(monitor, brightnessPercent, retryCount: 2),
+                _ => false
+            };
+
             if (ok)
             {
                 monitor.LastCommandedPercent = brightnessPercent;
-                Log.Debug("Set monitor brightness. Monitor={Monitor}, Brightness={Brightness}%, DdcValue={DdcValue}",
-                    monitor.FriendlyName, brightnessPercent, ddcValue);
+                Log.Debug("Set monitor brightness. Monitor={Monitor}, Brightness={Brightness}%, Backend={Backend}",
+                    monitor.FriendlyName, brightnessPercent, monitor.BrightnessBackend);
             }
             else
             {
-                Log.Warning("Native DDC/CI brightness update failed. Monitor={Monitor}, Brightness={Brightness}%",
-                    monitor.FriendlyName, brightnessPercent);
+                Log.Warning("Brightness update failed. Monitor={Monitor}, Brightness={Brightness}%, Backend={Backend}",
+                    monitor.FriendlyName, brightnessPercent, monitor.BrightnessBackend);
             }
             return ok;
         }
@@ -86,21 +94,21 @@ public sealed class DdcCiService : IDisposable
         lock (_lock)
         {
             if (_disposed) return false;
-            var ok = NativeMethods.GetVCPFeatureAndVCPFeatureReply(
-                monitor.Handle, NativeMethods.VCP_BRIGHTNESS,
-                out _, out var current, out var max);
-            if (ok && max > 0)
+            var ok = monitor.BrightnessBackendType switch
             {
-                brightnessPercent = (int)Math.Round(current * 100.0 / max);
-                return true;
-            }
+                MonitorBrightnessBackend.HighLevelApi => TryGetHighLevelBrightness(monitor, out brightnessPercent),
+                MonitorBrightnessBackend.LowLevelDdcCi => TryGetVcpBrightness(monitor, out brightnessPercent, retryCount: 2),
+                _ => false
+            };
 
             if (!ok)
             {
-                Log.Debug("Unable to read current DDC/CI brightness for monitor {Monitor}", monitor.FriendlyName);
+                Log.Debug("Unable to read current brightness for monitor {Monitor} using backend {Backend}",
+                    monitor.FriendlyName,
+                    monitor.BrightnessBackend);
             }
 
-            return false;
+            return ok;
         }
     }
 
@@ -139,16 +147,23 @@ public sealed class DdcCiService : IDisposable
             _groups.Add(group);
             var primaryDescription = physicals[0].szPhysicalMonitorDescription?.Trim() ?? deviceName;
             var detection = MonitorDetectionResolver.Resolve(deviceName, primaryDescription, useLegacyDetection);
+            var hdrInfo = detection.HdrInfo;
+            var isAppleDisplay = string.Equals(detection.ManufacturerName, "Apple", StringComparison.OrdinalIgnoreCase) ||
+                                 detection.FriendlyName.Contains("Apple", StringComparison.OrdinalIgnoreCase);
+            var isAppleStudioDisplay = detection.FriendlyName.Contains("Studio Display", StringComparison.OrdinalIgnoreCase) ||
+                                       detection.ModelName.Contains("Studio Display", StringComparison.OrdinalIgnoreCase);
 
             for (var i = 0; i < physicals.Length; i++)
             {
                 var pm = physicals[i];
                 var description = pm.szPhysicalMonitorDescription?.Trim() ?? deviceName;
-                var supportsDdc = NativeMethods.GetVCPFeatureAndVCPFeatureReply(
-                    pm.hPhysicalMonitor, NativeMethods.VCP_BRIGHTNESS,
-                    out _, out var current, out var maxVal);
-
-                var maxBrightness = (supportsDdc && maxVal > 0) ? (int)maxVal : 100;
+                var brightnessSupport = MonitorBrightnessResolver.Probe(pm.hPhysicalMonitor);
+                var details = BuildCombinedDetectionDetails(
+                    detection.DetectionDetails,
+                    brightnessSupport.DetectionDetails,
+                    hdrInfo,
+                    isAppleStudioDisplay,
+                    brightnessSupport.SupportsBrightnessControl);
 
                 _monitors.Add(new DdcMonitor
                 {
@@ -162,24 +177,127 @@ public sealed class DdcCiService : IDisposable
                     RefreshRateHz = useLegacyDetection ? 0 : GetRefreshRate(deviceName),
                     ConnectionType = detection.ConnectionType,
                     IsInternal = detection.IsInternal,
-                    SupportsDdcCi = supportsDdc,
-                    MaxDdcBrightness = maxBrightness,
-                    LastCommandedPercent = supportsDdc ? (int)Math.Round(current * 100.0 / maxBrightness) : -1,
-                    DetectionBackend = detection.DetectionBackend,
-                    DetectionDetails = detection.DetectionDetails,
+                    SupportsDdcCi = brightnessSupport.SupportsBrightnessControl,
+                    SupportsBrightnessRead = brightnessSupport.SupportsBrightnessRead,
+                    MinNativeBrightness = (int)brightnessSupport.MinimumNativeBrightness,
+                    MaxDdcBrightness = (int)brightnessSupport.MaximumNativeBrightness,
+                    LastCommandedPercent = brightnessSupport.CurrentBrightnessPercent,
+                    BrightnessBackendType = brightnessSupport.Backend,
+                    BrightnessBackend = brightnessSupport.BackendLabel,
+                    IsHdrSupported = hdrInfo.IsHdrSupported,
+                    IsHdrEnabled = hdrInfo.IsHdrEnabled,
+                    SdrWhiteLevelNits = hdrInfo.SdrWhiteLevelNits,
+                    IsAppleDisplay = isAppleDisplay,
+                    IsAppleStudioDisplay = isAppleStudioDisplay,
+                    DetectionBackend = $"{detection.DetectionBackend} + {brightnessSupport.BackendLabel}",
+                    DetectionDetails = details,
                     Handle = pm.hPhysicalMonitor,
                     Group = group
                 });
 
-                Log.Debug("Detected monitor. DetectionMode={DetectionMode}, Device={DeviceName}, FriendlyName={FriendlyName}, SupportsDdcCi={SupportsDdcCi}, IsInternal={IsInternal}, DetectionBackend={DetectionBackend}",
+                Log.Debug("Detected monitor. DetectionMode={DetectionMode}, Device={DeviceName}, FriendlyName={FriendlyName}, SupportsDdcCi={SupportsDdcCi}, IsInternal={IsInternal}, DetectionBackend={DetectionBackend}, BrightnessBackend={BrightnessBackend}, HdrEnabled={HdrEnabled}",
                     useLegacyDetection ? "Legacy" : "Modern",
                     deviceName,
                     detection.FriendlyName,
-                    supportsDdc,
+                    brightnessSupport.SupportsBrightnessControl,
                     detection.IsInternal,
-                    detection.DetectionBackend);
+                    detection.DetectionBackend,
+                    brightnessSupport.BackendLabel,
+                    hdrInfo.IsHdrEnabled);
             }
         }
+    }
+
+    private static string BuildCombinedDetectionDetails(
+        string detectionDetails,
+        string brightnessDetails,
+        HdrDisplayInfo hdrInfo,
+        bool isAppleStudioDisplay,
+        bool supportsBrightnessControl)
+    {
+        var parts = new List<string>
+        {
+            detectionDetails,
+            brightnessDetails
+        };
+
+        if (hdrInfo.IsHdrSupported)
+        {
+            var hdrText = hdrInfo.IsHdrEnabled ? "HDR is currently enabled." : "HDR is supported but currently disabled.";
+            if (hdrInfo.SdrWhiteLevelNits > 0)
+                hdrText += $" SDR white level is {hdrInfo.SdrWhiteLevelNits} nits.";
+            parts.Add(hdrText);
+        }
+
+        if (isAppleStudioDisplay)
+        {
+            parts.Add(supportsBrightnessControl
+                ? "Apple Studio Display was detected and a Windows brightness backend is available on this connection."
+                : "Apple Studio Display was detected, but no supported Windows brightness backend was exposed on this connection.");
+        }
+
+        return string.Join(" ", parts.Where(part => !string.IsNullOrWhiteSpace(part)));
+    }
+
+    private static bool TrySetVcpBrightness(DdcMonitor monitor, int brightnessPercent, int retryCount)
+    {
+        var ddcValue = (uint)Math.Round(brightnessPercent / 100.0 * monitor.MaxDdcBrightness);
+        for (var attempt = 0; attempt < retryCount; attempt++)
+        {
+            if (NativeMethods.SetVCPFeature(monitor.Handle, NativeMethods.VCP_BRIGHTNESS, ddcValue))
+                return true;
+
+            if (attempt < retryCount - 1)
+                Thread.Sleep(RetryDelayMilliseconds);
+        }
+
+        return false;
+    }
+
+    private static bool TrySetHighLevelBrightness(DdcMonitor monitor, int brightnessPercent)
+    {
+        var range = Math.Max(1, monitor.MaxDdcBrightness - monitor.MinNativeBrightness);
+        var nativeBrightness = (uint)Math.Round(monitor.MinNativeBrightness + (brightnessPercent / 100.0 * range));
+        return NativeMethods.SetMonitorBrightness(monitor.Handle, nativeBrightness);
+    }
+
+    private static bool TryGetVcpBrightness(DdcMonitor monitor, out int brightnessPercent, int retryCount)
+    {
+        brightnessPercent = 0;
+        for (var attempt = 0; attempt < retryCount; attempt++)
+        {
+            if (NativeMethods.GetVCPFeatureAndVCPFeatureReply(
+                    monitor.Handle,
+                    NativeMethods.VCP_BRIGHTNESS,
+                    out _,
+                    out var current,
+                    out var max) && max > 0)
+            {
+                brightnessPercent = (int)Math.Round(current * 100.0 / max);
+                return true;
+            }
+
+            if (attempt < retryCount - 1)
+                Thread.Sleep(RetryDelayMilliseconds);
+        }
+
+        return false;
+    }
+
+    private static bool TryGetHighLevelBrightness(DdcMonitor monitor, out int brightnessPercent)
+    {
+        brightnessPercent = 0;
+        if (!NativeMethods.GetMonitorBrightness(
+                monitor.Handle,
+                out var min,
+                out var current,
+                out var max) || max <= min)
+        {
+            return false;
+        }
+
+        brightnessPercent = (int)Math.Round((current - min) * 100.0 / (max - min));
+        return true;
     }
 
     private static string GetDeviceName(IntPtr hMonitor, out int resW, out int resH)

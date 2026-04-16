@@ -97,19 +97,22 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     public string DisplayName => _displayName;
     public string ResolutionText { get; }
     public string ConnectionText { get; }
+    public string BrightnessBackendText { get; }
     public string DetectionBackendText { get; }
     public string DetectionDetailsText { get; }
     public string DdcStatusText => UsesWindowsBrightnessControl
         ? "Windows brightness"
         : SupportsDdcCi
-            ? "DDC/CI"
-            : "No DDC/CI";
+            ? BrightnessBackendText
+            : "No brightness control";
     public bool IsInternal { get; }
+    public bool IsHdrSupported { get; }
+    public bool IsHdrEnabled { get; }
     public ICommand ResetCommand { get; }
     public bool HasCapabilityNotice => UsesWindowsBrightnessControl || !SupportsDdcCi;
     public string CapabilityNoticeText => UsesWindowsBrightnessControl
         ? "Built-in panel brightness is controlled through Windows."
-        : "DDC/CI not supported - brightness control unavailable";
+        : "Brightness control is unavailable on this connection.";
     public string DetectionSummaryText => string.IsNullOrWhiteSpace(DetectionBackendText)
         ? "Detection diagnostics unavailable."
         : $"Detection: {DetectionBackendText}";
@@ -123,6 +126,10 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
             if (!string.IsNullOrEmpty(ResolutionText)) parts.Add(ResolutionText);
             parts.Add(DdcStatusText);
             if (!string.IsNullOrEmpty(ConnectionText)) parts.Add(ConnectionText);
+            if (IsHdrEnabled)
+                parts.Add("HDR on");
+            else if (IsHdrSupported)
+                parts.Add("HDR");
             return string.Join(" \u00b7 ", parts);
         }
     }
@@ -138,7 +145,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
                     ? $"Controlled by Windows slider ({b}%)"
                     : "Controlled by Windows slider";
             }
-            if (!SupportsDdcCi) return "No DDC/CI";
+            if (!SupportsDdcCi) return "No brightness control";
             if (!Enabled) return "Disabled";
             var currentBrightness = _engine.LastInternalBrightness;
             if (currentBrightness < 0) return "\u2014";
@@ -160,9 +167,12 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         HardwareDescription = BuildHardwareDescription(monitor, _displayName);
         ResolutionText = BuildResolutionText(monitor);
         ConnectionText = monitor.ConnectionType;
+        BrightnessBackendText = monitor.BrightnessBackend;
         DetectionBackendText = monitor.DetectionBackend;
         DetectionDetailsText = monitor.DetectionDetails;
         IsInternal = monitor.IsInternal;
+        IsHdrSupported = monitor.IsHdrSupported;
+        IsHdrEnabled = monitor.IsHdrEnabled;
         SupportsDdcCi = monitor.SupportsDdcCi;
         _profile = profile;
         _engine = engine;

@@ -6,5 +6,6 @@ internal sealed record MonitorDetectionInfo(
     string FriendlyName,
     string ConnectionType,
     bool IsInternal,
+    HdrDisplayInfo HdrInfo,
     string DetectionBackend,
     string DetectionDetails);

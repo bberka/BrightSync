@@ -214,7 +214,7 @@ public sealed class TrayManager(
                 if (showBalloonTip && _notifyIcon != null)
                 {
                     _notifyIcon.ShowBalloonTip(2000, "BrightSync",
-                        $"Found {ddc.GetMonitors().Count(m => m.SupportsDdcCi)} DDC/CI monitor(s).",
+                        $"Found {ddc.GetMonitors().Count(m => m.SupportsDdcCi)} brightness-controllable monitor(s).",
                         ToolTipIcon.Info);
                 }
             }

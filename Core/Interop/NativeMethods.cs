@@ -9,6 +9,10 @@ internal static class NativeMethods
     public const uint QDC_ONLY_ACTIVE_PATHS = 0x00000002;
     public const uint DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME = 1;
     public const uint DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME = 2;
+    public const uint DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO = 9;
+    public const uint DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL = 11;
+    public const uint DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO_2 = 15;
+    public const uint MC_CAPS_BRIGHTNESS = 0x00000002;
 
     // --- DDC/CI (dxva2.dll) ---
 
@@ -41,6 +45,35 @@ internal static class NativeMethods
         IntPtr hMonitor,
         byte bVCPCode,
         uint dwNewValue);
+
+    [DllImport("dxva2.dll", SetLastError = true)]
+    public static extern bool GetMonitorCapabilities(
+        IntPtr hMonitor,
+        out uint pdwMonitorCapabilities,
+        out uint pdwSupportedColorTemperatures);
+
+    [DllImport("dxva2.dll", SetLastError = true)]
+    public static extern bool GetMonitorBrightness(
+        IntPtr hMonitor,
+        out uint pdwMinimumBrightness,
+        out uint pdwCurrentBrightness,
+        out uint pdwMaximumBrightness);
+
+    [DllImport("dxva2.dll", SetLastError = true)]
+    public static extern bool SetMonitorBrightness(
+        IntPtr hMonitor,
+        uint dwNewBrightness);
+
+    [DllImport("dxva2.dll", SetLastError = true)]
+    public static extern bool GetCapabilitiesStringLength(
+        IntPtr hMonitor,
+        out uint pdwCapabilitiesStringLengthInCharacters);
+
+    [DllImport("dxva2.dll", SetLastError = true, CharSet = CharSet.Ansi)]
+    public static extern bool CapabilitiesRequestAndCapabilitiesReply(
+        IntPtr hMonitor,
+        [Out] byte[] pszASCIICapabilitiesString,
+        uint dwCapabilitiesStringLengthInCharacters);
 
     // --- Display enumeration (user32.dll) ---
 
@@ -89,6 +122,15 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     public static extern int DisplayConfigGetDeviceInfo(ref DISPLAYCONFIG_TARGET_DEVICE_NAME requestPacket);
+
+    [DllImport("user32.dll")]
+    public static extern int DisplayConfigGetDeviceInfo(ref DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO requestPacket);
+
+    [DllImport("user32.dll")]
+    public static extern int DisplayConfigGetDeviceInfo(ref DISPLAYCONFIG_SDR_WHITE_LEVEL requestPacket);
+
+    [DllImport("user32.dll")]
+    public static extern int DisplayConfigGetDeviceInfo(ref DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO_2 requestPacket);
 
     public delegate bool MonitorEnumProc(
         IntPtr hMonitor,
@@ -367,7 +409,20 @@ internal static class NativeMethods
     public enum DISPLAYCONFIG_DEVICE_INFO_TYPE : uint
     {
         GetSourceName = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME,
-        GetTargetName = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME
+        GetTargetName = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME,
+        GetAdvancedColorInfo = DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO,
+        GetSdrWhiteLevel = DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL,
+        GetAdvancedColorInfo2 = DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO_2
+    }
+
+    public enum DISPLAYCONFIG_COLOR_ENCODING : uint
+    {
+        Rgb = 0,
+        Ycbcr444 = 1,
+        Ycbcr422 = 2,
+        Ycbcr420 = 3,
+        Intensity = 4,
+        ForceUint32 = 0xFFFFFFFF
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -391,6 +446,39 @@ internal static class NativeMethods
         public string monitorFriendlyDeviceName;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
         public string monitorDevicePath;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO
+    {
+        public DISPLAYCONFIG_DEVICE_INFO_HEADER header;
+        public uint value;
+        public DISPLAYCONFIG_COLOR_ENCODING colorEncoding;
+        public uint bitsPerColorChannel;
+    }
+
+    public enum DISPLAYCONFIG_ADVANCED_COLOR_MODE : uint
+    {
+        Sdr = 0,
+        Wcg = 1,
+        Hdr = 2
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO_2
+    {
+        public DISPLAYCONFIG_DEVICE_INFO_HEADER header;
+        public uint value;
+        public DISPLAYCONFIG_COLOR_ENCODING colorEncoding;
+        public uint bitsPerColorChannel;
+        public DISPLAYCONFIG_ADVANCED_COLOR_MODE activeColorMode;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DISPLAYCONFIG_SDR_WHITE_LEVEL
+    {
+        public DISPLAYCONFIG_DEVICE_INFO_HEADER header;
+        public uint SDRWhiteLevel;
     }
 
     [StructLayout(LayoutKind.Sequential)]

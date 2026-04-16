@@ -41,6 +41,9 @@ It also includes optional automatic brightness, idle dimming, per-monitor limits
 - Optional pause while Windows is locked
 - Optional brightness enforcement to re-apply values if a monitor changes them
 - Layered monitor detection with WMI and DisplayConfig fallbacks
+- Layered external brightness backends: low-level DDC/CI, Windows high-level monitor APIs, and write-only capability fallbacks
+- Apple display and Apple Studio Display detection with backend diagnostics
+- HDR-aware monitor metadata and safer enforcement behavior
 - Per-monitor detection diagnostics in Settings
 - Optional legacy DDC/CI detection mode for compatibility
 - Refresh monitors from the tray or Settings window
@@ -113,6 +116,9 @@ Behavior to know:
 ## Compatibility and Troubleshooting
 
 - BrightSync now uses a layered detection pipeline. It combines DDC/CI enumeration with DisplayConfig and WMI-based metadata fallbacks to improve monitor naming and connection detection.
+- BrightSync also uses layered external brightness control detection. If a low-level DDC/CI brightness read fails, it can fall back to the Windows high-level monitor API or a write-only capabilities path when supported by the display.
+- Apple displays, including Apple Studio Display when Windows exposes a usable brightness backend, are now identified more clearly in diagnostics.
+- HDR-capable displays are detected through DisplayConfig. When HDR is active, BrightSync avoids aggressive brightness readback enforcement on that display.
 - Open a monitor row in `Settings` to see which detection backend was used and what fallback path BrightSync took.
 - If monitor detection is unreliable, enable `Legacy DDC/CI detection`, then refresh monitors or restart the app.
 - `Legacy DDC/CI detection` keeps the older compatibility-focused enumeration path and may help on systems where richer metadata detection is unreliable.

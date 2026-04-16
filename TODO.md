@@ -27,10 +27,10 @@ Implemented in the app:
 
 Still possible future follow-up:
 
-- Apple Studio Displays
-- DDC/CI over different transport paths
-- High-level DDC/CI handling improvements
-- HDR-aware behavior
+- Wider Apple Studio Display validation on real hardware and alternate Windows connection paths
+- More transport-specific handling for docks, USB-C alt-mode chains, and MST topologies
+- Additional high-level monitor feature support beyond brightness
+- Optional user-facing HDR policy controls
 
 ## 3. Bug: System Theme Sync
 

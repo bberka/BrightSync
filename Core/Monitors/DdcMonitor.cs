@@ -25,12 +25,30 @@ public sealed class DdcMonitor
     public string ConnectionType { get; init; } = string.Empty;
     /// <summary>Whether Windows reports this as an internal panel.</summary>
     public bool IsInternal { get; init; }
-    /// <summary>Whether the monitor responded to a DDC/CI brightness query.</summary>
+    /// <summary>Whether BrightSync can control this display's brightness through any supported backend.</summary>
     public bool SupportsDdcCi { get; init; }
-    /// <summary>Maximum DDC/CI brightness value (usually 100, but can vary).</summary>
+    /// <summary>Whether the current backend can read back brightness as well as write it.</summary>
+    public bool SupportsBrightnessRead { get; init; }
+    /// <summary>Native minimum brightness reported by the backend.</summary>
+    public int MinNativeBrightness { get; init; }
+    /// <summary>Native maximum brightness value reported by the backend (usually 100, but can vary).</summary>
     public int MaxDdcBrightness { get; init; } = 100;
     /// <summary>Last brightness value we commanded, in percent (0–100). -1 = unknown.</summary>
     public int LastCommandedPercent { get; set; } = -1;
+    /// <summary>Typed backend used for external brightness control.</summary>
+    internal MonitorBrightnessBackend BrightnessBackendType { get; init; }
+    /// <summary>Backend used for external brightness control, e.g. DDC/CI or high-level API.</summary>
+    public string BrightnessBackend { get; init; } = string.Empty;
+    /// <summary>Whether HDR is supported on this display according to DisplayConfig.</summary>
+    public bool IsHdrSupported { get; init; }
+    /// <summary>Whether HDR is currently enabled on this display according to DisplayConfig.</summary>
+    public bool IsHdrEnabled { get; init; }
+    /// <summary>Current SDR white level in nits when Windows reports it.</summary>
+    public int SdrWhiteLevelNits { get; init; }
+    /// <summary>Whether this display was identified as an Apple display.</summary>
+    public bool IsAppleDisplay { get; init; }
+    /// <summary>Whether this display was identified specifically as an Apple Studio Display.</summary>
+    public bool IsAppleStudioDisplay { get; init; }
     /// <summary>Which metadata path produced the visible monitor identity and connection info.</summary>
     public string DetectionBackend { get; init; } = string.Empty;
     /// <summary>Human-readable diagnostics describing the detection decisions and fallbacks.</summary>

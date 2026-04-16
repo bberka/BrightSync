@@ -81,6 +81,7 @@ internal static class MonitorDetectionResolver
             friendlyName,
             displayConfig.ConnectionType,
             displayConfig.IsInternal,
+            displayConfig.HdrInfo,
             string.Join(" + ", backendParts),
             string.Join(" ", details));
     }
