@@ -137,24 +137,13 @@ public sealed class DdcCiService : IDisposable
 
             var group = new PhysicalMonitorGroup(physicals, deviceName);
             _groups.Add(group);
-
-            var identity = useLegacyDetection
-                ? MonitorNameResolver.MonitorIdentity.Unknown
-                : MonitorNameResolver.ResolveIdentity(deviceName);
-            var displayConfig = useLegacyDetection
-                ? default(DisplayConfigInfo)
-                : DisplayConfigResolver.Resolve(deviceName);
-            var friendlyName = useLegacyDetection
-                ? MonitorNameResolver.Resolve(deviceName)
-                : (!string.IsNullOrWhiteSpace(identity.FriendlyName)
-                    ? identity.FriendlyName
-                    : (!string.IsNullOrWhiteSpace(displayConfig.FriendlyTargetName)
-                        ? displayConfig.FriendlyTargetName
-                        : deviceName));
+            var primaryDescription = physicals[0].szPhysicalMonitorDescription?.Trim() ?? deviceName;
+            var detection = MonitorDetectionResolver.Resolve(deviceName, primaryDescription, useLegacyDetection);
 
             for (var i = 0; i < physicals.Length; i++)
             {
                 var pm = physicals[i];
+                var description = pm.szPhysicalMonitorDescription?.Trim() ?? deviceName;
                 var supportsDdc = NativeMethods.GetVCPFeatureAndVCPFeatureReply(
                     pm.hPhysicalMonitor, NativeMethods.VCP_BRIGHTNESS,
                     out _, out var current, out var maxVal);
@@ -164,28 +153,31 @@ public sealed class DdcCiService : IDisposable
                 _monitors.Add(new DdcMonitor
                 {
                     DeviceName = deviceName,
-                    ManufacturerName = useLegacyDetection ? string.Empty : identity.ManufacturerName,
-                    ModelName = useLegacyDetection ? string.Empty : identity.ModelName,
-                    FriendlyName = friendlyName,
-                    Description = pm.szPhysicalMonitorDescription?.Trim() ?? deviceName,
+                    ManufacturerName = detection.ManufacturerName,
+                    ModelName = detection.ModelName,
+                    FriendlyName = detection.FriendlyName,
+                    Description = description,
                     ResolutionWidth = resW,
                     ResolutionHeight = resH,
                     RefreshRateHz = useLegacyDetection ? 0 : GetRefreshRate(deviceName),
-                    ConnectionType = useLegacyDetection ? string.Empty : displayConfig.ConnectionType,
-                    IsInternal = useLegacyDetection ? false : displayConfig.IsInternal,
+                    ConnectionType = detection.ConnectionType,
+                    IsInternal = detection.IsInternal,
                     SupportsDdcCi = supportsDdc,
                     MaxDdcBrightness = maxBrightness,
                     LastCommandedPercent = supportsDdc ? (int)Math.Round(current * 100.0 / maxBrightness) : -1,
+                    DetectionBackend = detection.DetectionBackend,
+                    DetectionDetails = detection.DetectionDetails,
                     Handle = pm.hPhysicalMonitor,
                     Group = group
                 });
 
-                Log.Debug("Detected monitor. DetectionMode={DetectionMode}, Device={DeviceName}, FriendlyName={FriendlyName}, SupportsDdcCi={SupportsDdcCi}, IsInternal={IsInternal}",
+                Log.Debug("Detected monitor. DetectionMode={DetectionMode}, Device={DeviceName}, FriendlyName={FriendlyName}, SupportsDdcCi={SupportsDdcCi}, IsInternal={IsInternal}, DetectionBackend={DetectionBackend}",
                     useLegacyDetection ? "Legacy" : "Modern",
                     deviceName,
-                    friendlyName,
+                    detection.FriendlyName,
                     supportsDdc,
-                    useLegacyDetection ? false : displayConfig.IsInternal);
+                    detection.IsInternal,
+                    detection.DetectionBackend);
             }
         }
     }

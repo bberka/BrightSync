@@ -39,9 +39,10 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     }
 
     public bool CanToggleEnabled => SupportsDdcCi;
-    public bool CanExpand => SupportsDdcCi;
+    public bool CanExpand => true;
     public bool UsesWindowsBrightnessControl => IsInternal;
     public bool SupportsBrightnessControl => SupportsDdcCi || UsesWindowsBrightnessControl;
+    public bool ShowsPerMonitorAdjustmentControls => SupportsDdcCi && !UsesWindowsBrightnessControl;
 
     private int _min;
     public int MinBrightness
@@ -96,6 +97,8 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     public string DisplayName => _displayName;
     public string ResolutionText { get; }
     public string ConnectionText { get; }
+    public string DetectionBackendText { get; }
+    public string DetectionDetailsText { get; }
     public string DdcStatusText => UsesWindowsBrightnessControl
         ? "Windows brightness"
         : SupportsDdcCi
@@ -105,8 +108,11 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     public ICommand ResetCommand { get; }
     public bool HasCapabilityNotice => UsesWindowsBrightnessControl || !SupportsDdcCi;
     public string CapabilityNoticeText => UsesWindowsBrightnessControl
-        ? "Built-in panel brightness is controlled through Windows. Use the main Brightness slider above."
+        ? "Built-in panel brightness is controlled through Windows."
         : "DDC/CI not supported - brightness control unavailable";
+    public string DetectionSummaryText => string.IsNullOrWhiteSpace(DetectionBackendText)
+        ? "Detection diagnostics unavailable."
+        : $"Detection: {DetectionBackendText}";
 
     /// <summary>Compact info line combining resolution, DDC status, and connection type.</summary>
     public string InfoLine
@@ -154,6 +160,8 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         HardwareDescription = BuildHardwareDescription(monitor, _displayName);
         ResolutionText = BuildResolutionText(monitor);
         ConnectionText = monitor.ConnectionType;
+        DetectionBackendText = monitor.DetectionBackend;
+        DetectionDetailsText = monitor.DetectionDetails;
         IsInternal = monitor.IsInternal;
         SupportsDdcCi = monitor.SupportsDdcCi;
         _profile = profile;

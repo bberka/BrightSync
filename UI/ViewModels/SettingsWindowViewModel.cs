@@ -73,6 +73,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             _autoBrightness.SetEnabled(value);
             OnChanged();
             OnChanged(nameof(IsManualBrightnessEnabled));
+            OnChanged(nameof(ManualBrightnessDisabledReasonText));
             OnChanged(nameof(AutoBrightnessStatusText));
             if (value)
             {
@@ -87,6 +88,9 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     }
 
     public bool IsManualBrightnessEnabled => !AutoBrightnessEnabled;
+    public string ManualBrightnessDisabledReasonText => AutoBrightnessEnabled
+        ? "This slider is disabled because automatic brightness is controlling the shared brightness value. Scroll down to adjust the curve, or disable automatic brightness to edit it manually."
+        : string.Empty;
     public bool AutoBrightnessLockEnabled
     {
         get => _config.Config.AutoBrightness.LockWhenManualBrightnessChanges;
@@ -442,6 +446,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         OnChanged(nameof(AutoBrightnessEnabled));
         OnChanged(nameof(AutoBrightnessLockEnabled));
         OnChanged(nameof(IsManualBrightnessEnabled));
+        OnChanged(nameof(ManualBrightnessDisabledReasonText));
         OnChanged(nameof(AutoBrightnessStatusText));
         OnChanged(nameof(AutoBrightnessLockDescription));
         OnChanged(nameof(AutoBrightnessCurvePoints));
@@ -488,6 +493,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         OnChanged(nameof(AutoBrightnessEnabled));
         OnChanged(nameof(AutoBrightnessLockEnabled));
         OnChanged(nameof(IsManualBrightnessEnabled));
+        OnChanged(nameof(ManualBrightnessDisabledReasonText));
         OnChanged(nameof(AutoBrightnessStatusText));
         OnChanged(nameof(AutoBrightnessLockDescription));
         OnChanged(nameof(AutoBrightnessCurvePoints));
@@ -516,6 +522,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             OnChanged(nameof(AutoBrightnessEnabled));
             OnChanged(nameof(AutoBrightnessLockEnabled));
             OnChanged(nameof(IsManualBrightnessEnabled));
+            OnChanged(nameof(ManualBrightnessDisabledReasonText));
             OnChanged(nameof(AutoBrightnessStatusText));
             OnChanged(nameof(AutoBrightnessLockDescription));
             OnChanged(nameof(AutoBrightnessPreviewText));

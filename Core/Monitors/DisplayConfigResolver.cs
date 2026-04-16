@@ -88,13 +88,13 @@ internal static class DisplayConfigResolver
             target?.monitorFriendlyDeviceName?.Trim() ?? string.Empty);
     }
 
-    private static bool IsInternal(NativeMethods.DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY technology)
+    internal static bool IsInternal(NativeMethods.DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY technology)
         => technology is NativeMethods.DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY.Internal
             or NativeMethods.DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY.Lvds
             or NativeMethods.DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY.DisplayPortEmbedded
             or NativeMethods.DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY.UdiEmbedded;
 
-    private static string MapConnectionType(NativeMethods.DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY technology)
+    internal static string MapConnectionType(NativeMethods.DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY technology)
         => technology switch
         {
             NativeMethods.DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY.Hdmi => "HDMI",

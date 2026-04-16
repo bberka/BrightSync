@@ -37,6 +37,15 @@ public static class MonitorNameResolver
         return DecodePnpId(hwId);
     }
 
+    internal static string GetHardwareIdForAdapter(string adapterDeviceName)
+        => GetHardwareId(adapterDeviceName);
+
+    internal static MonitorIdentity DecodeHardwareId(string hardwareId)
+        => DecodePnpId(hardwareId);
+
+    internal static MonitorIdentity BuildIdentityFromParts(string manufacturer, string model)
+        => BuildIdentity(manufacturer, model);
+
     // --- Private ---
 
     /// <summary>

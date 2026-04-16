@@ -190,27 +190,45 @@
                     <!-- Internal brightness -->
                     <TextBlock Style="{StaticResource SectionHeader}" Text="Brightness" Margin="0,4,0,6" />
                     <ui:Card Padding="12,10">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="44" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Style="{StaticResource SliderLabel}" Text="Level" />
-                            <Slider Grid.Column="1"
-                                    Minimum="0" Maximum="100"
-                                    Value="{Binding InternalBrightness, UpdateSourceTrigger=PropertyChanged}"
-                                    TickFrequency="5" IsSnapToTickEnabled="True"
-                                    IsMoveToPointEnabled="True"
-                                    IsEnabled="{Binding IsManualBrightnessEnabled}"
-                                    VerticalAlignment="Center" Margin="0,0,12,0" />
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding InternalBrightnessText}"
-                                       FontSize="13" FontWeight="SemiBold"
-                                       VerticalAlignment="Center"
-                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                                       MinWidth="44" TextAlignment="Right" />
-                        </Grid>
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="44" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Style="{StaticResource SliderLabel}" Text="Level" />
+                                <Slider Grid.Column="1"
+                                        Minimum="0" Maximum="100"
+                                        Value="{Binding InternalBrightness, UpdateSourceTrigger=PropertyChanged}"
+                                        TickFrequency="5" IsSnapToTickEnabled="True"
+                                        IsMoveToPointEnabled="True"
+                                        IsEnabled="{Binding IsManualBrightnessEnabled}"
+                                        VerticalAlignment="Center" Margin="0,0,12,0" />
+                                <TextBlock Grid.Column="2"
+                                           Text="{Binding InternalBrightnessText}"
+                                           FontSize="13" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                           MinWidth="44" TextAlignment="Right" />
+                            </Grid>
+                            <TextBlock Text="{Binding ManualBrightnessDisabledReasonText}"
+                                       FontSize="11"
+                                       Margin="0,8,0,0"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding AutoBrightnessEnabled}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
                     </ui:Card>
 
                     <!-- Options -->
@@ -515,11 +533,21 @@
                                         <!-- Expandable content -->
                                         <StackPanel
                                             Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}"
-                                            IsEnabled="{Binding Enabled}"
                                             Margin="32,10,0,0">
 
                                             <!-- DDC/CI controls -->
-                                            <StackPanel IsEnabled="{Binding SupportsDdcCi}">
+                                            <StackPanel IsEnabled="{Binding Enabled}">
+                                                <StackPanel.Style>
+                                                    <Style TargetType="StackPanel">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding ShowsPerMonitorAdjustmentControls}"
+                                                                         Value="False">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </StackPanel.Style>
                                                 <!-- Min brightness -->
                                                 <Grid Margin="0,2">
                                                     <Grid.ColumnDefinitions>
@@ -602,6 +630,25 @@
                                                     </Style>
                                                 </TextBlock.Style>
                                             </TextBlock>
+
+                                            <Border Margin="0,8,0,0"
+                                                    Padding="10,8"
+                                                    Background="{DynamicResource ControlFillColorSecondaryBrush}"
+                                                    BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding DetectionSummaryText}"
+                                                               FontSize="11"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                    <TextBlock Text="{Binding DetectionDetailsText}"
+                                                               FontSize="11"
+                                                               Margin="0,4,0,0"
+                                                               TextWrapping="Wrap"
+                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                </StackPanel>
+                                            </Border>
 
                                             <!-- Reset button -->
                                             <Grid Margin="0,8,0,0">

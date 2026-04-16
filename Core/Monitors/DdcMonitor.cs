@@ -31,6 +31,10 @@ public sealed class DdcMonitor
     public int MaxDdcBrightness { get; init; } = 100;
     /// <summary>Last brightness value we commanded, in percent (0–100). -1 = unknown.</summary>
     public int LastCommandedPercent { get; set; } = -1;
+    /// <summary>Which metadata path produced the visible monitor identity and connection info.</summary>
+    public string DetectionBackend { get; init; } = string.Empty;
+    /// <summary>Human-readable diagnostics describing the detection decisions and fallbacks.</summary>
+    public string DetectionDetails { get; init; } = string.Empty;
 
     internal IntPtr Handle { get; init; }
     // Owning group — needed for DestroyPhysicalMonitors cleanup

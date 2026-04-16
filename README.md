@@ -40,6 +40,8 @@ It also includes optional automatic brightness, idle dimming, per-monitor limits
 - Optional idle dimming after inactivity
 - Optional pause while Windows is locked
 - Optional brightness enforcement to re-apply values if a monitor changes them
+- Layered monitor detection with WMI and DisplayConfig fallbacks
+- Per-monitor detection diagnostics in Settings
 - Optional legacy DDC/CI detection mode for compatibility
 - Refresh monitors from the tray or Settings window
 - Start with Windows
@@ -91,6 +93,7 @@ Behavior to know:
 - Enable or disable individual monitors.
 - Clamp each monitor with minimum and maximum brightness.
 - Scale a monitor brighter or dimmer with a multiplier.
+- Expand any monitor row to see detection diagnostics and fallback details.
 
 ### Automatic Brightness
 
@@ -109,7 +112,10 @@ Behavior to know:
 
 ## Compatibility and Troubleshooting
 
+- BrightSync now uses a layered detection pipeline. It combines DDC/CI enumeration with DisplayConfig and WMI-based metadata fallbacks to improve monitor naming and connection detection.
+- Open a monitor row in `Settings` to see which detection backend was used and what fallback path BrightSync took.
 - If monitor detection is unreliable, enable `Legacy DDC/CI detection`, then refresh monitors or restart the app.
+- `Legacy DDC/CI detection` keeps the older compatibility-focused enumeration path and may help on systems where richer metadata detection is unreliable.
 - If `Disable on lock screen` is enabled, BrightSync pauses external monitor reads and writes while Windows is locked and refreshes monitors after unlock.
 - Idle dimming can either scale targets down by a percentage or reduce each monitor to its configured minimum brightness.
 - Idle dimming can optionally ignore idle time while media playback is active.
