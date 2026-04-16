@@ -142,6 +142,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     public ICommand SaveCommand { get; }
     public ICommand RefreshCommand { get; }
     public ICommand ResetAllCommand { get; }
+    public ICommand ResetCurveCommand { get; }
     public RelayCommand CheckForUpdatesCommand { get; }
 
     public string StatusText { get; private set; } = string.Empty;
@@ -169,6 +170,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         SaveCommand = new RelayCommand(Save);
         RefreshCommand = new RelayCommand(Refresh);
         ResetAllCommand = new RelayCommand(ResetAll);
+        ResetCurveCommand = new RelayCommand(ResetCurve);
         CheckForUpdatesCommand = new RelayCommand(CheckForUpdates, () => !_isCheckingForUpdates);
 
         engine.InternalBrightnessChanged += OnInternalBrightnessChanged;
@@ -282,6 +284,26 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _autoBrightness.RecalculateNow();
         foreach (var monitor in Monitors)
             monitor.RefreshTargetText();
+    }
+
+    private void ResetCurve()
+    {
+        var currentEnabled = _config.Config.AutoBrightness.Enabled;
+        _config.Config.AutoBrightness = AutoBrightnessSettings.CreateDefault();
+        _config.Config.AutoBrightness.Enabled = currentEnabled;
+
+        OnChanged(nameof(AutoBrightnessEnabled));
+        OnChanged(nameof(IsManualBrightnessEnabled));
+        OnChanged(nameof(AutoBrightnessStatusText));
+        OnChanged(nameof(AutoBrightnessCurvePoints));
+        OnChanged(nameof(AutoBrightnessPreviewText));
+        AutoBrightnessCurveChanged?.Invoke(this, EventArgs.Empty);
+        _autoBrightness.RecalculateNow();
+        foreach (var monitor in Monitors)
+            monitor.RefreshTargetText();
+
+        SetStatus("Automatic brightness curve reset. Save to persist.");
+        Log.Information("Automatic brightness curve reset in the UI");
     }
 
     public IReadOnlyList<string> GetCurveHourLabels()

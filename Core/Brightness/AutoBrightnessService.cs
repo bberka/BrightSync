@@ -80,8 +80,8 @@ public sealed class AutoBrightnessService : IDisposable
         if (brightness != _lastAppliedBrightness || _engine.LastInternalBrightness != brightness)
         {
             _lastAutoApplyUtc = DateTime.UtcNow;
-            _engine.ApplyAutomaticBrightness(brightness);
             _lastAppliedBrightness = brightness;
+            _engine.ApplyAutomaticBrightness(brightness);
             Log.Debug("Auto brightness applied {Brightness}%", brightness);
         }
 
