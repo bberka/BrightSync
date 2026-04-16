@@ -2,29 +2,6 @@
 
 This document collects feature ideas that could be added to BrightSync in future releases.
 
-## Implemented
-
-### Disable on Lock Screen
-
-Implemented.
-
-Current behavior:
-
-- BrightSync can pause external monitor reads and writes while the Windows session is locked.
-- After unlock, BrightSync refreshes monitors and resumes sync.
-- The option is available in Settings as `Disable on lock screen`.
-
-### Idle Detection With Brightness Reduction
-
-Implemented.
-
-Current behavior:
-
-- BrightSync can detect Windows input idle time and dim external monitor targets after a configurable timeout.
-- Idle dimming can either set targets to each monitor's minimum or scale the normal target to a configured percentage.
-- BrightSync restores the normal target brightness when activity resumes.
-- Media playback can optionally suppress idle dimming.
-
 ## 1. Localization
 
 Add support for multiple UI languages.
@@ -40,22 +17,7 @@ Possible scope:
 - Start with a resource-based system so adding languages stays maintainable.
 - Ship English first as default, then add community-contributed translations.
 
-## 2. Better Visible Tray Icon
-
-Improve tray icon visibility across light and dark taskbars.
-
-Why this may help:
-
-- The current icon can be hard to see depending on Windows theme and contrast.
-- Better visibility makes the app feel more polished and easier to discover quickly.
-
-Possible ideas:
-
-- Provide separate light and dark tray icon variants.
-- Detect Windows theme and switch icon automatically.
-- Consider a slightly bolder shape or filled icon for small-size readability.
-
-## 3. Improved Detection Support
+## 2. Improved Detection Support
 
 Expand monitor detection and brightness-control compatibility, similar to the broader approach used by tools such as Twinkle Tray.
 
@@ -80,22 +42,3 @@ Possible implementation direction:
 - Add a layered detection pipeline with multiple fallback methods.
 - Store which backend detected a monitor for diagnostics.
 - Expose a simple diagnostics view so users can see why a monitor is or is not controllable.
-
-## 4. Legacy DDC/CI Detection Method
-
-Add an optional legacy DDC/CI detection mode, based on the older detection behavior from v1.15.5.
-
-Why this may help:
-
-- Some older or unusual monitors may work better with the previous detection logic.
-- Gives users a compatibility fallback without changing the default behavior for everyone.
-
-Possible behavior:
-
-- Add a settings switch such as `Use legacy DDC/CI detection`.
-- Require a monitor refresh or app restart after changing the setting.
-- Clearly label it as a compatibility option.
-
-## 5. Open Feature Slot
-
-Reserved for another future feature idea.
