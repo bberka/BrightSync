@@ -6,6 +6,8 @@ BrightSync is a Windows app that keeps the brightness of your DDC/CI-compatible 
 
 On laptops and other systems where Windows exposes the built-in brightness slider, BrightSync listens to that slider and mirrors the change to all supported external monitors. On desktops, or on systems where Windows does not provide a brightness slider, BrightSync gives you a tray icon with a quick brightness popup so you can control all supported monitors from one place.
 
+BrightSync also includes an optional automatic brightness mode. When enabled, the app drives brightness from a smooth 24-hour curve so your displays brighten through the day and dim at night.
+
 ## Screenshots
 
 ### Quick Menu
@@ -20,6 +22,7 @@ On laptops and other systems where Windows exposes the built-in brightness slide
 
 - If Windows has an internal-display brightness control, BrightSync syncs that value to your external monitors.
 - If Windows does not have a brightness control, BrightSync uses its own tray slider as the global brightness source.
+- If automatic brightness is enabled, BrightSync updates the global brightness from its 24-hour curve instead of allowing manual slider control.
 - BrightSync applies that global value to each enabled DDC/CI monitor.
 - Per-monitor settings let you clamp or scale the final brightness for each display.
 
@@ -28,6 +31,8 @@ On laptops and other systems where Windows exposes the built-in brightness slide
 - Works on both laptops and desktops
 - Syncs with the Windows brightness slider when Windows exposes one
 - Tray icon with a quick popup slider for desktops and unsupported internal-brightness scenarios
+- Optional automatic brightness mode with a smooth 24-hour curve
+- Visual curve editor in Settings for tuning brightness through the day
 - One global brightness value for all supported monitors
 - Per-monitor enable or disable control
 - Per-monitor minimum brightness
@@ -48,6 +53,7 @@ Notes:
 - BrightSync can only control monitors that support DDC/CI brightness commands.
 - If a monitor does not support DDC/CI, it will still appear in the app, but BrightSync cannot change its brightness.
 - Windows may only show the native brightness slider on systems with a compatible internal display. When it does not, use the BrightSync tray slider instead.
+- When automatic brightness is enabled, manual brightness sliders stay visible as read-only status indicators.
 
 ## Install
 
@@ -63,16 +69,32 @@ If you are not sure which file to choose, try the `windows-x64-self-contained` z
 1. Start BrightSync.
 2. Change the Windows brightness slider if your system has one.
 3. If Windows does not expose a brightness slider, use the BrightSync tray icon and quick popup slider.
-4. Open `Settings` to configure monitor-specific behavior.
+4. Open `Settings` to configure brightness behavior, monitor-specific behavior, and automatic brightness.
+
+Quick menu:
+
+- When automatic brightness is off, the quick menu slider works normally.
+- When automatic brightness is on, the quick menu slider is disabled and shows the current brightness chosen by BrightSync.
+- The quick menu also includes an `Automatic Brightness` switch so you can turn the feature on or off quickly.
 
 In settings, you can:
 
+- Use the normal brightness slider when automatic brightness is off
 - Turn sync on or off for each monitor
 - Set a minimum brightness per monitor
 - Set a maximum brightness per monitor
 - Apply a brightness multiplier per monitor
+- Enable `Automatic Brightness`
+- Adjust the automatic-brightness curve visually across `0-24` hours
 - Enable `Start with Windows`
 - Enable periodic brightness enforcement and choose its interval
+
+Settings sections are organized as:
+
+1. Normal brightness slider
+2. Options
+3. Monitor configs
+4. Automatic brightness
 
 ## Updates
 
