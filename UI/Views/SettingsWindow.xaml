@@ -486,21 +486,64 @@
                                                VerticalAlignment="Center"/>
                                 </Grid>
 
-                                <Border Grid.Row="1"
-                                        CornerRadius="6"
-                                        Background="{DynamicResource ControlFillColorSecondaryBrush}"
-                                        BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
-                                        BorderThickness="1">
-                                    <Canvas x:Name="AutoBrightnessCurveCanvas"
-                                            Background="Transparent"
-                                            SizeChanged="AutoBrightnessCurveCanvas_SizeChanged"
-                                            MouseLeftButtonUp="AutoBrightnessCurveCanvas_MouseLeftButtonUp"
-                                            MouseMove="AutoBrightnessCurveCanvas_MouseMove"/>
-                                </Border>
+                                <Grid Grid.Row="1">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="30"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Grid Grid.Column="0"
+                                          Margin="0,0,8,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0"
+                                                   Text="100"
+                                                   FontSize="10"
+                                                   VerticalAlignment="Top"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                        <TextBlock Grid.Row="1"
+                                                   Text="75"
+                                                   FontSize="10"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                        <TextBlock Grid.Row="2"
+                                                   Text="50"
+                                                   FontSize="10"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                        <TextBlock Grid.Row="3"
+                                                   Text="25"
+                                                   FontSize="10"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                        <TextBlock Grid.Row="4"
+                                                   Text="0"
+                                                   FontSize="10"
+                                                   VerticalAlignment="Bottom"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                    </Grid>
+
+                                    <Border Grid.Column="1"
+                                            CornerRadius="6"
+                                            Background="{DynamicResource ControlFillColorSecondaryBrush}"
+                                            BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                            BorderThickness="1">
+                                        <Canvas x:Name="AutoBrightnessCurveCanvas"
+                                                Background="Transparent"
+                                                SizeChanged="AutoBrightnessCurveCanvas_SizeChanged"
+                                                MouseLeftButtonUp="AutoBrightnessCurveCanvas_MouseLeftButtonUp"
+                                                MouseMove="AutoBrightnessCurveCanvas_MouseMove"/>
+                                    </Border>
+                                </Grid>
 
                                 <UniformGrid Grid.Row="2"
-                                             Columns="9"
-                                             Margin="0,8,0,0">
+                                             Margin="38,8,0,0"
+                                             Columns="9">
                                     <TextBlock Text="0" FontSize="10" HorizontalAlignment="Center"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                                     <TextBlock Text="3" FontSize="10" HorizontalAlignment="Center"

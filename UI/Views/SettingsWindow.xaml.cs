@@ -19,6 +19,7 @@ public partial class SettingsWindow : Window
 
     private readonly SettingsWindowViewModel _vm;
     private int _draggingCurvePointIndex = -1;
+    private Border? _dragValueBadge;
 
     public SettingsWindow(
         BrightSyncEngine engine,
@@ -122,6 +123,7 @@ public partial class SettingsWindow : Window
         var position = e.GetPosition(AutoBrightnessCurveCanvas);
         var brightness = (int)CanvasYToBrightness(position.Y);
         _vm.UpdateAutoBrightnessPoint(_draggingCurvePointIndex, brightness);
+        UpdateDragValueBadge(position.X, position.Y, brightness);
     }
 
     private void AutoBrightnessCurveCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -130,6 +132,7 @@ public partial class SettingsWindow : Window
             return;
 
         _draggingCurvePointIndex = -1;
+        RemoveDragValueBadge();
         AutoBrightnessCurveCanvas.ReleaseMouseCapture();
         e.Handled = true;
     }
@@ -141,6 +144,8 @@ public partial class SettingsWindow : Window
 
         _draggingCurvePointIndex = index;
         AutoBrightnessCurveCanvas.CaptureMouse();
+        var point = _vm.AutoBrightnessCurvePoints[index];
+        UpdateDragValueBadge(e.GetPosition(AutoBrightnessCurveCanvas).X, e.GetPosition(AutoBrightnessCurveCanvas).Y, point.Brightness);
         e.Handled = true;
     }
 
@@ -150,6 +155,7 @@ public partial class SettingsWindow : Window
             return;
 
         AutoBrightnessCurveCanvas.Children.Clear();
+        _dragValueBadge = null;
 
         var width = AutoBrightnessCurveCanvas.ActualWidth;
         var height = AutoBrightnessCurveCanvas.ActualHeight;
@@ -227,6 +233,46 @@ public partial class SettingsWindow : Window
             Canvas.SetTop(ellipse, y);
             AutoBrightnessCurveCanvas.Children.Add(ellipse);
         }
+    }
+
+    private void UpdateDragValueBadge(double x, double y, int brightness)
+    {
+        if (_dragValueBadge == null)
+        {
+            _dragValueBadge = new Border
+            {
+                Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(230, 32, 32, 32)),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(6, 3, 6, 3),
+                Child = new TextBlock
+                {
+                    FontSize = 11,
+                    Foreground = System.Windows.Media.Brushes.White,
+                    FontWeight = FontWeights.SemiBold
+                },
+                IsHitTestVisible = false
+            };
+            AutoBrightnessCurveCanvas.Children.Add(_dragValueBadge);
+        }
+
+        if (_dragValueBadge.Child is TextBlock text)
+            text.Text = $"{brightness}%";
+
+        _dragValueBadge.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+        var desired = _dragValueBadge.DesiredSize;
+        var left = Math.Clamp(x + 10, 0, Math.Max(0, AutoBrightnessCurveCanvas.ActualWidth - desired.Width));
+        var top = Math.Clamp(y - desired.Height - 10, 0, Math.Max(0, AutoBrightnessCurveCanvas.ActualHeight - desired.Height));
+        Canvas.SetLeft(_dragValueBadge, left);
+        Canvas.SetTop(_dragValueBadge, top);
+    }
+
+    private void RemoveDragValueBadge()
+    {
+        if (_dragValueBadge == null)
+            return;
+
+        AutoBrightnessCurveCanvas.Children.Remove(_dragValueBadge);
+        _dragValueBadge = null;
     }
 
     private static double MinuteToCanvasX(double minute, double width)
