@@ -7,6 +7,8 @@ namespace BrightSync.Core.Brightness;
 
 public sealed class AutoBrightnessService : IDisposable
 {
+    private static readonly TimeSpan AutoApplyGracePeriod = TimeSpan.FromSeconds(3);
+
     public event EventHandler? StateChanged;
 
     private readonly BrightSyncEngine _engine;
@@ -14,6 +16,7 @@ public sealed class AutoBrightnessService : IDisposable
     private readonly Timer _timer;
     private bool _disposed;
     private int _lastAppliedBrightness = -1;
+    private DateTime _lastAutoApplyUtc = DateTime.MinValue;
 
     public AutoBrightnessService(BrightSyncEngine engine, ConfigManager config)
     {
@@ -31,6 +34,7 @@ public sealed class AutoBrightnessService : IDisposable
     public void Start()
     {
         _config.Config.AutoBrightness.EnsureDefaults();
+        _engine.InternalBrightnessChanged += OnInternalBrightnessChanged;
         SystemEvents.PowerModeChanged += OnPowerModeChanged;
         SystemEvents.TimeChanged += OnTimeChanged;
         _timer.Change(TimeSpan.Zero, TimeSpan.FromSeconds(30));
@@ -47,7 +51,14 @@ public sealed class AutoBrightnessService : IDisposable
         _config.Config.AutoBrightness.Enabled = enabled;
         Log.Information("Auto brightness {State}", enabled ? "enabled" : "disabled");
         if (enabled)
+        {
+            _lastAppliedBrightness = -1;
             RecalculateNow();
+        }
+        else
+        {
+            _lastAutoApplyUtc = DateTime.MinValue;
+        }
 
         RaiseStateChanged();
     }
@@ -68,6 +79,7 @@ public sealed class AutoBrightnessService : IDisposable
         var brightness = GetCurrentBrightness();
         if (brightness != _lastAppliedBrightness || _engine.LastInternalBrightness != brightness)
         {
+            _lastAutoApplyUtc = DateTime.UtcNow;
             _engine.ApplyAutomaticBrightness(brightness);
             _lastAppliedBrightness = brightness;
             Log.Debug("Auto brightness applied {Brightness}%", brightness);
@@ -103,6 +115,31 @@ public sealed class AutoBrightnessService : IDisposable
         SafeRecalculate();
     }
 
+    private void OnInternalBrightnessChanged(object? sender, int brightness)
+    {
+        if (!IsEnabled)
+            return;
+
+        if (WasRecentlyAppliedByAuto(brightness))
+            return;
+
+        Log.Information(
+            "Detected external Windows brightness change to {Brightness}% while auto brightness was enabled; disabling auto brightness",
+            brightness);
+        _config.Config.AutoBrightness.Enabled = false;
+        _lastAutoApplyUtc = DateTime.MinValue;
+        _lastAppliedBrightness = -1;
+        RaiseStateChanged();
+    }
+
+    private bool WasRecentlyAppliedByAuto(int brightness)
+    {
+        if (_lastAppliedBrightness != brightness)
+            return false;
+
+        return DateTime.UtcNow - _lastAutoApplyUtc <= AutoApplyGracePeriod;
+    }
+
     private void RaiseStateChanged()
     {
         StateChanged?.Invoke(this, EventArgs.Empty);
@@ -114,6 +151,7 @@ public sealed class AutoBrightnessService : IDisposable
             return;
 
         _disposed = true;
+        _engine.InternalBrightnessChanged -= OnInternalBrightnessChanged;
         SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         SystemEvents.TimeChanged -= OnTimeChanged;
         _timer.Dispose();
