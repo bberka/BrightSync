@@ -39,6 +39,7 @@ BrightSync also includes an optional automatic brightness mode. When enabled, th
 - Per-monitor maximum brightness
 - Per-monitor brightness scaling multiplier
 - Optional auto start with Windows
+- Optional `Legacy DDC/CI detection` compatibility mode for older or unusual monitors
 - Optional `Disable on lock screen` setting to pause monitor access while the Windows session is locked
 - Optional idle dimming that reduces external monitor targets after inactivity
 - Optional brightness enforcement that re-applies brightness if a monitor changes it
@@ -55,6 +56,7 @@ Notes:
 - External monitors are controlled through DDC/CI.
 - Built-in laptop panels are controlled through the normal Windows brightness API, not DDC/CI.
 - If an external monitor does not support DDC/CI, it will still appear in the app, but BrightSync cannot change its brightness.
+- If monitor detection is unreliable on your system, try enabling `Legacy DDC/CI detection` in Settings and then refresh monitors or restart the app.
 - Windows may only show the native brightness slider on systems with a compatible internal display. When it does not, use the BrightSync tray slider instead.
 - When automatic brightness is enabled, manual brightness sliders stay visible as read-only status indicators.
 - When `Disable on lock screen` is enabled, BrightSync pauses external monitor reads and writes while the Windows session is locked, then refreshes monitors after unlock.
@@ -93,6 +95,7 @@ In settings, you can:
 - Enable `Automatic Brightness`
 - Adjust the automatic-brightness curve visually across `0-24` hours
 - Enable `Start with Windows`
+- Enable `Legacy DDC/CI detection` for compatibility, then refresh monitors or restart the app
 - Enable `Disable on lock screen`
 - Enable idle dimming
 - Set the idle timeout
