@@ -15,7 +15,12 @@ namespace BrightSync.UI;
 /// Manages the system tray icon, context menu, quick brightness popup, and the settings window.
 /// Left-click toggles the quick brightness popup; right-click shows the context menu.
 /// </summary>
-public sealed class TrayManager(BrightSyncEngine engine, ConfigManager config, DdcCiService ddc, UpdateChecker updateChecker)
+public sealed class TrayManager(
+    BrightSyncEngine engine,
+    AutoBrightnessService autoBrightness,
+    ConfigManager config,
+    DdcCiService ddc,
+    UpdateChecker updateChecker)
     : IDisposable
 {
     public event EventHandler? ExitRequested;
@@ -67,11 +72,11 @@ public sealed class TrayManager(BrightSyncEngine engine, ConfigManager config, D
         Log.Information("Opening settings window");
         WpfApp.Current.Dispatcher.Invoke(() =>
         {
-            _quickPopup?.Hide();
+                _quickPopup?.Hide();
 
             if (_settingsWindow == null || !_settingsWindow.IsLoaded)
             {
-                _settingsWindow = new SettingsWindow(engine, config, ddc, updateChecker);
+                _settingsWindow = new SettingsWindow(engine, autoBrightness, config, ddc, updateChecker);
                 _settingsWindow.ExitRequested += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
                 _settingsWindow.Show();
             }
@@ -114,7 +119,7 @@ public sealed class TrayManager(BrightSyncEngine engine, ConfigManager config, D
     {
         if (_quickPopup == null)
         {
-            _quickVm = new QuickBrightnessViewModel(engine, ddc, config, ShowSettings);
+            _quickVm = new QuickBrightnessViewModel(engine, autoBrightness, ddc, config, ShowSettings);
             _quickPopup = new QuickBrightnessWindow { DataContext = _quickVm };
             _quickPopup.Deactivated += (s, e) => _quickPopup.Hide(); // Hide when clicking away
             _quickPopup.IsVisibleChanged += (_, _) =>

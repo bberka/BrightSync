@@ -105,20 +105,23 @@ public sealed class BrightSyncEngine : IDisposable
     /// </summary>
     public bool TrySetInternalBrightness(int brightness)
     {
-        var result = _watcher.TrySetBrightness(brightness);
-        if (!result)
+        return ApplyBrightness(brightness, allowManualWhenAutoEnabled: true, source: "internal");
+    }
+
+    public bool TrySetUserBrightness(int brightness)
+    {
+        if (_config.Config.AutoBrightness.Enabled)
         {
-            _lastInternalBrightness = brightness;
-            Log.Warning("Internal brightness could not be set through WMI; using virtual brightness fallback at {Brightness}%",
-                brightness);
-            InternalBrightnessChanged?.Invoke(this, brightness);
-            Task.Run(() => SyncAllMonitors());
+            Log.Debug("Manual brightness request ignored because auto brightness is enabled");
+            return false;
         }
-        else
-        {
-            Log.Debug("Requested internal brightness update to {Brightness}%", brightness);
-        }
-        return result;
+
+        return ApplyBrightness(brightness, allowManualWhenAutoEnabled: false, source: "manual");
+    }
+
+    public bool ApplyAutomaticBrightness(int brightness)
+    {
+        return ApplyBrightness(brightness, allowManualWhenAutoEnabled: true, source: "auto");
     }
 
     // --- Private ---
@@ -129,6 +132,31 @@ public sealed class BrightSyncEngine : IDisposable
         Log.Debug("Internal brightness changed to {Brightness}%", brightness);
         InternalBrightnessChanged?.Invoke(this, brightness);
         Task.Run(() => SyncAllMonitors());
+    }
+
+    private bool ApplyBrightness(int brightness, bool allowManualWhenAutoEnabled, string source)
+    {
+        if (!allowManualWhenAutoEnabled && _config.Config.AutoBrightness.Enabled)
+        {
+            Log.Debug("Brightness request from {Source} ignored because auto brightness is enabled", source);
+            return false;
+        }
+
+        var result = _watcher.TrySetBrightness(brightness);
+        if (!result)
+        {
+            _lastInternalBrightness = brightness;
+            Log.Warning("Brightness source {Source} could not set internal brightness through WMI; using virtual brightness fallback at {Brightness}%",
+                source, brightness);
+            InternalBrightnessChanged?.Invoke(this, brightness);
+            Task.Run(SyncAllMonitors);
+        }
+        else
+        {
+            Log.Debug("Brightness source {Source} requested update to {Brightness}%", source, brightness);
+        }
+
+        return result;
     }
 
     private void SyncAllMonitors()

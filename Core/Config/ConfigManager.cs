@@ -55,6 +55,8 @@ public sealed class ConfigManager
             {
                 var text = File.ReadAllText(ConfigPath);
                 var config = JsonSerializer.Deserialize<AppConfig>(text, JsonOptions) ?? new AppConfig();
+                config.AutoBrightness ??= AutoBrightnessSettings.CreateDefault();
+                config.AutoBrightness.EnsureDefaults();
                 Log.Information("Configuration loaded from {ConfigPath}", ConfigPath);
                 return config;
             }
@@ -65,7 +67,9 @@ public sealed class ConfigManager
         }
 
         Log.Information("Using default configuration");
-        return new AppConfig();
+        var defaultConfig = new AppConfig();
+        defaultConfig.AutoBrightness.EnsureDefaults();
+        return defaultConfig;
     }
 
     private static void ApplyStartWithWindows(bool enable)

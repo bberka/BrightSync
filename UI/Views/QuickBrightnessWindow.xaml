@@ -1,8 +1,9 @@
 <Window x:Class="BrightSync.UI.Views.QuickBrightnessWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Width="280"
-        MinHeight="110"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        Width="300"
+        MinHeight="140"
         SizeToContent="Height"
         WindowStartupLocation="Manual"
         ResizeMode="NoResize"
@@ -12,12 +13,38 @@
         Topmost="True"
         Background="Transparent">
 
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+    </Window.Resources>
+
     <Border CornerRadius="8"
             Background="{DynamicResource ApplicationBackgroundBrush}"
             BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
             BorderThickness="1"
             Padding="16,14">
         <StackPanel>
+            <Grid Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Automatic Brightness"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                    <TextBlock Text="{Binding AutoBrightnessStatusText}"
+                               FontSize="11"
+                               Margin="0,2,0,0"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+                <ui:ToggleSwitch Grid.Column="1"
+                                 IsChecked="{Binding AutoBrightnessEnabled}"
+                                 VerticalAlignment="Center"
+                                 Margin="12,0,0,0"/>
+            </Grid>
+
             <!-- Internal brightness slider -->
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -31,6 +58,7 @@
                         IsSnapToTickEnabled="True"
                         IsMoveToPointEnabled="True"
                         VerticalAlignment="Center"
+                        IsEnabled="{Binding IsManualBrightnessEnabled}"
                         />
                 <TextBlock Grid.Column="1"
                            Text="{Binding InternalBrightnessText}"
@@ -39,6 +67,12 @@
                            TextAlignment="Right"
                            Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
             </Grid>
+
+            <TextBlock Text="Curve editing is available in Settings."
+                       FontSize="11"
+                       Margin="0,6,0,0"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                       Visibility="{Binding AutoBrightnessEnabled, Converter={StaticResource BoolToVisibility}}"/>
 
             <!-- Monitor targets -->
             <ItemsControl ItemsSource="{Binding MonitorTargets}" Margin="0,6,0,0">

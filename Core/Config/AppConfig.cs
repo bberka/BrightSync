@@ -4,6 +4,8 @@ public sealed class AppConfig
 {
     /// <summary>Per-monitor settings keyed by Windows device name (e.g. \\.\DISPLAY2).</summary>
     public Dictionary<string, MonitorProfile> Monitors { get; set; } = new();
+    /// <summary>Global automatic brightness settings.</summary>
+    public AutoBrightnessSettings AutoBrightness { get; set; } = AutoBrightnessSettings.CreateDefault();
     /// <summary>How often (seconds) the engine re-applies brightness to catch drift.</summary>
     public int EnforcementIntervalSeconds { get; set; } = 10;
     /// <summary>Whether periodic brightness enforcement is enabled.</summary>

@@ -13,8 +13,10 @@ namespace BrightSync.UI.ViewModels;
 public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposable
 {
     public event PropertyChangedEventHandler? PropertyChanged;
+    public event EventHandler? AutoBrightnessCurveChanged;
 
     private readonly BrightSyncEngine _engine;
+    private readonly AutoBrightnessService _autoBrightness;
     private readonly ConfigManager _config;
     private readonly DdcCiService _ddc;
     private readonly UpdateChecker _updateChecker;
@@ -39,17 +41,19 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             OnChanged();
             OnChanged(nameof(InternalBrightnessText));
 
-            if (_isUpdatingInternalBrightness) return;
+            if (_isUpdatingInternalBrightness || AutoBrightnessEnabled) return;
 
             _brightnessDebounce?.Dispose();
             _brightnessDebounce = new System.Threading.Timer(_ =>
             {
                 Log.Debug("Settings window requested internal brightness change to {Brightness}%", _internalBrightness);
-                if (!_engine.TrySetInternalBrightness(_internalBrightness))
+                if (!_engine.TrySetUserBrightness(_internalBrightness))
                 {
                     System.Windows.Application.Current.Dispatcher.Invoke(() =>
                     {
-                        SetStatus("Using as virtual reference for external monitors.");
+                        SetStatus(AutoBrightnessEnabled
+                            ? "Automatic brightness is controlling the slider."
+                            : "Using as virtual reference for external monitors.");
                     });
                 }
             }, null, 300, System.Threading.Timeout.Infinite);
@@ -57,6 +61,52 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     }
 
     public string InternalBrightnessText => $"{_internalBrightness}%";
+    public bool AutoBrightnessEnabled
+    {
+        get => _config.Config.AutoBrightness.Enabled;
+        set
+        {
+            if (_config.Config.AutoBrightness.Enabled == value)
+                return;
+
+            _autoBrightness.SetEnabled(value);
+            OnChanged();
+            OnChanged(nameof(IsManualBrightnessEnabled));
+            OnChanged(nameof(AutoBrightnessStatusText));
+            if (value)
+            {
+                _isUpdatingInternalBrightness = true;
+                InternalBrightness = _autoBrightness.GetCurrentBrightness();
+                _isUpdatingInternalBrightness = false;
+            }
+
+            foreach (var monitor in Monitors)
+                monitor.RefreshTargetText();
+        }
+    }
+
+    public bool IsManualBrightnessEnabled => !AutoBrightnessEnabled;
+    public string AutoBrightnessStatusText
+    {
+        get
+        {
+            if (!AutoBrightnessEnabled)
+                return "Automatic brightness is off.";
+
+            var now = DateTime.Now;
+            return $"Automatic brightness is on. Current {InternalBrightnessText} at {now:HH:mm}.";
+        }
+    }
+
+    public IReadOnlyList<AutoBrightnessControlPoint> AutoBrightnessCurvePoints => _config.Config.AutoBrightness.Curve;
+    public string AutoBrightnessPreviewText
+    {
+        get
+        {
+            var brightness = _autoBrightness.GetCurrentBrightness();
+            return $"Now {DateTime.Now:HH:mm} -> {brightness}%";
+        }
+    }
 
     private int _enforcementInterval;
     public int EnforcementIntervalSeconds
@@ -99,11 +149,13 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     public SettingsWindowViewModel(
         BrightSyncEngine engine,
+        AutoBrightnessService autoBrightness,
         ConfigManager config,
         DdcCiService ddc,
         UpdateChecker updateChecker)
     {
         _engine = engine;
+        _autoBrightness = autoBrightness;
         _config = config;
         _ddc = ddc;
         _updateChecker = updateChecker;
@@ -120,6 +172,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         CheckForUpdatesCommand = new RelayCommand(CheckForUpdates, () => !_isCheckingForUpdates);
 
         engine.InternalBrightnessChanged += OnInternalBrightnessChanged;
+        autoBrightness.StateChanged += OnAutoBrightnessChanged;
         BuildMonitorList();
     }
 
@@ -148,6 +201,8 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             _isUpdatingInternalBrightness = true;
             InternalBrightness = brightness >= 0 ? brightness : _internalBrightness;
             _isUpdatingInternalBrightness = false;
+            OnChanged(nameof(AutoBrightnessStatusText));
+            OnChanged(nameof(AutoBrightnessPreviewText));
             foreach (var m in Monitors)
                 m.RefreshTargetText();
         });
@@ -157,6 +212,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     {
         _config.Save();
         _engine.ForceSync();
+        _autoBrightness.RecalculateNow();
         SetStatus($"Saved at {DateTime.Now:HH:mm:ss}");
         Log.Information("Settings saved from UI");
     }
@@ -188,6 +244,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     private void ResetAll()
     {
         _config.Config.Monitors.Clear();
+        _config.Config.AutoBrightness = AutoBrightnessSettings.CreateDefault();
         EnforcementIntervalSeconds = new AppConfig().EnforcementIntervalSeconds;
         EnforcementEnabled = true;
         StartWithWindows = false;
@@ -195,8 +252,58 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         foreach (var monitor in Monitors)
             monitor.Reset();
 
+        OnChanged(nameof(AutoBrightnessEnabled));
+        OnChanged(nameof(IsManualBrightnessEnabled));
+        OnChanged(nameof(AutoBrightnessStatusText));
+        OnChanged(nameof(AutoBrightnessCurvePoints));
+        OnChanged(nameof(AutoBrightnessPreviewText));
+        AutoBrightnessCurveChanged?.Invoke(this, EventArgs.Empty);
         SetStatus("Reset all settings to defaults. Save to persist.");
         Log.Warning("All settings were reset to defaults in the UI");
+    }
+
+    public void UpdateAutoBrightnessPoint(int index, int brightness)
+    {
+        var curve = _config.Config.AutoBrightness.Curve;
+        if (index < 0 || index >= curve.Count)
+            return;
+
+        brightness = Math.Clamp(brightness, 0, 100);
+        curve[index].Brightness = brightness;
+        if (index == 0)
+            curve[^1].Brightness = brightness;
+        else if (index == curve.Count - 1)
+            curve[0].Brightness = brightness;
+
+        OnChanged(nameof(AutoBrightnessCurvePoints));
+        OnChanged(nameof(AutoBrightnessStatusText));
+        OnChanged(nameof(AutoBrightnessPreviewText));
+        AutoBrightnessCurveChanged?.Invoke(this, EventArgs.Empty);
+        _autoBrightness.RecalculateNow();
+        foreach (var monitor in Monitors)
+            monitor.RefreshTargetText();
+    }
+
+    public IReadOnlyList<string> GetCurveHourLabels()
+    {
+        return ["0", "3", "6", "9", "12", "15", "18", "21", "24"];
+    }
+
+    private void OnAutoBrightnessChanged(object? sender, EventArgs e)
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            _isUpdatingInternalBrightness = true;
+            InternalBrightness = _autoBrightness.GetCurrentBrightness();
+            _isUpdatingInternalBrightness = false;
+            OnChanged(nameof(AutoBrightnessEnabled));
+            OnChanged(nameof(IsManualBrightnessEnabled));
+            OnChanged(nameof(AutoBrightnessStatusText));
+            OnChanged(nameof(AutoBrightnessPreviewText));
+            AutoBrightnessCurveChanged?.Invoke(this, EventArgs.Empty);
+            foreach (var monitor in Monitors)
+                monitor.RefreshTargetText();
+        });
     }
 
     private void CheckForUpdates()
@@ -270,6 +377,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _brightnessDebounce?.Dispose();
         _statusTimer?.Dispose();
         _engine.InternalBrightnessChanged -= OnInternalBrightnessChanged;
+        _autoBrightness.StateChanged -= OnAutoBrightnessChanged;
         Log.Debug("Disposed settings window view model");
     }
 }

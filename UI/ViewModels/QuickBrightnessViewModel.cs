@@ -14,6 +14,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private readonly BrightSyncEngine _engine;
+    private readonly AutoBrightnessService _autoBrightness;
     private readonly DdcCiService _ddc;
     private readonly ConfigManager _config;
     private bool _isUpdating;
@@ -33,31 +34,53 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
             OnChanged();
             OnChanged(nameof(InternalBrightnessText));
 
-            if (!_isUpdating)
+            if (!_isUpdating && !AutoBrightnessEnabled)
             {
                 _brightnessDebounce?.Dispose();
                 _brightnessDebounce = new System.Threading.Timer(_ =>
                 {
                     Log.Debug("Quick popup requested internal brightness change to {Brightness}%", _internalBrightness);
-                    _engine.TrySetInternalBrightness(_internalBrightness);
+                    _engine.TrySetUserBrightness(_internalBrightness);
                 }, null, 300, System.Threading.Timeout.Infinite);
             }
         }
     }
 
     public bool HasInternalBrightnessControl => true;
+    public bool AutoBrightnessEnabled
+    {
+        get => _config.Config.AutoBrightness.Enabled;
+        set
+        {
+            if (_config.Config.AutoBrightness.Enabled == value)
+                return;
+
+            _autoBrightness.SetEnabled(value);
+            OnChanged();
+            OnChanged(nameof(IsManualBrightnessEnabled));
+            OnChanged(nameof(AutoBrightnessStatusText));
+            Refresh();
+        }
+    }
+
+    public bool IsManualBrightnessEnabled => !AutoBrightnessEnabled;
 
     public string InternalBrightnessText => $"{_internalBrightness}%";
+    public string AutoBrightnessStatusText => AutoBrightnessEnabled
+        ? $"Automatic brightness is on. Current {InternalBrightnessText}."
+        : "Automatic brightness is off.";
 
     public ICommand OpenSettingsCommand { get; }
 
     public QuickBrightnessViewModel(
         BrightSyncEngine engine,
+        AutoBrightnessService autoBrightness,
         DdcCiService ddc,
         ConfigManager config,
         Action openSettings)
     {
         _engine = engine;
+        _autoBrightness = autoBrightness;
         _ddc = ddc;
         _config = config;
 
@@ -67,6 +90,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
         OpenSettingsCommand = new RelayCommand(openSettings);
 
         engine.InternalBrightnessChanged += OnBrightnessChanged;
+        autoBrightness.StateChanged += OnAutoBrightnessChanged;
         RefreshMonitorTargets();
     }
 
@@ -75,9 +99,12 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
     {
         Log.Debug("Refreshing quick brightness view model");
         _isUpdating = true;
-        var b = _engine.LastInternalBrightness;
+        var b = AutoBrightnessEnabled ? _autoBrightness.GetCurrentBrightness() : _engine.LastInternalBrightness;
         InternalBrightness = b >= 0 ? b : _internalBrightness;
         _isUpdating = false;
+        OnChanged(nameof(AutoBrightnessEnabled));
+        OnChanged(nameof(IsManualBrightnessEnabled));
+        OnChanged(nameof(AutoBrightnessStatusText));
         RefreshMonitorTargets();
     }
 
@@ -107,6 +134,11 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
         });
     }
 
+    private void OnAutoBrightnessChanged(object? sender, EventArgs e)
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(Refresh);
+    }
+
     private static string BuildDisplayName(DdcMonitor monitor)
     {
         if (!string.IsNullOrWhiteSpace(monitor.ManufacturerName) &&
@@ -124,6 +156,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
     {
         _brightnessDebounce?.Dispose();
         _engine.InternalBrightnessChanged -= OnBrightnessChanged;
+        _autoBrightness.StateChanged -= OnAutoBrightnessChanged;
         Log.Debug("Disposed quick brightness view model");
     }
 }

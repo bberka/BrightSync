@@ -14,6 +14,7 @@ public partial class App
 {
     private TrayManager _trayManager = null!;
     private BrightSyncEngine _syncEngine = null!;
+    private AutoBrightnessService _autoBrightnessService = null!;
     private DdcCiService _ddcService = null!;
     private UpdateChecker _updateChecker = null!;
     private Wpf.Ui.Appearance.ApplicationTheme? _appliedTheme;
@@ -61,11 +62,15 @@ public partial class App
         _syncEngine.Start();
         Log.Information("Brightness sync engine started");
 
+        _autoBrightnessService = new AutoBrightnessService(_syncEngine, configManager);
+        _autoBrightnessService.Start();
+        Log.Information("Auto brightness service started");
+
         _updateChecker = new UpdateChecker(configManager);
         _updateChecker.Start();
         Log.Information("Update checker started");
 
-        _trayManager = new TrayManager(_syncEngine, configManager, _ddcService, _updateChecker);
+        _trayManager = new TrayManager(_syncEngine, _autoBrightnessService, configManager, _ddcService, _updateChecker);
         _trayManager.ExitRequested += (_, _) => ExitApp();
         _trayManager.Initialize();
         Log.Information("Tray manager initialized");
@@ -81,6 +86,7 @@ public partial class App
     private void ExitApp()
     {
         Log.Information("Exit requested");
+        _autoBrightnessService.Dispose();
         _syncEngine.Dispose();
         _trayManager.Dispose();
         _ddcService.Dispose();
@@ -94,6 +100,7 @@ public partial class App
         SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
         SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
         _displayRefreshDebounce?.Dispose();
+        _autoBrightnessService?.Dispose();
         _syncEngine?.Dispose();
         _trayManager?.Dispose();
         _ddcService?.Dispose();
