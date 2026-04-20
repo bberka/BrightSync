@@ -367,7 +367,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         foreach (var monitor in _ddc.GetMonitors())
         {
             var profile = _config.GetOrCreateProfile(monitor.DeviceName);
-            Monitors.Add(new MonitorRowViewModel(monitor, profile, _engine, OnMonitorReset));
+            Monitors.Add(new MonitorRowViewModel(monitor, profile, _engine, OnMonitorReset, CollapseOtherMonitorRows));
         }
 
         OnChanged(nameof(HasMonitors));
@@ -377,6 +377,15 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             EmptyStateText = string.Empty;
         OnChanged(nameof(EmptyStateText));
         Log.Information("Settings monitor list rebuilt. MonitorCount={MonitorCount}", Monitors.Count);
+    }
+
+    private void CollapseOtherMonitorRows(MonitorRowViewModel expandedMonitor)
+    {
+        foreach (var monitor in Monitors)
+        {
+            if (!ReferenceEquals(monitor, expandedMonitor))
+                monitor.IsExpanded = false;
+        }
     }
 
     private void OnInternalBrightnessChanged(object? sender, int brightness)

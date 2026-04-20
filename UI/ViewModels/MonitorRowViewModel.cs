@@ -15,6 +15,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     private readonly BrightSyncEngine _engine;
     private readonly string _displayName;
     private readonly Action? _onReset;
+    private readonly Action<MonitorRowViewModel>? _onExpanded;
 
     public string DeviceName { get; }
     public string BrandName { get; }
@@ -24,7 +25,17 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     public bool IsExpanded
     {
         get => _isExpanded;
-        set { _isExpanded = value; OnChanged(); }
+        set
+        {
+            if (_isExpanded == value)
+                return;
+
+            _isExpanded = value;
+            OnChanged();
+
+            if (_isExpanded)
+                _onExpanded?.Invoke(this);
+        }
     }
 
     private bool _enabled;
@@ -177,7 +188,8 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         DdcMonitor monitor,
         MonitorProfile profile,
         BrightSyncEngine engine,
-        Action? onReset = null)
+        Action? onReset = null,
+        Action<MonitorRowViewModel>? onExpanded = null)
     {
         DeviceName = monitor.DeviceName;
         BrandName = monitor.ManufacturerName;
@@ -196,6 +208,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         _profile = profile;
         _engine = engine;
         _onReset = onReset;
+        _onExpanded = onExpanded;
         _enabled = UsesWindowsBrightnessControl || (SupportsDdcCi && profile.Enabled);
         _min = profile.MinBrightness;
         _max = profile.MaxBrightness;
