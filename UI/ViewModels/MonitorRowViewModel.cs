@@ -30,19 +30,38 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     private bool _enabled;
     public bool Enabled
     {
-        get => _enabled;
+        get => UsesWindowsBrightnessControl || _enabled;
         set
         {
-            if (!SupportsDdcCi) { _enabled = false; return; }
-            _enabled = value; _profile.Enabled = value; OnChanged(); OnChanged(nameof(TargetText));
+            if (UsesWindowsBrightnessControl)
+            {
+                _enabled = true;
+                OnChanged();
+                OnChanged(nameof(TargetText));
+                return;
+            }
+
+            if (!SupportsDdcCi)
+            {
+                _enabled = false;
+                OnChanged();
+                OnChanged(nameof(TargetText));
+                return;
+            }
+
+            _enabled = value;
+            _profile.Enabled = value;
+            OnChanged();
+            OnChanged(nameof(TargetText));
         }
     }
 
-    public bool CanToggleEnabled => SupportsDdcCi;
+    public bool CanToggleEnabled => SupportsDdcCi && !UsesWindowsBrightnessControl;
     public bool CanExpand => true;
     public bool UsesWindowsBrightnessControl => IsInternal;
     public bool SupportsBrightnessControl => SupportsDdcCi || UsesWindowsBrightnessControl;
     public bool ShowsPerMonitorAdjustmentControls => SupportsDdcCi && !UsesWindowsBrightnessControl;
+    public bool ShowsResetButton => ShowsPerMonitorAdjustmentControls;
 
     private int _min;
     public int MinBrightness
@@ -177,7 +196,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         _profile = profile;
         _engine = engine;
         _onReset = onReset;
-        _enabled = SupportsDdcCi && profile.Enabled;
+        _enabled = UsesWindowsBrightnessControl || (SupportsDdcCi && profile.Enabled);
         _min = profile.MinBrightness;
         _max = profile.MaxBrightness;
         _multiplier = profile.Multiplier;
@@ -189,7 +208,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     public void Reset()
     {
         _profile.Reset();
-        _enabled = _profile.Enabled;
+        _enabled = UsesWindowsBrightnessControl || (SupportsDdcCi && _profile.Enabled);
         _min = _profile.MinBrightness;
         _max = _profile.MaxBrightness;
         _multiplier = _profile.Multiplier;
