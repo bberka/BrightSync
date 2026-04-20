@@ -15,6 +15,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     private readonly BrightSyncEngine _engine;
     private readonly string _displayName;
     private readonly Action? _onReset;
+    private readonly Action<bool>? _onSettingsChanged;
     private readonly Action<MonitorRowViewModel>? _onExpanded;
 
     public string DeviceName { get; }
@@ -60,10 +61,14 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
                 return;
             }
 
+            if (_enabled == value)
+                return;
+
             _enabled = value;
             _profile.Enabled = value;
             OnChanged();
             OnChanged(nameof(TargetText));
+            _onSettingsChanged?.Invoke(false);
         }
     }
 
@@ -82,10 +87,14 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         {
             value = Math.Clamp(value, 0, 100);
             if (value > _max) value = _max;
+            if (_min == value)
+                return;
+
             _min = value;
             _profile.MinBrightness = value;
             OnChanged();
             OnChanged(nameof(TargetText));
+            _onSettingsChanged?.Invoke(true);
         }
     }
 
@@ -97,10 +106,14 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         {
             value = Math.Clamp(value, 0, 100);
             if (value < _min) value = _min;
+            if (_max == value)
+                return;
+
             _max = value;
             _profile.MaxBrightness = value;
             OnChanged();
             OnChanged(nameof(TargetText));
+            _onSettingsChanged?.Invoke(true);
         }
     }
 
@@ -110,11 +123,16 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         get => _multiplier;
         set
         {
-            _multiplier = Math.Clamp(Math.Round(value, 2), 0.1, 3.0);
+            var multiplier = Math.Clamp(Math.Round(value, 2), 0.1, 3.0);
+            if (Math.Abs(_multiplier - multiplier) < 0.001)
+                return;
+
+            _multiplier = multiplier;
             _profile.Multiplier = _multiplier;
             OnChanged();
             OnChanged(nameof(MultiplierDisplay));
             OnChanged(nameof(TargetText));
+            _onSettingsChanged?.Invoke(true);
         }
     }
 
@@ -189,6 +207,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         MonitorProfile profile,
         BrightSyncEngine engine,
         Action? onReset = null,
+        Action<bool>? onSettingsChanged = null,
         Action<MonitorRowViewModel>? onExpanded = null)
     {
         DeviceName = monitor.DeviceName;
@@ -208,6 +227,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         _profile = profile;
         _engine = engine;
         _onReset = onReset;
+        _onSettingsChanged = onSettingsChanged;
         _onExpanded = onExpanded;
         _enabled = UsesWindowsBrightnessControl || (SupportsDdcCi && profile.Enabled);
         _min = profile.MinBrightness;

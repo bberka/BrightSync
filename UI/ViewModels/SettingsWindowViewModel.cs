@@ -23,8 +23,10 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     private readonly UpdateChecker _updateChecker;
     private bool _isUpdatingInternalBrightness;
     private bool _isCheckingForUpdates;
+    private bool _suspendAutoSave;
     private System.Threading.Timer? _statusTimer;
     private System.Threading.Timer? _brightnessDebounce;
+    private System.Threading.Timer? _autoSaveDebounce;
 
     public ObservableCollection<MonitorRowViewModel> Monitors { get; } = new();
     public bool HasMonitors => Monitors.Count > 0;
@@ -84,6 +86,8 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
             foreach (var monitor in Monitors)
                 monitor.RefreshTargetText();
+
+            RequestAutoSave();
         }
     }
 
@@ -103,6 +107,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             OnChanged();
             OnChanged(nameof(AutoBrightnessStatusText));
             OnChanged(nameof(AutoBrightnessLockDescription));
+            RequestAutoSave();
         }
     }
 
@@ -140,8 +145,12 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         set
         {
             _enforcementInterval = Math.Clamp(value, 5, 300);
+            if (_config.Config.EnforcementIntervalSeconds == _enforcementInterval)
+                return;
+
             _config.Config.EnforcementIntervalSeconds = _enforcementInterval;
             OnChanged();
+            RequestAutoSave(debounce: true);
         }
     }
 
@@ -151,9 +160,13 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         get => _enforcementEnabled;
         set
         {
+            if (_enforcementEnabled == value)
+                return;
+
             _enforcementEnabled = value;
             _config.Config.EnforcementEnabled = value;
             OnChanged();
+            RequestAutoSave();
         }
     }
 
@@ -161,7 +174,16 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     public bool StartWithWindows
     {
         get => _startWithWindows;
-        set { _startWithWindows = value; _config.Config.StartWithWindows = value; OnChanged(); }
+        set
+        {
+            if (_startWithWindows == value)
+                return;
+
+            _startWithWindows = value;
+            _config.Config.StartWithWindows = value;
+            OnChanged();
+            RequestAutoSave();
+        }
     }
 
     private bool _useLegacyDdcCiDetection;
@@ -176,7 +198,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             _useLegacyDdcCiDetection = value;
             _config.Config.UseLegacyDdcCiDetection = value;
             OnChanged();
-            SetStatus("DDC/CI detection mode changed. Refresh monitors or restart the app to apply it.");
+            RequestAutoSave(statusText: "DDC/CI detection mode changed and saved. Refresh monitors or restart the app to apply it.");
         }
     }
 
@@ -186,9 +208,13 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         get => _disableMonitorAccessWhileLocked;
         set
         {
+            if (_disableMonitorAccessWhileLocked == value)
+                return;
+
             _disableMonitorAccessWhileLocked = value;
             _config.Config.DisableMonitorAccessWhileLocked = value;
             OnChanged();
+            RequestAutoSave();
         }
     }
 
@@ -207,6 +233,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             OnChanged(nameof(IdleReductionStatusText));
             _idleReduction.ReevaluateNow();
             RefreshTargets();
+            RequestAutoSave();
         }
     }
 
@@ -226,6 +253,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             OnChanged(nameof(IdleTimeoutText));
             OnChanged(nameof(IdleReductionStatusText));
             _idleReduction.ReevaluateNow();
+            RequestAutoSave(debounce: true);
         }
     }
 
@@ -249,6 +277,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
                 _engine.ForceSync();
             else
                 RefreshTargets();
+            RequestAutoSave();
         }
     }
 
@@ -273,6 +302,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
                 _engine.ForceSync();
             else
                 RefreshTargets();
+            RequestAutoSave(debounce: true);
         }
     }
 
@@ -292,6 +322,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             OnChanged();
             OnChanged(nameof(IdleReductionStatusText));
             _idleReduction.ReevaluateNow();
+            RequestAutoSave();
         }
     }
 
@@ -311,7 +342,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         }
     }
 
-    public ICommand SaveCommand { get; }
     public ICommand RefreshCommand { get; }
     public ICommand ResetAllCommand { get; }
     public ICommand ResetCurveCommand { get; }
@@ -348,7 +378,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _idleReductionPercent = Math.Clamp(config.Config.IdleReductionPercent, 10, 100);
         _idleIgnoreMediaPlayback = config.Config.IdleIgnoreMediaPlayback;
 
-        SaveCommand = new RelayCommand(Save);
         RefreshCommand = new RelayCommand(Refresh);
         ResetAllCommand = new RelayCommand(ResetAll);
         ResetCurveCommand = new RelayCommand(ResetCurve);
@@ -367,7 +396,13 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         foreach (var monitor in _ddc.GetMonitors())
         {
             var profile = _config.GetOrCreateProfile(monitor.DeviceName);
-            Monitors.Add(new MonitorRowViewModel(monitor, profile, _engine, OnMonitorReset, CollapseOtherMonitorRows));
+            Monitors.Add(new MonitorRowViewModel(
+                monitor,
+                profile,
+                _engine,
+                OnMonitorReset,
+                OnMonitorSettingsChanged,
+                CollapseOtherMonitorRows));
         }
 
         OnChanged(nameof(HasMonitors));
@@ -402,13 +437,49 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         });
     }
 
-    private void Save()
+    private void SaveCore(string statusText, string logMessage)
     {
+        _autoSaveDebounce?.Dispose();
+        _autoSaveDebounce = null;
         _config.Save();
         _engine.ForceSync();
         _autoBrightness.RecalculateNow();
-        SetStatus($"Saved at {DateTime.Now:HH:mm:ss}");
-        Log.Information("Settings saved from UI");
+        SetStatus(statusText);
+        Log.Information("{LogMessage}", logMessage);
+    }
+
+    private void RequestAutoSave(bool debounce = false, string? statusText = null)
+    {
+        if (_suspendAutoSave)
+            return;
+
+        if (!debounce)
+        {
+            SaveCore(statusText ?? $"Saved automatically at {DateTime.Now:HH:mm:ss}", "Settings auto-saved from UI");
+            return;
+        }
+
+        _autoSaveDebounce?.Dispose();
+        _autoSaveDebounce = new System.Threading.Timer(_ =>
+        {
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                SaveCore($"Saved automatically at {DateTime.Now:HH:mm:ss}", "Settings auto-saved from UI after debounce");
+            });
+        }, null, 600, System.Threading.Timeout.Infinite);
+    }
+
+    private void RunWithAutoSaveSuspended(Action action)
+    {
+        _suspendAutoSave = true;
+        try
+        {
+            action();
+        }
+        finally
+        {
+            _suspendAutoSave = false;
+        }
     }
 
     private void Refresh()
@@ -436,21 +507,24 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     private void ResetAll()
     {
-        _config.Config.Monitors.Clear();
-        _config.Config.AutoBrightness = AutoBrightnessSettings.CreateDefault();
-        EnforcementIntervalSeconds = new AppConfig().EnforcementIntervalSeconds;
-        EnforcementEnabled = true;
-        DisableMonitorAccessWhileLocked = false;
-        IdleReductionEnabled = false;
-        IdleTimeoutMinutes = new AppConfig().IdleTimeoutMinutes;
-        IdleReductionToMinimum = false;
-        IdleReductionPercent = new AppConfig().IdleReductionPercent;
-        IdleIgnoreMediaPlayback = true;
-        StartWithWindows = false;
-        UseLegacyDdcCiDetection = false;
+        RunWithAutoSaveSuspended(() =>
+        {
+            _config.Config.Monitors.Clear();
+            _config.Config.AutoBrightness = AutoBrightnessSettings.CreateDefault();
+            EnforcementIntervalSeconds = new AppConfig().EnforcementIntervalSeconds;
+            EnforcementEnabled = true;
+            DisableMonitorAccessWhileLocked = false;
+            IdleReductionEnabled = false;
+            IdleTimeoutMinutes = new AppConfig().IdleTimeoutMinutes;
+            IdleReductionToMinimum = false;
+            IdleReductionPercent = new AppConfig().IdleReductionPercent;
+            IdleIgnoreMediaPlayback = true;
+            StartWithWindows = false;
+            UseLegacyDdcCiDetection = false;
 
-        foreach (var monitor in Monitors)
-            monitor.Reset();
+            foreach (var monitor in Monitors)
+                monitor.Reset();
+        });
 
         OnChanged(nameof(AutoBrightnessEnabled));
         OnChanged(nameof(AutoBrightnessLockEnabled));
@@ -465,7 +539,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         OnChanged(nameof(IdleTimeoutText));
         OnChanged(nameof(IdleReductionPercentText));
         AutoBrightnessCurveChanged?.Invoke(this, EventArgs.Empty);
-        SetStatus("Reset all settings to defaults. Save to persist.");
+        SaveCore("Reset all settings to defaults and saved.", "All settings were reset to defaults and auto-saved from the UI");
         Log.Warning("All settings were reset to defaults in the UI");
     }
 
@@ -489,15 +563,19 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _autoBrightness.RecalculateNow();
         foreach (var monitor in Monitors)
             monitor.RefreshTargetText();
+        RequestAutoSave(debounce: true);
     }
 
     private void ResetCurve()
     {
-        var currentEnabled = _config.Config.AutoBrightness.Enabled;
-        var currentLockEnabled = _config.Config.AutoBrightness.LockWhenManualBrightnessChanges;
-        _config.Config.AutoBrightness = AutoBrightnessSettings.CreateDefault();
-        _config.Config.AutoBrightness.Enabled = currentEnabled;
-        _config.Config.AutoBrightness.LockWhenManualBrightnessChanges = currentLockEnabled;
+        RunWithAutoSaveSuspended(() =>
+        {
+            var currentEnabled = _config.Config.AutoBrightness.Enabled;
+            var currentLockEnabled = _config.Config.AutoBrightness.LockWhenManualBrightnessChanges;
+            _config.Config.AutoBrightness = AutoBrightnessSettings.CreateDefault();
+            _config.Config.AutoBrightness.Enabled = currentEnabled;
+            _config.Config.AutoBrightness.LockWhenManualBrightnessChanges = currentLockEnabled;
+        });
 
         OnChanged(nameof(AutoBrightnessEnabled));
         OnChanged(nameof(AutoBrightnessLockEnabled));
@@ -512,7 +590,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         foreach (var monitor in Monitors)
             monitor.RefreshTargetText();
 
-        SetStatus("Automatic brightness curve reset. Save to persist.");
+        SaveCore("Automatic brightness curve reset and saved.", "Automatic brightness curve reset and auto-saved from the UI");
         Log.Information("Automatic brightness curve reset in the UI");
     }
 
@@ -608,7 +686,15 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     private void OnMonitorReset()
     {
-        SetStatus("Monitor settings reset. Save to persist.");
+        if (_suspendAutoSave)
+            return;
+
+        SaveCore("Monitor settings reset and saved.", "Monitor settings reset and auto-saved from the UI");
+    }
+
+    private void OnMonitorSettingsChanged(bool debounce)
+    {
+        RequestAutoSave(debounce);
     }
 
     /// <summary>Sets the status text and auto-clears it after 10 seconds.</summary>
@@ -625,7 +711,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
                 StatusText = string.Empty;
                 OnChanged(nameof(StatusText));
             });
-        }, null, 10_000, System.Threading.Timeout.Infinite);
+        }, null, 5_000, System.Threading.Timeout.Infinite);
     }
 
     private void OnChanged([CallerMemberName] string? name = null)
@@ -634,6 +720,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     public void Dispose()
     {
         _brightnessDebounce?.Dispose();
+        _autoSaveDebounce?.Dispose();
         _statusTimer?.Dispose();
         _engine.InternalBrightnessChanged -= OnInternalBrightnessChanged;
         _engine.TargetsChanged -= OnTargetsChanged;

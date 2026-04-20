@@ -857,7 +857,6 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <ui:Button Grid.Column="0"
                                    Content="Check Updates"
@@ -872,12 +871,7 @@
                         <ui:Button Grid.Column="3"
                                    Content="Refresh"
                                    Command="{Binding RefreshCommand}"
-                                   Appearance="Secondary"
-                                   Margin="0,0,6,0" />
-                        <ui:Button Grid.Column="4"
-                                   Content="Save"
-                                   Command="{Binding SaveCommand}"
-                                   Appearance="Primary" />
+                                   Appearance="Secondary" />
                     </Grid>
                 </StackPanel>
             </Border>
