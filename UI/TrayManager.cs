@@ -34,6 +34,7 @@ public sealed class TrayManager(
     private QuickBrightnessWindow? _quickPopup;
     private QuickBrightnessViewModel? _quickVm;
     private DateTime _lastPopupClosed = DateTime.MinValue;
+    private BalloonTipAction _currentBalloonTipAction = BalloonTipAction.None;
     private bool _disposed;
     private int _refreshInProgress;
     private bool? _lastTaskbarUsesLightTheme;
@@ -63,12 +64,20 @@ public sealed class TrayManager(
                 ToggleQuickPopup();
             }
         };
+        _notifyIcon.BalloonTipClicked += (_, _) =>
+        {
+            if (_currentBalloonTipAction == BalloonTipAction.OpenSettings)
+                ShowSettings();
+        };
+        _notifyIcon.BalloonTipClosed += (_, _) => _currentBalloonTipAction = BalloonTipAction.None;
 
         engine.InternalBrightnessChanged += (_, b) =>
         {
             if (_notifyIcon != null)
                 _notifyIcon.Text = $"BrightSync \u2014 Internal: {b}%";
         };
+        autoBrightness.BrightnessCorrectionApplied += OnAutoBrightnessCorrectionApplied;
+        autoBrightness.DisabledAfterManualBrightnessChange += OnAutoBrightnessDisabledAfterManualChange;
     }
 
     public void RefreshTrayIconAppearance()
@@ -213,6 +222,7 @@ public sealed class TrayManager(
 
                 if (showBalloonTip && _notifyIcon != null)
                 {
+                    _currentBalloonTipAction = BalloonTipAction.None;
                     _notifyIcon.ShowBalloonTip(2000, "BrightSync",
                         $"Found {ddc.GetMonitors().Count(m => m.SupportsDdcCi)} brightness-controllable monitor(s).",
                         ToolTipIcon.Info);
@@ -222,6 +232,40 @@ public sealed class TrayManager(
             {
                 Interlocked.Exchange(ref _refreshInProgress, 0);
             }
+        });
+    }
+
+    private void OnAutoBrightnessCorrectionApplied(object? sender, AutoBrightnessCorrectionEventArgs e)
+    {
+        WpfApp.Current.Dispatcher.Invoke(() =>
+        {
+            var notifyIcon = _notifyIcon;
+            if (notifyIcon == null)
+                return;
+
+            _currentBalloonTipAction = BalloonTipAction.OpenSettings;
+            notifyIcon.ShowBalloonTip(
+                5000,
+                "BrightSync corrected brightness",
+                $"Windows brightness was changed to {e.RequestedBrightness}%, so BrightSync restored automatic brightness to {e.RestoredBrightness}%. If you meant to reduce it, disable automatic brightness manually.",
+                ToolTipIcon.Info);
+        });
+    }
+
+    private void OnAutoBrightnessDisabledAfterManualChange(object? sender, AutoBrightnessDisabledEventArgs e)
+    {
+        WpfApp.Current.Dispatcher.Invoke(() =>
+        {
+            var notifyIcon = _notifyIcon;
+            if (notifyIcon == null)
+                return;
+
+            _currentBalloonTipAction = BalloonTipAction.OpenSettings;
+            notifyIcon.ShowBalloonTip(
+                5000,
+                "Automatic brightness disabled",
+                $"Windows brightness was changed manually to {e.RequestedBrightness}%, so BrightSync disabled automatic brightness. Enable lock if this happens often and was unintended.",
+                ToolTipIcon.Info);
         });
     }
 
@@ -285,6 +329,8 @@ public sealed class TrayManager(
         if (_disposed) return;
         _disposed = true;
         Log.Debug("Disposing tray manager");
+        autoBrightness.BrightnessCorrectionApplied -= OnAutoBrightnessCorrectionApplied;
+        autoBrightness.DisabledAfterManualBrightnessChange -= OnAutoBrightnessDisabledAfterManualChange;
         _quickVm?.Dispose();
         _quickPopup?.Close();
         _notifyIcon?.Dispose();
@@ -293,4 +339,10 @@ public sealed class TrayManager(
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DestroyIcon(IntPtr hIcon);
+
+    private enum BalloonTipAction
+    {
+        None,
+        OpenSettings
+    }
 }
