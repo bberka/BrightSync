@@ -541,8 +541,9 @@
                                                     <Style TargetType="StackPanel">
                                                         <Setter Property="Visibility" Value="Visible" />
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding ShowsPerMonitorAdjustmentControls}"
-                                                                         Value="False">
+                                                            <DataTrigger
+                                                                Binding="{Binding ShowsPerMonitorAdjustmentControls}"
+                                                                Value="False">
                                                                 <Setter Property="Visibility" Value="Collapsed" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
@@ -858,14 +859,14 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <ui:Button Grid.Column="1"
-                                   Content="Reset All"
-                                   Command="{Binding ResetAllCommand}"
+                        <ui:Button Grid.Column="0"
+                                   Content="Check Updates"
+                                   Command="{Binding CheckForUpdatesCommand}"
                                    Appearance="Secondary"
                                    Margin="0,0,6,0" />
                         <ui:Button Grid.Column="2"
-                                   Content="Check Updates"
-                                   Command="{Binding CheckForUpdatesCommand}"
+                                   Content="Reset All"
+                                   Command="{Binding ResetAllCommand}"
                                    Appearance="Secondary"
                                    Margin="0,0,6,0" />
                         <ui:Button Grid.Column="3"
