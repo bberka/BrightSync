@@ -202,6 +202,52 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         }
     }
 
+    private bool _energySaverReductionEnabled;
+    public bool EnergySaverReductionEnabled
+    {
+        get => _energySaverReductionEnabled;
+        set
+        {
+            if (_energySaverReductionEnabled == value)
+                return;
+
+            _energySaverReductionEnabled = value;
+            _config.Config.EnergySaverReductionEnabled = value;
+            OnChanged();
+            OnChanged(nameof(EnergySaverStatusText));
+            RequestAutoSave();
+        }
+    }
+
+    private int _energySaverReductionPercent;
+    public int EnergySaverReductionPercent
+    {
+        get => _energySaverReductionPercent;
+        set
+        {
+            var clamped = Math.Clamp(value, 5, 50);
+            if (_energySaverReductionPercent == clamped)
+                return;
+
+            _energySaverReductionPercent = clamped;
+            _config.Config.EnergySaverReductionPercent = clamped;
+            OnChanged();
+            OnChanged(nameof(EnergySaverStatusText));
+            RequestAutoSave(debounce: true);
+        }
+    }
+
+    public string EnergySaverStatusText
+    {
+        get
+        {
+            if (!EnergySaverReductionEnabled)
+                return "Energy saver reduction is off.";
+
+            return $"Brightness will decrease by {EnergySaverReductionPercent}% when Windows Energy Saver is active.";
+        }
+    }
+
     private bool _disableMonitorAccessWhileLocked;
     public bool DisableMonitorAccessWhileLocked
     {
@@ -371,6 +417,8 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _enforcementEnabled = config.Config.EnforcementEnabled;
         _startWithWindows = config.Config.StartWithWindows;
         _useLegacyDdcCiDetection = config.Config.UseLegacyDdcCiDetection;
+        _energySaverReductionEnabled = config.Config.EnergySaverReductionEnabled;
+        _energySaverReductionPercent = Math.Clamp(config.Config.EnergySaverReductionPercent, 5, 50);
         _disableMonitorAccessWhileLocked = config.Config.DisableMonitorAccessWhileLocked;
         _idleReductionEnabled = config.Config.IdleReductionEnabled;
         _idleTimeoutMinutes = Math.Clamp(config.Config.IdleTimeoutMinutes, 1, 120);
@@ -519,6 +567,8 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             IdleReductionToMinimum = false;
             IdleReductionPercent = new AppConfig().IdleReductionPercent;
             IdleIgnoreMediaPlayback = true;
+            EnergySaverReductionEnabled = true;
+            EnergySaverReductionPercent = 10;
             StartWithWindows = false;
             UseLegacyDdcCiDetection = false;
 

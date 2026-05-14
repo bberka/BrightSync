@@ -20,6 +20,7 @@ public sealed class BrightSyncEngine : IDisposable
     private readonly DdcCiService _ddc;
     private readonly InternalBrightnessWatcher _watcher;
     private readonly ConfigManager _config;
+    private PowerSavingService? _powerSaving;
     private readonly System.Timers.Timer _enforcementTimer;
     private int _lastInternalBrightness = -1;
     private bool _isSessionLocked;
@@ -29,6 +30,7 @@ public sealed class BrightSyncEngine : IDisposable
     public int LastInternalBrightness => _lastInternalBrightness;
     public bool IsMonitorAccessSuspended => _config.Config.DisableMonitorAccessWhileLocked && _isSessionLocked;
     public bool IsIdleReductionActive => _config.Config.IdleReductionEnabled && _idleReductionActive;
+    public bool IsEnergySaverActive => _config.Config.EnergySaverReductionEnabled && (_powerSaving?.IsEnergySaverActive ?? false);
 
     public BrightSyncEngine(
         DdcCiService ddc,
@@ -42,6 +44,11 @@ public sealed class BrightSyncEngine : IDisposable
         _enforcementTimer = new System.Timers.Timer(
             Math.Max(5, _config.Config.EnforcementIntervalSeconds) * 1000.0);
         _enforcementTimer.Elapsed += (_, _) => Enforce();
+    }
+
+    public void SetPowerSavingService(PowerSavingService powerSaving)
+    {
+        _powerSaving = powerSaving;
     }
 
     public void Start()
@@ -79,6 +86,12 @@ public sealed class BrightSyncEngine : IDisposable
         if (_lastInternalBrightness < 0) return profile.MinBrightness;
         var raw = _lastInternalBrightness * profile.Multiplier;
         var target = (int)Math.Round(Math.Clamp(raw, profile.MinBrightness, profile.MaxBrightness));
+
+        if (IsEnergySaverActive)
+        {
+            var energySaverScale = Math.Clamp(100 - _config.Config.EnergySaverReductionPercent, 50, 100) / 100.0;
+            target = (int)Math.Round(Math.Clamp(target * energySaverScale, profile.MinBrightness, profile.MaxBrightness));
+        }
 
         if (!IsIdleReductionActive)
             return target;

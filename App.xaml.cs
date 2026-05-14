@@ -16,6 +16,7 @@ public partial class App
     private BrightSyncEngine _syncEngine = null!;
     private AutoBrightnessService _autoBrightnessService = null!;
     private IdleReductionService _idleReductionService = null!;
+    private PowerSavingService _powerSavingService = null!;
     private DdcCiService _ddcService = null!;
     private UpdateChecker _updateChecker = null!;
     private Wpf.Ui.Appearance.ApplicationTheme? _appliedTheme;
@@ -71,6 +72,11 @@ public partial class App
         _idleReductionService.Start();
         Log.Information("Idle reduction service started");
 
+        _powerSavingService = new PowerSavingService(_syncEngine, configManager);
+        _syncEngine.SetPowerSavingService(_powerSavingService);
+        _powerSavingService.Start();
+        Log.Information("Power saving service started");
+
         _updateChecker = new UpdateChecker(configManager);
         _updateChecker.Start();
         Log.Information("Update checker started");
@@ -94,6 +100,7 @@ public partial class App
         Log.Information("Exit requested");
         _autoBrightnessService.Dispose();
         _idleReductionService.Dispose();
+        _powerSavingService.Dispose();
         _syncEngine.Dispose();
         _trayManager.Dispose();
         _ddcService.Dispose();
@@ -109,6 +116,7 @@ public partial class App
         _displayRefreshDebounce?.Dispose();
         _autoBrightnessService?.Dispose();
         _idleReductionService?.Dispose();
+        _powerSavingService?.Dispose();
         _syncEngine?.Dispose();
         _trayManager?.Dispose();
         _ddcService?.Dispose();

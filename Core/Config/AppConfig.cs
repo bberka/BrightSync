@@ -24,6 +24,10 @@ public sealed class AppConfig
     public bool IdleIgnoreMediaPlayback { get; set; } = true;
     /// <summary>Whether to use the older, simpler DDC/CI monitor detection path for compatibility.</summary>
     public bool UseLegacyDdcCiDetection { get; set; }
+    /// <summary>Whether BrightSync should decrease brightness when Windows Energy Saver is enabled.</summary>
+    public bool EnergySaverReductionEnabled { get; set; } = true;
+    /// <summary>Percentage to decrease brightness by when Energy Saver is active (e.g. 10 for 10% reduction).</summary>
+    public int EnergySaverReductionPercent { get; set; } = 10;
     /// <summary>Whether to launch BrightSync when the user logs in.</summary>
     public bool StartWithWindows { get; set; }
     /// <summary>The last local calendar date when BrightSync checked for updates.</summary>
