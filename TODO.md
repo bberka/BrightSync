@@ -35,3 +35,10 @@ Still possible future follow-up:
 ## 3. Bug: System Theme Sync
 
 - When app is open and system theme changes, app does not update its own theme. It requires full app restart manually by user.
+
+## 4. Implemented Improvements
+
+- Windows Energy Saver detection with automatic brightness reduction.
+- Eye Protection mode (temporary manual dimming with timer presets).
+- Log file naming fix (valid `.log` extension).
+- UI lag fixes for settings sliders.

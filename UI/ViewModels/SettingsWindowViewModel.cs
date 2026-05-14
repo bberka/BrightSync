@@ -18,6 +18,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     private readonly BrightSyncEngine _engine;
     private readonly AutoBrightnessService _autoBrightness;
     private readonly IdleReductionService _idleReduction;
+    private readonly EyeProtectionService _eyeProtection;
     private readonly ConfigManager _config;
     private readonly DdcCiService _ddc;
     private readonly UpdateChecker _updateChecker;
@@ -248,6 +249,76 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         }
     }
 
+    private bool _eyeProtectionEnabled;
+    public bool EyeProtectionEnabled
+    {
+        get => _eyeProtectionEnabled;
+        set
+        {
+            if (_eyeProtectionEnabled == value)
+                return;
+
+            _eyeProtectionEnabled = value;
+            _eyeProtection.SetEnabled(value);
+            OnChanged();
+            OnChanged(nameof(EyeProtectionStatusText));
+        }
+    }
+
+    private int _eyeProtectionReductionPercent;
+    public int EyeProtectionReductionPercent
+    {
+        get => _eyeProtectionReductionPercent;
+        set
+        {
+            var clamped = Math.Clamp(value, 5, 80);
+            if (_eyeProtectionReductionPercent == clamped)
+                return;
+
+            _eyeProtectionReductionPercent = clamped;
+            _config.Config.EyeProtectionReductionPercent = clamped;
+            OnChanged();
+            OnChanged(nameof(EyeProtectionStatusText));
+            if (EyeProtectionEnabled)
+                _engine.ForceSync();
+            RequestAutoSave(debounce: true);
+        }
+    }
+
+    private int _eyeProtectionDefaultDurationHours;
+    public int EyeProtectionDefaultDurationHours
+    {
+        get => _eyeProtectionDefaultDurationHours;
+        set
+        {
+            var clamped = Math.Clamp(value, 1, 24);
+            if (_eyeProtectionDefaultDurationHours == clamped)
+                return;
+
+            _eyeProtectionDefaultDurationHours = clamped;
+            _config.Config.EyeProtectionDefaultDurationHours = clamped;
+            OnChanged();
+            OnChanged(nameof(EyeProtectionStatusText));
+            RequestAutoSave(debounce: true);
+        }
+    }
+
+    public string EyeProtectionStatusText
+    {
+        get
+        {
+            var reduction = $"{EyeProtectionReductionPercent}%";
+            var duration = _eyeProtectionDefaultDurationHours == 1 ? "1 hour" : $"{_eyeProtectionDefaultDurationHours} hours";
+            
+            if (!EyeProtectionEnabled)
+                return $"Eye protection will decrease brightness by {reduction} for {duration} when enabled.";
+
+            var endUtc = _eyeProtection.EndTimeUtc;
+            var timeText = endUtc.HasValue ? $"Ends at {endUtc.Value.ToLocalTime():HH:mm}." : string.Empty;
+            return $"Eye protection is active ({reduction} reduction). {timeText}";
+        }
+    }
+
     private bool _disableMonitorAccessWhileLocked;
     public bool DisableMonitorAccessWhileLocked
     {
@@ -400,6 +471,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         BrightSyncEngine engine,
         AutoBrightnessService autoBrightness,
         IdleReductionService idleReduction,
+        EyeProtectionService eyeProtection,
         ConfigManager config,
         DdcCiService ddc,
         UpdateChecker updateChecker)
@@ -407,6 +479,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _engine = engine;
         _autoBrightness = autoBrightness;
         _idleReduction = idleReduction;
+        _eyeProtection = eyeProtection;
         _config = config;
         _ddc = ddc;
         _updateChecker = updateChecker;
@@ -419,6 +492,9 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _useLegacyDdcCiDetection = config.Config.UseLegacyDdcCiDetection;
         _energySaverReductionEnabled = config.Config.EnergySaverReductionEnabled;
         _energySaverReductionPercent = Math.Clamp(config.Config.EnergySaverReductionPercent, 5, 50);
+        _eyeProtectionEnabled = config.Config.EyeProtectionEnabled;
+        _eyeProtectionReductionPercent = Math.Clamp(config.Config.EyeProtectionReductionPercent, 5, 80);
+        _eyeProtectionDefaultDurationHours = Math.Clamp(config.Config.EyeProtectionDefaultDurationHours, 1, 24);
         _disableMonitorAccessWhileLocked = config.Config.DisableMonitorAccessWhileLocked;
         _idleReductionEnabled = config.Config.IdleReductionEnabled;
         _idleTimeoutMinutes = Math.Clamp(config.Config.IdleTimeoutMinutes, 1, 120);
@@ -435,7 +511,19 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         engine.TargetsChanged += OnTargetsChanged;
         autoBrightness.StateChanged += OnAutoBrightnessChanged;
         idleReduction.StateChanged += OnIdleReductionChanged;
+        eyeProtection.StateChanged += OnEyeProtectionChanged;
         BuildMonitorList();
+    }
+
+    private void OnEyeProtectionChanged(object? sender, bool e)
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            _eyeProtectionEnabled = e;
+            OnChanged(nameof(EyeProtectionEnabled));
+            OnChanged(nameof(EyeProtectionStatusText));
+            RefreshTargets();
+        });
     }
 
     private void BuildMonitorList()
@@ -569,6 +657,9 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             IdleIgnoreMediaPlayback = true;
             EnergySaverReductionEnabled = true;
             EnergySaverReductionPercent = 10;
+            EyeProtectionEnabled = false;
+            EyeProtectionReductionPercent = 20;
+            EyeProtectionDefaultDurationHours = 3;
             StartWithWindows = false;
             UseLegacyDdcCiDetection = false;
 
@@ -588,6 +679,8 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         OnChanged(nameof(IsIdleReductionPercentVisible));
         OnChanged(nameof(IdleTimeoutText));
         OnChanged(nameof(IdleReductionPercentText));
+        OnChanged(nameof(EyeProtectionEnabled));
+        OnChanged(nameof(EyeProtectionStatusText));
         AutoBrightnessCurveChanged?.Invoke(this, EventArgs.Empty);
         SaveCore("Reset all settings to defaults and saved.", "All settings were reset to defaults and auto-saved from the UI");
         Log.Warning("All settings were reset to defaults in the UI");

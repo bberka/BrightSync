@@ -21,6 +21,7 @@ public sealed class BrightSyncEngine : IDisposable
     private readonly InternalBrightnessWatcher _watcher;
     private readonly ConfigManager _config;
     private PowerSavingService? _powerSaving;
+    private EyeProtectionService? _eyeProtection;
     private readonly System.Timers.Timer _enforcementTimer;
     private int _lastInternalBrightness = -1;
     private bool _isSessionLocked;
@@ -31,6 +32,7 @@ public sealed class BrightSyncEngine : IDisposable
     public bool IsMonitorAccessSuspended => _config.Config.DisableMonitorAccessWhileLocked && _isSessionLocked;
     public bool IsIdleReductionActive => _config.Config.IdleReductionEnabled && _idleReductionActive;
     public bool IsEnergySaverActive => _config.Config.EnergySaverReductionEnabled && (_powerSaving?.IsEnergySaverActive ?? false);
+    public bool IsEyeProtectionActive => _config.Config.EyeProtectionEnabled;
 
     public BrightSyncEngine(
         DdcCiService ddc,
@@ -49,6 +51,11 @@ public sealed class BrightSyncEngine : IDisposable
     public void SetPowerSavingService(PowerSavingService powerSaving)
     {
         _powerSaving = powerSaving;
+    }
+
+    public void SetEyeProtectionService(EyeProtectionService eyeProtection)
+    {
+        _eyeProtection = eyeProtection;
     }
 
     public void Start()
@@ -91,6 +98,12 @@ public sealed class BrightSyncEngine : IDisposable
         {
             var energySaverScale = Math.Clamp(100 - _config.Config.EnergySaverReductionPercent, 50, 100) / 100.0;
             target = (int)Math.Round(Math.Clamp(target * energySaverScale, profile.MinBrightness, profile.MaxBrightness));
+        }
+
+        if (IsEyeProtectionActive)
+        {
+            var eyeScale = Math.Clamp(100 - _config.Config.EyeProtectionReductionPercent, 10, 100) / 100.0;
+            target = (int)Math.Round(Math.Clamp(target * eyeScale, profile.MinBrightness, profile.MaxBrightness));
         }
 
         if (!IsIdleReductionActive)

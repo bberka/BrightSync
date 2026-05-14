@@ -35,6 +35,8 @@ It also includes optional automatic brightness, idle dimming, per-monitor limits
 - Automatic brightness based on a smooth 24-hour curve
 - Visual curve editor in Settings
 - Optional lock that keeps automatic brightness enabled after manual Windows brightness changes
+- Windows Energy Saver detection with configurable brightness reduction
+- Quick "Eye Protection" mode with configurable duration and reduction amount
 - Per-monitor enable or disable control
 - Per-monitor minimum brightness, maximum brightness, and multiplier
 - Optional idle dimming after inactivity
@@ -82,7 +84,8 @@ Behavior to know:
 
 - When automatic brightness is off, the slider works normally.
 - When automatic brightness is on, BrightSync controls the brightness value and the slider becomes read-only.
-- The quick popup includes an `Automatic Brightness` toggle for fast on/off control.
+- The quick popup includes `Automatic Brightness` and `Eye Protection` toggles for fast control.
+- Right-click the `Eye Protection` menu in the tray for time duration presets.
 - Most settings changes are only persisted after clicking `Save`.
 
 ## Settings Overview
@@ -110,6 +113,8 @@ Behavior to know:
 - `Legacy DDC/CI detection`
 - `Disable on lock screen`
 - `Idle dimming`
+- `Eye protection mode`
+- `Energy saver reduction`
 - `Brightness enforcement`
 - `Check for updates`
 
@@ -124,7 +129,8 @@ Behavior to know:
 - `Legacy DDC/CI detection` keeps the older compatibility-focused enumeration path and may help on systems where richer metadata detection is unreliable.
 - If `Disable on lock screen` is enabled, BrightSync pauses external monitor reads and writes while Windows is locked and refreshes monitors after unlock.
 - Idle dimming can either scale targets down by a percentage or reduce each monitor to its configured minimum brightness.
-- Idle dimming can optionally ignore idle time while media playback is active.
+- Energy saver reduction automatically dims monitors when Windows is in power saving mode.
+- Eye protection mode provides temporary manual dimming that stacks with other reduction features.
 - Brightness enforcement helps recover from monitors that reset brightness after sleep, power cycling, or input changes.
 - Automatic brightness recalculates through the day and after resume or system time changes.
 

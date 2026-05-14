@@ -15,6 +15,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
 
     private readonly BrightSyncEngine _engine;
     private readonly AutoBrightnessService _autoBrightness;
+    private readonly EyeProtectionService _eyeProtection;
     private readonly DdcCiService _ddc;
     private readonly ConfigManager _config;
     private bool _isUpdating;
@@ -74,17 +75,47 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
         ? "Idle dimming is active."
         : string.Empty;
 
+    public bool EyeProtectionEnabled
+    {
+        get => _config.Config.EyeProtectionEnabled;
+        set
+        {
+            if (_config.Config.EyeProtectionEnabled == value)
+                return;
+
+            _eyeProtection.SetEnabled(value);
+            OnChanged();
+            OnChanged(nameof(EyeProtectionStatusText));
+            Refresh();
+        }
+    }
+
+    public string EyeProtectionStatusText
+    {
+        get
+        {
+            if (!EyeProtectionEnabled)
+                return "Eye protection is off.";
+
+            var endUtc = _eyeProtection.EndTimeUtc;
+            var timeText = endUtc.HasValue ? $" Ends at {endUtc.Value.ToLocalTime():HH:mm}." : string.Empty;
+            return $"Eye protection active (-{_config.Config.EyeProtectionReductionPercent}%).{timeText}";
+        }
+    }
+
     public ICommand OpenSettingsCommand { get; }
 
     public QuickBrightnessViewModel(
         BrightSyncEngine engine,
         AutoBrightnessService autoBrightness,
+        EyeProtectionService eyeProtection,
         DdcCiService ddc,
         ConfigManager config,
         Action openSettings)
     {
         _engine = engine;
         _autoBrightness = autoBrightness;
+        _eyeProtection = eyeProtection;
         _ddc = ddc;
         _config = config;
 
@@ -96,7 +127,13 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
         engine.InternalBrightnessChanged += OnBrightnessChanged;
         engine.TargetsChanged += OnTargetsChanged;
         autoBrightness.StateChanged += OnAutoBrightnessChanged;
+        eyeProtection.StateChanged += OnEyeProtectionChanged;
         RefreshMonitorTargets();
+    }
+
+    private void OnEyeProtectionChanged(object? sender, bool e)
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(Refresh);
     }
 
     /// <summary>Refreshes brightness + monitor targets — call when showing the popup.</summary>
@@ -175,6 +212,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
         _engine.InternalBrightnessChanged -= OnBrightnessChanged;
         _engine.TargetsChanged -= OnTargetsChanged;
         _autoBrightness.StateChanged -= OnAutoBrightnessChanged;
+        _eyeProtection.StateChanged -= OnEyeProtectionChanged;
         Log.Debug("Disposed quick brightness view model");
     }
 }

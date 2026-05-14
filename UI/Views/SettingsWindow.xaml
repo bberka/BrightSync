@@ -413,6 +413,92 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock Text="Eye protection mode" FontSize="13" />
+                                    <TextBlock Text="{Binding EyeProtectionStatusText}"
+                                               FontSize="11"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding EyeProtectionEnabled}" />
+                            </Grid>
+
+                            <Grid Margin="0,8,0,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <Grid Grid.Row="0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="140" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Text="Reduction"
+                                               FontSize="13"
+                                               VerticalAlignment="Center"
+                                               Margin="16,0,0,0" />
+                                    <StackPanel Grid.Column="1"
+                                                Orientation="Horizontal"
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Center">
+                                        <Slider Width="80"
+                                                Minimum="5"
+                                                Maximum="80"
+                                                Value="{Binding EyeProtectionReductionPercent}"
+                                                TickFrequency="5"
+                                                IsSnapToTickEnabled="True"
+                                                IsMoveToPointEnabled="True"
+                                                VerticalAlignment="Center" />
+                                        <TextBlock FontSize="13"
+                                                   VerticalAlignment="Center"
+                                                   Margin="8,0,0,0"
+                                                   MinWidth="40"
+                                                   Text="{Binding EyeProtectionReductionPercent, StringFormat='{}{0}%'}" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <Grid Grid.Row="1" Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="140" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Text="Default Duration"
+                                               FontSize="13"
+                                               VerticalAlignment="Center"
+                                               Margin="16,0,0,0" />
+                                    <StackPanel Grid.Column="1"
+                                                Orientation="Horizontal"
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Center">
+                                        <Slider Width="80"
+                                                Minimum="1"
+                                                Maximum="24"
+                                                Value="{Binding EyeProtectionDefaultDurationHours}"
+                                                TickFrequency="1"
+                                                IsSnapToTickEnabled="True"
+                                                IsMoveToPointEnabled="True"
+                                                VerticalAlignment="Center" />
+                                        <TextBlock FontSize="13"
+                                                   VerticalAlignment="Center"
+                                                   Margin="8,0,0,0"
+                                                   MinWidth="40"
+                                                   Text="{Binding EyeProtectionDefaultDurationHours, StringFormat='{}{0}h'}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Grid>
+
+                            <Border Height="1"
+                                    Background="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                    Margin="0,8" />
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                     <TextBlock Text="Energy saver reduction" FontSize="13" />
                                     <TextBlock Text="{Binding EnergySaverStatusText}"
                                                FontSize="11"

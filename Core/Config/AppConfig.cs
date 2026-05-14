@@ -28,6 +28,14 @@ public sealed class AppConfig
     public bool EnergySaverReductionEnabled { get; set; } = true;
     /// <summary>Percentage to decrease brightness by when Energy Saver is active (e.g. 10 for 10% reduction).</summary>
     public int EnergySaverReductionPercent { get; set; } = 10;
+    /// <summary>Whether Eye Protection mode is currently active.</summary>
+    public bool EyeProtectionEnabled { get; set; }
+    /// <summary>Percentage to decrease brightness by when Eye Protection is active.</summary>
+    public int EyeProtectionReductionPercent { get; set; } = 20;
+    /// <summary>Default duration in hours for Eye Protection mode.</summary>
+    public int EyeProtectionDefaultDurationHours { get; set; } = 3;
+    /// <summary>When Eye Protection mode is scheduled to end (UTC).</summary>
+    public DateTime? EyeProtectionEndUtc { get; set; }
     /// <summary>Whether to launch BrightSync when the user logs in.</summary>
     public bool StartWithWindows { get; set; }
     /// <summary>The last local calendar date when BrightSync checked for updates.</summary>
