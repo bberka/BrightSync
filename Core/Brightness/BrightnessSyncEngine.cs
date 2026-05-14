@@ -109,14 +109,18 @@ public sealed class BrightSyncEngine : IDisposable
 
         if (IsEyeProtectionActive)
         {
-            var eyeScale = Math.Clamp(100 - _config.Config.EyeProtectionReductionPercent, 10, 100) / 100.0;
-            target = (int)Math.Round(Math.Clamp(target * eyeScale, profile.MinBrightness, profile.MaxBrightness));
+            target = Math.Clamp(
+                target - Math.Clamp(_config.Config.EyeProtectionReductionPercent, 5, 80),
+                profile.MinBrightness,
+                profile.MaxBrightness);
         }
 
         if (IsBrightnessBoostActive)
         {
-            var boostScale = (100 + Math.Clamp(_config.Config.BrightnessBoostPercent, 5, 100)) / 100.0;
-            target = (int)Math.Round(Math.Clamp(target * boostScale, profile.MinBrightness, profile.MaxBrightness));
+            target = Math.Clamp(
+                target + Math.Clamp(_config.Config.BrightnessBoostPercent, 5, 100),
+                profile.MinBrightness,
+                profile.MaxBrightness);
         }
 
         if (!IsIdleReductionActive)

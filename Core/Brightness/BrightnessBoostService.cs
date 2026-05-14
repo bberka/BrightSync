@@ -11,6 +11,7 @@ public sealed class BrightnessBoostService : IDisposable
     private readonly BrightSyncEngine _engine;
     private readonly ConfigManager _config;
     private readonly Timer _timer;
+    private EyeProtectionService? _eyeProtection;
     private bool _disposed;
 
     public bool IsEnabled => _config.Config.BrightnessBoostEnabled;
@@ -21,6 +22,11 @@ public sealed class BrightnessBoostService : IDisposable
         _engine = engine;
         _config = config;
         _timer = new Timer(_ => CheckExpiry(), null, Timeout.Infinite, Timeout.Infinite);
+    }
+
+    public void SetEyeProtectionService(EyeProtectionService eyeProtection)
+    {
+        _eyeProtection = eyeProtection;
     }
 
     public void Start()
@@ -44,6 +50,12 @@ public sealed class BrightnessBoostService : IDisposable
     {
         if (enabled)
         {
+            if (_eyeProtection?.IsEnabled == true)
+            {
+                Log.Information("Disabling eye protection because brightness boost was enabled");
+                _eyeProtection.SetEnabled(false);
+            }
+
             var hours = durationHours ?? _config.Config.BrightnessBoostDefaultDurationHours;
             _config.Config.BrightnessBoostEnabled = true;
             _config.Config.BrightnessBoostEndUtc = DateTime.UtcNow.AddHours(hours);

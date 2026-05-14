@@ -80,12 +80,22 @@ public partial class App
         Log.Information("Power saving service started");
 
         _eyeProtectionService = new EyeProtectionService(_syncEngine, configManager);
+        _brightnessBoostService = new BrightnessBoostService(_syncEngine, configManager);
+        _eyeProtectionService.SetBrightnessBoostService(_brightnessBoostService);
+        _brightnessBoostService.SetEyeProtectionService(_eyeProtectionService);
         _syncEngine.SetEyeProtectionService(_eyeProtectionService);
+        _syncEngine.SetBrightnessBoostService(_brightnessBoostService);
+
+        if (configManager.Config.EyeProtectionEnabled && configManager.Config.BrightnessBoostEnabled)
+        {
+            Log.Warning("Both eye protection and brightness boost were enabled in config; disabling eye protection to restore a valid state");
+            configManager.Config.EyeProtectionEnabled = false;
+            configManager.Config.EyeProtectionEndUtc = null;
+            configManager.Save();
+        }
+
         _eyeProtectionService.Start();
         Log.Information("Eye protection service started");
-
-        _brightnessBoostService = new BrightnessBoostService(_syncEngine, configManager);
-        _syncEngine.SetBrightnessBoostService(_brightnessBoostService);
         _brightnessBoostService.Start();
         Log.Information("Brightness boost service started");
 

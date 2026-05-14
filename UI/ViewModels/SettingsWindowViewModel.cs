@@ -246,7 +246,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             if (!EnergySaverReductionEnabled)
                 return "Energy saver reduction is off.";
 
-            return $"Brightness will decrease by {EnergySaverReductionPercent}% when Windows Energy Saver is active.";
+            return $"Brightness will decrease by {EnergySaverReductionPercent} percentage points when Windows Energy Saver is active.";
         }
     }
 
@@ -312,11 +312,11 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             var duration = _eyeProtectionDefaultDurationHours == 1 ? "1 hour" : $"{_eyeProtectionDefaultDurationHours} hours";
             
             if (!EyeProtectionEnabled)
-                return $"Eye protection will decrease brightness by {reduction} for {duration} when enabled.";
+                return $"Eye protection will subtract {reduction} from brightness for {duration} when enabled.";
 
             var endUtc = _eyeProtection.EndTimeUtc;
             var timeText = endUtc.HasValue ? $"Ends at {endUtc.Value.ToLocalTime():HH:mm}." : string.Empty;
-            return $"Eye protection is active ({reduction} reduction). {timeText}";
+            return $"Eye protection is active (-{reduction}). {timeText}";
         }
     }
 
@@ -382,11 +382,11 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             var duration = _brightnessBoostDefaultDurationHours == 1 ? "1 hour" : $"{_brightnessBoostDefaultDurationHours} hours";
             
             if (!BrightnessBoostEnabled)
-                return $"Brightness boost will increase brightness by {boost} for {duration} when enabled.";
+                return $"Brightness boost will add {boost} to brightness for {duration} when enabled.";
 
             var endUtc = _brightnessBoost.EndTimeUtc;
             var timeText = endUtc.HasValue ? $"Ends at {endUtc.Value.ToLocalTime():HH:mm}." : string.Empty;
-            return $"Brightness boost is active ({boost} increase). {timeText}";
+            return $"Brightness boost is active (+{boost}). {timeText}";
         }
     }
 

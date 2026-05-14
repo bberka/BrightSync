@@ -100,7 +100,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
 
             var endUtc = _eyeProtection.EndTimeUtc;
             var timeText = endUtc.HasValue ? $" Ends at {endUtc.Value.ToLocalTime():HH:mm}." : string.Empty;
-            return $"Eye protection active (-{_config.Config.EyeProtectionReductionPercent}%).{timeText}";
+            return $"Eye protection active (-{_config.Config.EyeProtectionReductionPercent} points).{timeText}";
         }
     }
 
@@ -128,7 +128,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
 
             var endUtc = _brightnessBoost.EndTimeUtc;
             var timeText = endUtc.HasValue ? $" Ends at {endUtc.Value.ToLocalTime():HH:mm}." : string.Empty;
-            return $"Brightness boost active (+{_config.Config.BrightnessBoostPercent}%).{timeText}";
+            return $"Brightness boost active (+{_config.Config.BrightnessBoostPercent} points).{timeText}";
         }
     }
 

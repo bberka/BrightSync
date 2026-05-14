@@ -132,8 +132,9 @@ Behavior to know:
 - If `Disable on lock screen` is enabled, BrightSync pauses external monitor reads and writes while Windows is locked and refreshes monitors after unlock.
 - Idle dimming can either scale targets down by a percentage or reduce each monitor to its configured minimum brightness.
 - Energy saver reduction automatically dims monitors when Windows is in power saving mode.
-- Eye protection mode provides temporary manual dimming that stacks with other reduction features.
-- Brightness boost mode provides a temporary brightness increase that stacks with other features.
+- Eye protection mode provides temporary manual dimming by subtracting a fixed number of brightness points.
+- Brightness boost mode provides a temporary brightness increase by adding a fixed number of brightness points.
+- Eye protection mode and Brightness boost mode are mutually exclusive. Enabling one turns the other off.
 - Brightness enforcement helps recover from monitors that reset brightness after sleep, power cycling, or input changes.
 - Automatic brightness recalculates through the day and after resume or system time changes.
 
