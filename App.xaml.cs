@@ -18,6 +18,7 @@ public partial class App
     private IdleReductionService _idleReductionService = null!;
     private PowerSavingService _powerSavingService = null!;
     private EyeProtectionService _eyeProtectionService = null!;
+    private BrightnessBoostService _brightnessBoostService = null!;
     private DdcCiService _ddcService = null!;
     private UpdateChecker _updateChecker = null!;
     private Wpf.Ui.Appearance.ApplicationTheme? _appliedTheme;
@@ -83,11 +84,16 @@ public partial class App
         _eyeProtectionService.Start();
         Log.Information("Eye protection service started");
 
+        _brightnessBoostService = new BrightnessBoostService(_syncEngine, configManager);
+        _syncEngine.SetBrightnessBoostService(_brightnessBoostService);
+        _brightnessBoostService.Start();
+        Log.Information("Brightness boost service started");
+
         _updateChecker = new UpdateChecker(configManager);
         _updateChecker.Start();
         Log.Information("Update checker started");
 
-        _trayManager = new TrayManager(_syncEngine, _autoBrightnessService, _idleReductionService, _powerSavingService, _eyeProtectionService, configManager, _ddcService, _updateChecker);
+        _trayManager = new TrayManager(_syncEngine, _autoBrightnessService, _idleReductionService, _eyeProtectionService, _brightnessBoostService, configManager, _ddcService, _updateChecker);
         _trayManager.ExitRequested += (_, _) => ExitApp();
         _trayManager.Initialize();
         _trayManager.RefreshTrayIconAppearance();
@@ -108,6 +114,7 @@ public partial class App
         _idleReductionService.Dispose();
         _powerSavingService.Dispose();
         _eyeProtectionService.Dispose();
+        _brightnessBoostService.Dispose();
         _syncEngine.Dispose();
         _trayManager.Dispose();
         _ddcService.Dispose();
@@ -125,6 +132,7 @@ public partial class App
         _idleReductionService?.Dispose();
         _powerSavingService?.Dispose();
         _eyeProtectionService?.Dispose();
+        _brightnessBoostService?.Dispose();
         _syncEngine?.Dispose();
         _trayManager?.Dispose();
         _ddcService?.Dispose();

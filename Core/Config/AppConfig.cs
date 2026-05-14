@@ -36,6 +36,14 @@ public sealed class AppConfig
     public int EyeProtectionDefaultDurationHours { get; set; } = 3;
     /// <summary>When Eye Protection mode is scheduled to end (UTC).</summary>
     public DateTime? EyeProtectionEndUtc { get; set; }
+    /// <summary>Whether Brightness Boost mode is currently active.</summary>
+    public bool BrightnessBoostEnabled { get; set; }
+    /// <summary>Percentage to increase brightness by when Brightness Boost is active.</summary>
+    public int BrightnessBoostPercent { get; set; } = 20;
+    /// <summary>Default duration in hours for Brightness Boost mode.</summary>
+    public int BrightnessBoostDefaultDurationHours { get; set; } = 1;
+    /// <summary>When Brightness Boost mode is scheduled to end (UTC).</summary>
+    public DateTime? BrightnessBoostEndUtc { get; set; }
     /// <summary>Whether to launch BrightSync when the user logs in.</summary>
     public bool StartWithWindows { get; set; }
     /// <summary>The last local calendar date when BrightSync checked for updates.</summary>

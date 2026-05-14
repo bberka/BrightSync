@@ -22,8 +22,8 @@ public sealed class TrayManager(
     BrightSyncEngine engine,
     AutoBrightnessService autoBrightness,
     IdleReductionService idleReduction,
-    PowerSavingService powerSaving,
     EyeProtectionService eyeProtection,
+    BrightnessBoostService brightnessBoost,
     ConfigManager config,
     DdcCiService ddc,
     UpdateChecker updateChecker)
@@ -75,6 +75,7 @@ public sealed class TrayManager(
         autoBrightness.BrightnessCorrectionApplied += OnAutoBrightnessCorrectionApplied;
         autoBrightness.DisabledAfterManualBrightnessChange += OnAutoBrightnessDisabledAfterManualChange;
         eyeProtection.StateChanged += (_, _) => RefreshTrayMenu();
+        brightnessBoost.StateChanged += (_, _) => RefreshTrayMenu();
     }
 
     private void RefreshTrayMenu()
@@ -94,8 +95,8 @@ public sealed class TrayManager(
             };
             eyeItem.Click += (_, _) => eyeProtection.SetEnabled(!eyeProtection.IsEnabled);
 
-            var presets = new[] { 1, 2, 3, 4, 8, 12, 24 };
-            foreach (var hours in presets)
+            var eyePresets = new[] { 1, 2, 3, 4, 8, 12, 24 };
+            foreach (var hours in eyePresets)
             {
                 var label = hours == 1 ? "1 hour" : $"{hours} hours";
                 var presetItem = new ToolStripMenuItem(label);
@@ -103,6 +104,23 @@ public sealed class TrayManager(
                 eyeItem.DropDownItems.Add(presetItem);
             }
             menu.Items.Add(eyeItem);
+
+            // Brightness Boost
+            var boostItem = new ToolStripMenuItem("Brightness Boost")
+            {
+                Checked = brightnessBoost.IsEnabled
+            };
+            boostItem.Click += (_, _) => brightnessBoost.SetEnabled(!brightnessBoost.IsEnabled);
+
+            var boostPresets = new[] { 1, 2, 3, 4, 8, 12, 24 };
+            foreach (var hours in boostPresets)
+            {
+                var label = hours == 1 ? "1 hour" : $"{hours} hours";
+                var presetItem = new ToolStripMenuItem(label);
+                presetItem.Click += (_, _) => brightnessBoost.SetEnabled(true, hours);
+                boostItem.DropDownItems.Add(presetItem);
+            }
+            menu.Items.Add(boostItem);
 
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("Refresh Monitors", null, (_, _) => RefreshMonitors());
@@ -139,7 +157,7 @@ public sealed class TrayManager(
 
             if (_settingsWindow == null || !_settingsWindow.IsLoaded)
             {
-                _settingsWindow = new SettingsWindow(engine, autoBrightness, idleReduction, eyeProtection, config, ddc, updateChecker);
+                _settingsWindow = new SettingsWindow(engine, autoBrightness, idleReduction, eyeProtection, brightnessBoost, config, ddc, updateChecker);
                 _settingsWindow.ExitRequested += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
                 _settingsWindow.Show();
             }
@@ -182,7 +200,7 @@ public sealed class TrayManager(
     {
         if (_quickPopup == null)
         {
-            _quickVm = new QuickBrightnessViewModel(engine, autoBrightness, eyeProtection, ddc, config, ShowSettings);
+            _quickVm = new QuickBrightnessViewModel(engine, autoBrightness, eyeProtection, brightnessBoost, ddc, config, ShowSettings);
             _quickPopup = new QuickBrightnessWindow { DataContext = _quickVm };
             _quickPopup.Deactivated += (s, e) => _quickPopup.Hide(); // Hide when clicking away
             _quickPopup.SizeChanged += (_, _) =>

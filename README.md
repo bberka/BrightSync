@@ -36,7 +36,8 @@ It also includes optional automatic brightness, idle dimming, per-monitor limits
 - Visual curve editor in Settings
 - Optional lock that keeps automatic brightness enabled after manual Windows brightness changes
 - Windows Energy Saver detection with configurable brightness reduction
-- Quick "Eye Protection" mode with configurable duration and reduction amount
+- Quick "Eye Protection" mode (dimming) with configurable duration and reduction amount
+- Quick "Brightness Boost" mode (brightening) with configurable duration and increase amount
 - Per-monitor enable or disable control
 - Per-monitor minimum brightness, maximum brightness, and multiplier
 - Optional idle dimming after inactivity
@@ -84,8 +85,8 @@ Behavior to know:
 
 - When automatic brightness is off, the slider works normally.
 - When automatic brightness is on, BrightSync controls the brightness value and the slider becomes read-only.
-- The quick popup includes `Automatic Brightness` and `Eye Protection` toggles for fast control.
-- Right-click the `Eye Protection` menu in the tray for time duration presets.
+- The quick popup includes `Automatic Brightness`, `Eye Protection`, and `Brightness Boost` toggles for fast control.
+- Right-click the `Eye Protection` or `Brightness Boost` menus in the tray for time duration presets.
 - Most settings changes are only persisted after clicking `Save`.
 
 ## Settings Overview
@@ -114,6 +115,7 @@ Behavior to know:
 - `Disable on lock screen`
 - `Idle dimming`
 - `Eye protection mode`
+- `Brightness boost mode`
 - `Energy saver reduction`
 - `Brightness enforcement`
 - `Check for updates`
@@ -131,6 +133,7 @@ Behavior to know:
 - Idle dimming can either scale targets down by a percentage or reduce each monitor to its configured minimum brightness.
 - Energy saver reduction automatically dims monitors when Windows is in power saving mode.
 - Eye protection mode provides temporary manual dimming that stacks with other reduction features.
+- Brightness boost mode provides a temporary brightness increase that stacks with other features.
 - Brightness enforcement helps recover from monitors that reset brightness after sleep, power cycling, or input changes.
 - Automatic brightness recalculates through the day and after resume or system time changes.
 

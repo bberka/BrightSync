@@ -26,13 +26,14 @@ public partial class SettingsWindow : Window
         AutoBrightnessService autoBrightness,
         IdleReductionService idleReduction,
         EyeProtectionService eyeProtection,
+        BrightnessBoostService brightnessBoost,
         ConfigManager config,
         DdcCiService ddc,
         UpdateChecker updateChecker)
     {
         InitializeComponent();
         Title = AppVersionInfo.GetDisplayTitle();
-        _vm = new SettingsWindowViewModel(engine, autoBrightness, idleReduction, eyeProtection, config, ddc, updateChecker);
+        _vm = new SettingsWindowViewModel(engine, autoBrightness, idleReduction, eyeProtection, brightnessBoost, config, ddc, updateChecker);
         DataContext = _vm;
         _vm.AutoBrightnessCurveChanged += OnAutoBrightnessCurveChanged;
         Loaded += (_, _) =>

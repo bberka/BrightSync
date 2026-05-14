@@ -16,6 +16,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
     private readonly BrightSyncEngine _engine;
     private readonly AutoBrightnessService _autoBrightness;
     private readonly EyeProtectionService _eyeProtection;
+    private readonly BrightnessBoostService _brightnessBoost;
     private readonly DdcCiService _ddc;
     private readonly ConfigManager _config;
     private bool _isUpdating;
@@ -103,12 +104,41 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
         }
     }
 
+    public bool BrightnessBoostEnabled
+    {
+        get => _config.Config.BrightnessBoostEnabled;
+        set
+        {
+            if (_config.Config.BrightnessBoostEnabled == value)
+                return;
+
+            _brightnessBoost.SetEnabled(value);
+            OnChanged();
+            OnChanged(nameof(BrightnessBoostStatusText));
+            Refresh();
+        }
+    }
+
+    public string BrightnessBoostStatusText
+    {
+        get
+        {
+            if (!BrightnessBoostEnabled)
+                return "Brightness boost is off.";
+
+            var endUtc = _brightnessBoost.EndTimeUtc;
+            var timeText = endUtc.HasValue ? $" Ends at {endUtc.Value.ToLocalTime():HH:mm}." : string.Empty;
+            return $"Brightness boost active (+{_config.Config.BrightnessBoostPercent}%).{timeText}";
+        }
+    }
+
     public ICommand OpenSettingsCommand { get; }
 
     public QuickBrightnessViewModel(
         BrightSyncEngine engine,
         AutoBrightnessService autoBrightness,
         EyeProtectionService eyeProtection,
+        BrightnessBoostService brightnessBoost,
         DdcCiService ddc,
         ConfigManager config,
         Action openSettings)
@@ -116,6 +146,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
         _engine = engine;
         _autoBrightness = autoBrightness;
         _eyeProtection = eyeProtection;
+        _brightnessBoost = brightnessBoost;
         _ddc = ddc;
         _config = config;
 
@@ -128,10 +159,16 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
         engine.TargetsChanged += OnTargetsChanged;
         autoBrightness.StateChanged += OnAutoBrightnessChanged;
         eyeProtection.StateChanged += OnEyeProtectionChanged;
+        brightnessBoost.StateChanged += OnBrightnessBoostChanged;
         RefreshMonitorTargets();
     }
 
     private void OnEyeProtectionChanged(object? sender, bool e)
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(Refresh);
+    }
+
+    private void OnBrightnessBoostChanged(object? sender, bool e)
     {
         System.Windows.Application.Current.Dispatcher.Invoke(Refresh);
     }
@@ -147,6 +184,10 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
         OnChanged(nameof(AutoBrightnessEnabled));
         OnChanged(nameof(IsManualBrightnessEnabled));
         OnChanged(nameof(AutoBrightnessStatusText));
+        OnChanged(nameof(EyeProtectionEnabled));
+        OnChanged(nameof(EyeProtectionStatusText));
+        OnChanged(nameof(BrightnessBoostEnabled));
+        OnChanged(nameof(BrightnessBoostStatusText));
         OnChanged(nameof(IsIdleReductionActive));
         OnChanged(nameof(IdleReductionStatusText));
         RefreshMonitorTargets();
@@ -213,6 +254,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
         _engine.TargetsChanged -= OnTargetsChanged;
         _autoBrightness.StateChanged -= OnAutoBrightnessChanged;
         _eyeProtection.StateChanged -= OnEyeProtectionChanged;
+        _brightnessBoost.StateChanged -= OnBrightnessBoostChanged;
         Log.Debug("Disposed quick brightness view model");
     }
 }
