@@ -17,7 +17,7 @@ public static class LoggingSetup
             .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
             .Enrich.FromLogContext()
             .WriteTo.File(
-                path: Path.Combine(logDirectory, "brightsync-.log"),
+                path: Path.Combine(logDirectory, "brightsync.log"),
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 14,
                 fileSizeLimitBytes: 5 * 1024 * 1024,
