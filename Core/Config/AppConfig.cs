@@ -1,4 +1,4 @@
-﻿namespace BrightSync.Core.Config;
+namespace BrightSync.Core.Config;
 
 public sealed class AppConfig
 {
@@ -6,6 +6,8 @@ public sealed class AppConfig
     public Dictionary<string, MonitorProfile> Monitors { get; set; } = new();
     /// <summary>Global automatic brightness settings.</summary>
     public AutoBrightnessSettings AutoBrightness { get; set; } = AutoBrightnessSettings.CreateDefault();
+    /// <summary>The global master brightness value (0-100).</summary>
+    public int MasterBrightness { get; set; } = -1;
     /// <summary>How often (seconds) the engine re-applies brightness to catch drift.</summary>
     public int EnforcementIntervalSeconds { get; set; } = 10;
     /// <summary>Whether periodic brightness enforcement is enabled.</summary>

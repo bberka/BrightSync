@@ -33,4 +33,11 @@
     </Page>
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="BrightSync.Tests\**" />
+    <EmbeddedResource Remove="BrightSync.Tests\**" />
+    <None Remove="BrightSync.Tests\**" />
+    <Page Remove="BrightSync.Tests\**" />
+  </ItemGroup>
+
 </Project>

@@ -150,12 +150,12 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
         _ddc = ddc;
         _config = config;
 
-        var initial = engine.LastInternalBrightness;
+        var initial = engine.MasterBrightness;
         _internalBrightness = initial >= 0 ? initial : 50;
 
         OpenSettingsCommand = new RelayCommand(openSettings);
 
-        engine.InternalBrightnessChanged += OnBrightnessChanged;
+        engine.MasterBrightnessChanged += OnBrightnessChanged;
         engine.TargetsChanged += OnTargetsChanged;
         autoBrightness.StateChanged += OnAutoBrightnessChanged;
         eyeProtection.StateChanged += OnEyeProtectionChanged;
@@ -178,7 +178,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
     {
         Log.Debug("Refreshing quick brightness view model");
         _isUpdating = true;
-        var b = AutoBrightnessEnabled ? _autoBrightness.GetCurrentBrightness() : _engine.LastInternalBrightness;
+        var b = AutoBrightnessEnabled ? _autoBrightness.GetCurrentBrightness() : _engine.MasterBrightness;
         InternalBrightness = b >= 0 ? b : _internalBrightness;
         _isUpdating = false;
         OnChanged(nameof(AutoBrightnessEnabled));
@@ -198,7 +198,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
         MonitorTargets.Clear();
         foreach (var monitor in _ddc.GetMonitors())
         {
-            if (!monitor.SupportsDdcCi || monitor.IsInternal) continue;
+            if (!monitor.SupportsDdcCi) continue;
             var profile = _config.GetOrCreateProfile(monitor.DeviceName);
             if (!profile.Enabled) continue;
             var target = _engine.CalculateTarget(monitor.DeviceName, profile);
@@ -250,7 +250,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
     public void Dispose()
     {
         _brightnessDebounce?.Dispose();
-        _engine.InternalBrightnessChanged -= OnBrightnessChanged;
+        _engine.MasterBrightnessChanged -= OnBrightnessChanged;
         _engine.TargetsChanged -= OnTargetsChanged;
         _autoBrightness.StateChanged -= OnAutoBrightnessChanged;
         _eyeProtection.StateChanged -= OnEyeProtectionChanged;

@@ -66,6 +66,7 @@ public sealed class DdcCiService : IDisposable
                 MonitorBrightnessBackend.HighLevelApi => TrySetHighLevelBrightness(monitor, brightnessPercent),
                 MonitorBrightnessBackend.WriteOnlyDdcCi => TrySetVcpBrightness(monitor, brightnessPercent, retryCount: 2),
                 MonitorBrightnessBackend.LowLevelDdcCi => TrySetVcpBrightness(monitor, brightnessPercent, retryCount: 2),
+                MonitorBrightnessBackend.InternalWmi => TrySetInternalWmiBrightness(brightnessPercent),
                 _ => false
             };
 
@@ -98,6 +99,7 @@ public sealed class DdcCiService : IDisposable
             {
                 MonitorBrightnessBackend.HighLevelApi => TryGetHighLevelBrightness(monitor, out brightnessPercent),
                 MonitorBrightnessBackend.LowLevelDdcCi => TryGetVcpBrightness(monitor, out brightnessPercent, retryCount: 2),
+                MonitorBrightnessBackend.InternalWmi => TryGetInternalWmiBrightness(out brightnessPercent),
                 _ => false
             };
 
@@ -129,6 +131,50 @@ public sealed class DdcCiService : IDisposable
         foreach (var hMonitor in hMonitors)
         {
             var deviceName = GetDeviceName(hMonitor, out var resW, out var resH);
+
+            var internalDetection = MonitorDetectionResolver.Resolve(deviceName, deviceName, useLegacyDetection);
+            if (internalDetection.IsInternal)
+            {
+                var internalHdrInfo = internalDetection.HdrInfo;
+                var tempWatcher = new BrightSync.Core.Brightness.InternalBrightnessWatcher();
+                var currentBrightness = tempWatcher.ReadCurrentBrightness();
+
+                _monitors.Add(new DdcMonitor
+                {
+                    DeviceName = deviceName,
+                    ManufacturerName = internalDetection.ManufacturerName,
+                    ModelName = internalDetection.ModelName,
+                    FriendlyName = internalDetection.FriendlyName,
+                    Description = "Internal Display",
+                    ResolutionWidth = resW,
+                    ResolutionHeight = resH,
+                    RefreshRateHz = useLegacyDetection ? 0 : GetRefreshRate(deviceName),
+                    ConnectionType = internalDetection.ConnectionType,
+                    IsInternal = true,
+                    SupportsDdcCi = true,
+                    SupportsBrightnessRead = true,
+                    MinNativeBrightness = 0,
+                    MaxDdcBrightness = 100,
+                    LastCommandedPercent = currentBrightness >= 0 ? currentBrightness : 50,
+                    BrightnessBackendType = MonitorBrightnessBackend.InternalWmi,
+                    BrightnessBackend = "WMI (Internal)",
+                    IsHdrSupported = internalHdrInfo.IsHdrSupported,
+                    IsHdrEnabled = internalHdrInfo.IsHdrEnabled,
+                    SdrWhiteLevelNits = internalHdrInfo.SdrWhiteLevelNits,
+                    IsAppleDisplay = false,
+                    IsAppleStudioDisplay = false,
+                    DetectionBackend = $"{internalDetection.DetectionBackend} + WMI",
+                    DetectionDetails = "Internal display controlled via WMI (WmiSetBrightness).",
+                    Handle = IntPtr.Zero,
+                    Group = null
+                });
+
+                Log.Debug("Detected internal monitor. Device={DeviceName}, FriendlyName={FriendlyName}, SupportsDdcCi=True, IsInternal=True, BrightnessBackend=WMI",
+                    deviceName,
+                    internalDetection.FriendlyName);
+
+                continue;
+            }
 
             if (!NativeMethods.GetNumberOfPhysicalMonitorsFromHMONITOR(hMonitor, out var count) || count == 0)
             {
@@ -298,6 +344,19 @@ public sealed class DdcCiService : IDisposable
 
         brightnessPercent = (int)Math.Round((current - min) * 100.0 / (max - min));
         return true;
+    }
+
+    private static bool TrySetInternalWmiBrightness(int brightnessPercent)
+    {
+        var watcher = new BrightSync.Core.Brightness.InternalBrightnessWatcher();
+        return watcher.TrySetBrightness(brightnessPercent);
+    }
+
+    private static bool TryGetInternalWmiBrightness(out int brightnessPercent)
+    {
+        var watcher = new BrightSync.Core.Brightness.InternalBrightnessWatcher();
+        brightnessPercent = watcher.ReadCurrentBrightness();
+        return brightnessPercent >= 0;
     }
 
     private static string GetDeviceName(IntPtr hMonitor, out int resW, out int resH)

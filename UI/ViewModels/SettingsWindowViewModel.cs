@@ -557,7 +557,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _ddc = ddc;
         _updateChecker = updateChecker;
 
-        var initial = engine.LastInternalBrightness;
+        var initial = engine.MasterBrightness;
         _internalBrightness = initial >= 0 ? initial : 50;
         _enforcementInterval = config.Config.EnforcementIntervalSeconds;
         _enforcementEnabled = config.Config.EnforcementEnabled;
@@ -583,7 +583,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         ResetCurveCommand = new RelayCommand(ResetCurve);
         CheckForUpdatesCommand = new RelayCommand(CheckForUpdates, () => !_isCheckingForUpdates);
 
-        engine.InternalBrightnessChanged += OnInternalBrightnessChanged;
+        engine.MasterBrightnessChanged += OnInternalBrightnessChanged;
         engine.TargetsChanged += OnTargetsChanged;
         autoBrightness.StateChanged += OnAutoBrightnessChanged;
         idleReduction.StateChanged += OnIdleReductionChanged;
@@ -735,6 +735,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         {
             _config.Config.Monitors.Clear();
             _config.Config.AutoBrightness = AutoBrightnessSettings.CreateDefault();
+            _config.Config.MasterBrightness = 50;
             EnforcementIntervalSeconds = new AppConfig().EnforcementIntervalSeconds;
             EnforcementEnabled = true;
             DisableMonitorAccessWhileLocked = false;
@@ -958,7 +959,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _brightnessDebounce?.Dispose();
         _autoSaveDebounce?.Dispose();
         _statusTimer?.Dispose();
-        _engine.InternalBrightnessChanged -= OnInternalBrightnessChanged;
+        _engine.MasterBrightnessChanged -= OnInternalBrightnessChanged;
         _engine.TargetsChanged -= OnTargetsChanged;
         _autoBrightness.StateChanged -= OnAutoBrightnessChanged;
         _idleReduction.StateChanged -= OnIdleReductionChanged;

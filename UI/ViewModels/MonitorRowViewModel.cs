@@ -74,7 +74,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
 
     public bool CanToggleEnabled => SupportsDdcCi && !UsesWindowsBrightnessControl;
     public bool CanExpand => true;
-    public bool UsesWindowsBrightnessControl => IsInternal;
+    public bool UsesWindowsBrightnessControl => false;
     public bool SupportsBrightnessControl => SupportsDdcCi || UsesWindowsBrightnessControl;
     public bool ShowsPerMonitorAdjustmentControls => SupportsDdcCi && !UsesWindowsBrightnessControl;
     public bool ShowsResetButton => ShowsPerMonitorAdjustmentControls;
@@ -188,17 +188,17 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         {
             if (UsesWindowsBrightnessControl)
             {
-                var b = _engine.LastInternalBrightness;
+                var b = _engine.MasterBrightness;
                 return b >= 0
                     ? $"Controlled by Windows slider ({b}%)"
                     : "Controlled by Windows slider";
             }
             if (!SupportsDdcCi) return "No brightness control";
             if (!Enabled) return "Disabled";
-            var currentBrightness = _engine.LastInternalBrightness;
+            var currentBrightness = _engine.MasterBrightness;
             if (currentBrightness < 0) return "\u2014";
             var t = _engine.CalculateTarget(DeviceName, _profile);
-            return $"Target: {t}%  (internal {currentBrightness}%)";
+            return $"Target: {t}%  (master {currentBrightness}%)";
         }
     }
 

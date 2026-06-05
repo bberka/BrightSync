@@ -7,14 +7,14 @@ namespace BrightSync.Core.Brightness;
 
 /// <summary>
 /// Core sync engine.
-/// - Listens to internal display brightness changes via <see cref="InternalBrightnessWatcher"/>.
-/// - Applies normalised brightness to all enabled DDC/CI monitors.
+/// - Manages the master brightness state.
+/// - Calculates and applies target brightness to all monitors (including internal WMI panels).
 /// - Re-enforces brightness on a timer to recover from monitor power cycles.
 /// - Re-syncs on system resume from sleep/hibernate.
 /// </summary>
 public sealed class BrightSyncEngine : IDisposable
 {
-    public event EventHandler<int>? InternalBrightnessChanged;
+    public event EventHandler<int>? MasterBrightnessChanged;
     public event EventHandler? TargetsChanged;
 
     private readonly DdcCiService _ddc;
@@ -24,12 +24,12 @@ public sealed class BrightSyncEngine : IDisposable
     private EyeProtectionService? _eyeProtection;
     private BrightnessBoostService? _brightnessBoost;
     private readonly System.Timers.Timer _enforcementTimer;
-    private int _lastInternalBrightness = -1;
+    private int _masterBrightness = -1;
     private bool _isSessionLocked;
     private bool _idleReductionActive;
     private bool _disposed;
 
-    public int LastInternalBrightness => _lastInternalBrightness;
+    public int MasterBrightness => _masterBrightness;
     public bool IsMonitorAccessSuspended => _config.Config.DisableMonitorAccessWhileLocked && _isSessionLocked;
     public bool IsIdleReductionActive => _config.Config.IdleReductionEnabled && _idleReductionActive;
     public bool IsEnergySaverActive => _config.Config.EnergySaverReductionEnabled && (_powerSaving?.IsEnergySaverActive ?? false);
@@ -67,38 +67,38 @@ public sealed class BrightSyncEngine : IDisposable
 
     public void Start()
     {
-        _watcher.BrightnessChanged += OnInternalBrightnessChanged;
-
-        // Capture current brightness immediately so external monitors sync on startup
-        var current = _watcher.ReadCurrentBrightness();
-        if (current >= 0)
+        // Capture initial brightness from config, or fallback to internal display's current brightness, or 50.
+        var initial = _config.Config.MasterBrightness;
+        if (initial == -1)
         {
-            _lastInternalBrightness = current;
-            Log.Information("Initial internal brightness detected at {Brightness}%", current);
-            SyncAllMonitors();
-        }
-        else
-        {
-            Log.Warning("No internal brightness source detected during startup; virtual brightness fallback may be used");
+            var current = _watcher.ReadCurrentBrightness();
+            initial = current >= 0 ? current : 50;
+            _config.Config.MasterBrightness = initial;
+            _config.Save();
         }
 
-        _watcher.Start();
+        _masterBrightness = Math.Clamp(initial, 0, 100);
+        Log.Information("Initial master brightness set to {Brightness}%", _masterBrightness);
+
         _enforcementTimer.Start();
-        Log.Debug("Brightness watcher and enforcement timer started. IntervalSeconds={IntervalSeconds}",
+        Log.Debug("Enforcement timer started. IntervalSeconds={IntervalSeconds}",
             Math.Max(5, _config.Config.EnforcementIntervalSeconds));
 
         SystemEvents.PowerModeChanged += OnPowerModeChanged;
         SystemEvents.SessionSwitch += OnSessionSwitch;
+
+        // Sync all monitors (including the internal monitor which is now a target) on startup
+        SyncAllMonitors();
     }
 
     /// <summary>
     /// Recalculates target brightness for <paramref name="monitorDeviceName"/> using
-    /// current internal brightness and the monitor's profile settings.
+    /// current master brightness and the monitor's profile settings.
     /// </summary>
     public int CalculateTarget(string monitorDeviceName, MonitorProfile profile)
     {
-        if (_lastInternalBrightness < 0) return profile.MinBrightness;
-        var raw = _lastInternalBrightness * profile.Multiplier;
+        if (_masterBrightness < 0) return profile.MinBrightness;
+        var raw = _masterBrightness * profile.Multiplier;
         var target = (int)Math.Round(Math.Clamp(raw, profile.MinBrightness, profile.MaxBrightness));
 
         if (IsEnergySaverActive)
@@ -136,14 +136,14 @@ public sealed class BrightSyncEngine : IDisposable
     /// <summary>Forces an immediate re-sync of all monitors (e.g. after settings change).</summary>
     public void ForceSync()
     {
-        if (_lastInternalBrightness >= 0)
+        if (_masterBrightness >= 0)
         {
-            Log.Debug("Force sync requested at internal brightness {Brightness}%", _lastInternalBrightness);
+            Log.Debug("Force sync requested at master brightness {Brightness}%", _masterBrightness);
             SyncAllMonitors();
         }
         else
         {
-            Log.Debug("Force sync skipped because no internal brightness value is available");
+            Log.Debug("Force sync skipped because no master brightness value is available");
         }
 
         RaiseTargetsChanged();
@@ -162,16 +162,6 @@ public sealed class BrightSyncEngine : IDisposable
         _ddc.Refresh();
         Log.Information("Monitor refresh complete. KnownMonitors={MonitorCount}", _ddc.GetMonitors().Count);
         ForceSync();
-    }
-
-    /// <summary>
-    /// Sets the Windows internal brightness, which then drives external monitor sync.
-    /// On desktops without an internal display, still updates the virtual brightness
-    /// so external monitors can sync to the slider value.
-    /// </summary>
-    public bool TrySetInternalBrightness(int brightness)
-    {
-        return ApplyBrightness(brightness, allowManualWhenAutoEnabled: true, source: "internal");
     }
 
     public bool TrySetUserBrightness(int brightness)
@@ -198,7 +188,7 @@ public sealed class BrightSyncEngine : IDisposable
         _idleReductionActive = active;
         Log.Information("Idle brightness reduction {State}", active ? "activated" : "cleared");
 
-        if (_lastInternalBrightness >= 0)
+        if (_masterBrightness >= 0)
             Task.Run(SyncAllMonitors);
 
         RaiseTargetsChanged();
@@ -206,14 +196,6 @@ public sealed class BrightSyncEngine : IDisposable
     }
 
     // --- Private ---
-
-    private void OnInternalBrightnessChanged(object? sender, int brightness)
-    {
-        _lastInternalBrightness = brightness;
-        Log.Debug("Internal brightness changed to {Brightness}%", brightness);
-        InternalBrightnessChanged?.Invoke(this, brightness);
-        Task.Run(() => SyncAllMonitors());
-    }
 
     private bool ApplyBrightness(int brightness, bool allowManualWhenAutoEnabled, string source)
     {
@@ -223,21 +205,17 @@ public sealed class BrightSyncEngine : IDisposable
             return false;
         }
 
-        var result = _watcher.TrySetBrightness(brightness);
-        if (!result)
+        _masterBrightness = Math.Clamp(brightness, 0, 100);
+        if (source == "manual")
         {
-            _lastInternalBrightness = brightness;
-            Log.Warning("Brightness source {Source} could not set internal brightness through WMI; using virtual brightness fallback at {Brightness}%",
-                source, brightness);
-            InternalBrightnessChanged?.Invoke(this, brightness);
-            Task.Run(SyncAllMonitors);
-        }
-        else
-        {
-            Log.Debug("Brightness source {Source} requested update to {Brightness}%", source, brightness);
+            _config.Config.MasterBrightness = _masterBrightness;
+            _config.Save();
         }
 
-        return result;
+        Log.Debug("Brightness source {Source} requested update to {Brightness}%", source, brightness);
+        MasterBrightnessChanged?.Invoke(this, _masterBrightness);
+        Task.Run(SyncAllMonitors);
+        return true;
     }
 
     private void SyncAllMonitors()
@@ -374,7 +352,6 @@ public sealed class BrightSyncEngine : IDisposable
         Log.Debug("Disposing brightness sync engine");
         SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         SystemEvents.SessionSwitch -= OnSessionSwitch;
-        _watcher.BrightnessChanged -= OnInternalBrightnessChanged;
         _enforcementTimer.Stop();
         _enforcementTimer.Dispose();
         _watcher.Dispose();

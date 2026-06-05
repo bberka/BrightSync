@@ -4,20 +4,21 @@ using Serilog;
 namespace BrightSync.Core.Brightness;
 
 /// <summary>
-/// Watches for Windows internal display brightness changes via WMI.
-/// Fires <see cref="BrightnessChanged"/> whenever the built-in slider moves.
-/// Falls back to polling every 500 ms if event registration fails.
+/// Helper utility to read/write internal brightness via WMI.
 /// </summary>
 public sealed class InternalBrightnessWatcher : IDisposable
 {
+#pragma warning disable CS0067
+    // Keeping this event for backward compatibility (no-op)
     public event EventHandler<int>? BrightnessChanged;
+#pragma warning restore CS0067
 
-    private ManagementEventWatcher? _eventWatcher;
-    private System.Timers.Timer? _pollTimer;
-    private int _lastBrightness = -1;
-    private bool _disposed;
+    public void Start()
+    {
+        Log.Information("WMI internal brightness helper initialized");
+    }
 
-    /// <summary>Reads current internal brightness without starting the watcher.</summary>
+    /// <summary>Reads current internal brightness from WMI.</summary>
     public int ReadCurrentBrightness()
     {
         try
@@ -37,20 +38,6 @@ public sealed class InternalBrightnessWatcher : IDisposable
         }
 
         return -1;
-    }
-
-    /// <summary>Starts watching for brightness changes.</summary>
-    public void Start()
-    {
-        _lastBrightness = ReadCurrentBrightness();
-        if (TryStartEventWatcher())
-        {
-            Log.Information("Internal brightness watcher started in WMI event mode");
-            return;
-        }
-        // Fallback: poll every 500 ms
-        StartPolling();
-        Log.Warning("Internal brightness watcher fell back to polling mode");
     }
 
     /// <summary>Sets the internal display brightness via WMI.</summary>
@@ -77,7 +64,6 @@ public sealed class InternalBrightnessWatcher : IDisposable
 
             if (updated)
             {
-                FireIfChanged(brightness);
                 Log.Debug("Internal brightness set through WMI to {Brightness}%", brightness);
             }
             else
@@ -94,73 +80,8 @@ public sealed class InternalBrightnessWatcher : IDisposable
         }
     }
 
-    private bool TryStartEventWatcher()
-    {
-        try
-        {
-            var scope = new ManagementScope(@"root\WMI");
-            // WITHIN 1 = poll interval for the WMI infrastructure (seconds)
-            var query = new WqlEventQuery(
-                "SELECT * FROM __InstanceModificationEvent WITHIN 1 " +
-                "WHERE TargetInstance ISA 'WmiMonitorBrightness'");
-
-            _eventWatcher = new ManagementEventWatcher(scope, query);
-            _eventWatcher.EventArrived += OnWmiEvent;
-            _eventWatcher.Start();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _eventWatcher?.Dispose();
-            _eventWatcher = null;
-            Log.Warning(ex, "Failed to start WMI event watcher for internal brightness");
-            return false;
-        }
-    }
-
-    private void OnWmiEvent(object sender, EventArrivedEventArgs e)
-    {
-        try
-        {
-            if (e.NewEvent["TargetInstance"] is ManagementBaseObject target)
-            {
-                var brightness = Convert.ToInt32(target["CurrentBrightness"]);
-                FireIfChanged(brightness);
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Debug(ex, "Ignoring malformed internal brightness event");
-        }
-    }
-
-    private void StartPolling()
-    {
-        _pollTimer = new System.Timers.Timer(500);
-        _pollTimer.Elapsed += (_, _) =>
-        {
-            var b = ReadCurrentBrightness();
-            if (b >= 0) FireIfChanged(b);
-        };
-        _pollTimer.Start();
-        Log.Debug("Internal brightness polling timer started");
-    }
-
-    private void FireIfChanged(int brightness)
-    {
-        if (brightness == _lastBrightness) return;
-        _lastBrightness = brightness;
-        BrightnessChanged?.Invoke(this, brightness);
-    }
-
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
-        Log.Debug("Disposing internal brightness watcher");
-        _eventWatcher?.Stop();
-        _eventWatcher?.Dispose();
-        _pollTimer?.Stop();
-        _pollTimer?.Dispose();
+        // No-op for compatibility
     }
 }

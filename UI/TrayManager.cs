@@ -67,13 +67,11 @@ public sealed class TrayManager(
         };
         _notifyIcon.BalloonTipClosed += (_, _) => _currentBalloonTipAction = BalloonTipAction.None;
 
-        engine.InternalBrightnessChanged += (_, b) =>
+        engine.MasterBrightnessChanged += (_, b) =>
         {
             if (_notifyIcon != null)
-                _notifyIcon.Text = $"BrightSync \u2014 Internal: {b}%";
+                _notifyIcon.Text = $"BrightSync \u2014 Master: {b}%";
         };
-        autoBrightness.BrightnessCorrectionApplied += OnAutoBrightnessCorrectionApplied;
-        autoBrightness.DisabledAfterManualBrightnessChange += OnAutoBrightnessDisabledAfterManualChange;
         eyeProtection.StateChanged += (_, _) => RefreshTrayMenu();
         brightnessBoost.StateChanged += (_, _) => RefreshTrayMenu();
     }
@@ -286,39 +284,7 @@ public sealed class TrayManager(
         });
     }
 
-    private void OnAutoBrightnessCorrectionApplied(object? sender, AutoBrightnessCorrectionEventArgs e)
-    {
-        WpfApp.Current.Dispatcher.Invoke(() =>
-        {
-            var notifyIcon = _notifyIcon;
-            if (notifyIcon == null)
-                return;
 
-            _currentBalloonTipAction = BalloonTipAction.OpenSettings;
-            notifyIcon.ShowBalloonTip(
-                5000,
-                "BrightSync corrected brightness",
-                $"Windows brightness was changed to {e.RequestedBrightness}%, so BrightSync restored automatic brightness to {e.RestoredBrightness}%. If you meant to reduce it, disable automatic brightness manually.",
-                ToolTipIcon.Info);
-        });
-    }
-
-    private void OnAutoBrightnessDisabledAfterManualChange(object? sender, AutoBrightnessDisabledEventArgs e)
-    {
-        WpfApp.Current.Dispatcher.Invoke(() =>
-        {
-            var notifyIcon = _notifyIcon;
-            if (notifyIcon == null)
-                return;
-
-            _currentBalloonTipAction = BalloonTipAction.OpenSettings;
-            notifyIcon.ShowBalloonTip(
-                5000,
-                "Automatic brightness disabled",
-                $"Windows brightness was changed manually to {e.RequestedBrightness}%, so BrightSync disabled automatic brightness. Enable lock if this happens often and was unintended.",
-                ToolTipIcon.Info);
-        });
-    }
 
     /// <summary>Builds a small sun icon with contrast tuned for the current taskbar theme.</summary>
     private Icon BuildIcon(bool taskbarUsesLightTheme)
@@ -380,8 +346,6 @@ public sealed class TrayManager(
         if (_disposed) return;
         _disposed = true;
         Log.Debug("Disposing tray manager");
-        autoBrightness.BrightnessCorrectionApplied -= OnAutoBrightnessCorrectionApplied;
-        autoBrightness.DisabledAfterManualBrightnessChange -= OnAutoBrightnessDisabledAfterManualChange;
         _quickVm?.Dispose();
         _quickPopup?.Close();
         _notifyIcon?.Dispose();
