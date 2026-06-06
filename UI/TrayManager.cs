@@ -196,6 +196,12 @@ public sealed class TrayManager(
 
     private void ShowQuickPopup()
     {
+        if (_settingsWindow is { IsVisible: true })
+        {
+            Log.Debug("Hiding settings window to show quick brightness popup");
+            _settingsWindow.Hide();
+        }
+
         if (_quickPopup == null)
         {
             _quickVm = new QuickBrightnessViewModel(engine, autoBrightness, eyeProtection, brightnessBoost, ddc, config, ShowSettings);
