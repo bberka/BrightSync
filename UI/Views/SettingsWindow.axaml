@@ -1,0 +1,632 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:BrightSync.UI.ViewModels"
+        x:Class="BrightSync.UI.Views.SettingsWindow"
+        x:DataType="vm:SettingsWindowViewModel"
+        x:CompileBindings="True"
+        Title="BrightSync"
+        Width="420"
+        MaxWidth="420"
+        MinHeight="385"
+        MaxHeight="770"
+        SizeToContent="Height"
+        WindowStartupLocation="Manual"
+        CanResize="False"
+        ShowInTaskbar="False"
+        WindowDecorations="None"
+        Topmost="True"
+        Background="Transparent">
+
+    <Border CornerRadius="8"
+            Background="#1e1e1e"
+            BorderBrush="#353535"
+            BorderThickness="1"
+            MaxHeight="770">
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Custom title bar -->
+            <Border Grid.Row="0" Background="Transparent" Padding="12,6,6,6"
+                    PointerPressed="TitleBar_PointerPressed">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                               Text="{Binding Title, RelativeSource={RelativeSource AncestorType=Window}}"
+                               FontSize="12" FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               Foreground="White" />
+                    <Button Grid.Column="1"
+                            Width="32" Height="28"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Content="&#xE921;"
+                            FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                            FontSize="10"
+                            Foreground="White"
+                            ToolTip.Tip="Send to Tray"
+                            Click="MinimizeToTray_Click"
+                            Margin="0,0,2,0" />
+                    <Button Grid.Column="2"
+                            Width="32" Height="28"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Content="&#xE8BB;"
+                            FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                            FontSize="10"
+                            Foreground="White"
+                            ToolTip.Tip="Exit"
+                            Click="Exit_Click" />
+                </Grid>
+            </Border>
+
+            <!-- Content -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="8,8,8,8" ClipToBounds="True">
+                <StackPanel Width="390" Spacing="8">
+                    <!-- Brightness section -->
+                    <TextBlock Text="Brightness" FontSize="12" FontWeight="SemiBold" Foreground="#a0a0a0" Margin="0,4,0,2" />
+                    <Border Background="#252525" BorderBrush="#353535" BorderThickness="1" CornerRadius="8" Padding="12,10">
+                        <StackPanel Spacing="4">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="44" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Level" FontSize="13" Foreground="#a0a0a0" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1"
+                                        Minimum="0" Maximum="100"
+                                        Value="{Binding InternalBrightness}"
+                                        TickFrequency="5" IsSnapToTickEnabled="True"
+                                        IsEnabled="{Binding IsManualBrightnessEnabled}"
+                                        VerticalAlignment="Center" Margin="0,0,12,0" />
+                                <TextBlock Grid.Column="2"
+                                           Text="{Binding InternalBrightnessText}"
+                                           FontSize="13" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"
+                                           Foreground="White"
+                                           MinWidth="44" TextAlignment="Right" />
+                            </Grid>
+                            <TextBlock Text="{Binding ManualBrightnessDisabledReasonText}"
+                                       FontSize="11"
+                                       TextWrapping="Wrap"
+                                       Foreground="#a0a0a0"
+                                       IsVisible="{Binding AutoBrightnessEnabled}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Options section -->
+                    <TextBlock Text="Options" FontSize="12" FontWeight="SemiBold" Foreground="#a0a0a0" Margin="0,4,0,2" />
+                    <Border Background="#252525" BorderBrush="#353535" BorderThickness="1" CornerRadius="8" Padding="12,10">
+                        <StackPanel Spacing="8">
+                            <!-- Start with Windows -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Start with Windows"
+                                           FontSize="13" Foreground="White" VerticalAlignment="Center" />
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding StartWithWindows}" OnContent="" OffContent="" />
+                            </Grid>
+
+                            <Border Height="1" Background="#353535" />
+
+                            <!-- Legacy DDC/CI -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="Legacy DDC/CI detection" FontSize="13" Foreground="White" />
+                                    <TextBlock Text="Uses the older compatibility-focused monitor detection path. Refresh monitors or restart after changing this."
+                                               FontSize="11" TextWrapping="Wrap" Foreground="#a0a0a0" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding UseLegacyDdcCiDetection}" OnContent="" OffContent="" VerticalAlignment="Center" />
+                            </Grid>
+
+                            <Border Height="1" Background="#353535" />
+
+                            <!-- Disable on lock screen -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="Disable on lock screen" FontSize="13" Foreground="White" />
+                                    <TextBlock Text="Pause monitor reads and writes while Windows is locked"
+                                               FontSize="11" Foreground="#a0a0a0" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding DisableMonitorAccessWhileLocked}" OnContent="" OffContent="" VerticalAlignment="Center" />
+                            </Grid>
+
+                            <Border Height="1" Background="#353535" />
+
+                            <!-- Idle dimming -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="Idle dimming" FontSize="13" Foreground="White" />
+                                    <TextBlock Text="{Binding IdleReductionStatusText}"
+                                               FontSize="11" TextWrapping="Wrap" Foreground="#a0a0a0" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding IdleReductionEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
+                            </Grid>
+
+                            <!-- Idle dimming sub-options -->
+                            <StackPanel Spacing="6" Margin="16,4,0,0" IsVisible="{Binding IdleReductionEnabled}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="140" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Timeout" FontSize="13" Foreground="White" VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="8">
+                                        <Slider Width="80" Minimum="1" Maximum="60" Value="{Binding IdleTimeoutMinutes}" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                        <TextBlock FontSize="13" Foreground="White" VerticalAlignment="Center" MinWidth="48" Text="{Binding IdleTimeoutText}" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock Text="Reduce to minimum" FontSize="13" Foreground="White" />
+                                        <TextBlock Text="Otherwise BrightSync scales the normal target" FontSize="11" Foreground="#a0a0a0" />
+                                    </StackPanel>
+                                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding IdleReductionToMinimum}" OnContent="" OffContent="" />
+                                </Grid>
+
+                                <Grid IsVisible="{Binding IsIdleReductionPercentVisible}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="140" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Scale" FontSize="13" Foreground="White" VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="8">
+                                        <Slider Width="80" Minimum="10" Maximum="100" Value="{Binding IdleReductionPercent}" TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                        <TextBlock FontSize="13" Foreground="White" VerticalAlignment="Center" MinWidth="40" Text="{Binding IdleReductionPercentText}" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock Text="Ignore while media is playing" FontSize="13" Foreground="White" />
+                                        <TextBlock Text="Prevents dimming during active playback sessions" FontSize="11" Foreground="#a0a0a0" />
+                                    </StackPanel>
+                                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding IdleIgnoreMediaPlayback}" OnContent="" OffContent="" />
+                                </Grid>
+                            </StackPanel>
+
+                            <Border Height="1" Background="#353535" />
+
+                            <!-- Eye protection -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="Eye protection mode" FontSize="13" Foreground="White" />
+                                    <TextBlock Text="{Binding EyeProtectionStatusText}"
+                                               FontSize="11" Foreground="#a0a0a0" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding EyeProtectionEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
+                            </Grid>
+
+                            <StackPanel Spacing="6" Margin="16,4,0,0" IsVisible="{Binding EyeProtectionEnabled}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="140" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Reduction" FontSize="13" Foreground="White" VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="8">
+                                        <Slider Width="80" Minimum="5" Maximum="80" Value="{Binding EyeProtectionReductionPercent}" TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                        <TextBlock FontSize="13" Foreground="White" VerticalAlignment="Center" MinWidth="40" Text="{Binding EyeProtectionReductionPercent, StringFormat='{}{0}%'}" />
+                                    </StackPanel>
+                                </Grid>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="140" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Default Duration" FontSize="13" Foreground="White" VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="8">
+                                        <Slider Width="80" Minimum="1" Maximum="24" Value="{Binding EyeProtectionDefaultDurationHours}" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                        <TextBlock FontSize="13" Foreground="White" VerticalAlignment="Center" MinWidth="40" Text="{Binding EyeProtectionDefaultDurationHours, StringFormat='{}{0}h'}" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+
+                            <Border Height="1" Background="#353535" />
+
+                            <!-- Brightness boost -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="Brightness boost mode" FontSize="13" Foreground="White" />
+                                    <TextBlock Text="{Binding BrightnessBoostStatusText}"
+                                               FontSize="11" Foreground="#a0a0a0" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding BrightnessBoostEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
+                            </Grid>
+
+                            <StackPanel Spacing="6" Margin="16,4,0,0" IsVisible="{Binding BrightnessBoostEnabled}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="140" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Boost" FontSize="13" Foreground="White" VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="8">
+                                        <Slider Width="80" Minimum="5" Maximum="100" Value="{Binding BrightnessBoostPercent}" TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                        <TextBlock FontSize="13" Foreground="White" VerticalAlignment="Center" MinWidth="40" Text="{Binding BrightnessBoostPercent, StringFormat='{}{0}%'}" />
+                                    </StackPanel>
+                                </Grid>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="140" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Default Duration" FontSize="13" Foreground="White" VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="8">
+                                        <Slider Width="80" Minimum="1" Maximum="24" Value="{Binding BrightnessBoostDefaultDurationHours}" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                        <TextBlock FontSize="13" Foreground="White" VerticalAlignment="Center" MinWidth="40" Text="{Binding BrightnessBoostDefaultDurationHours, StringFormat='{}{0}h'}" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+
+                            <Border Height="1" Background="#353535" />
+
+                            <!-- Energy Saver -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="Energy saver reduction" FontSize="13" Foreground="White" />
+                                    <TextBlock Text="{Binding EnergySaverStatusText}"
+                                               FontSize="11" Foreground="#a0a0a0" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnergySaverReductionEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
+                            </Grid>
+
+                            <Grid Margin="16,4,0,0" IsVisible="{Binding EnergySaverReductionEnabled}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="140" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Reduction" FontSize="13" Foreground="White" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="8">
+                                    <Slider Width="80" Minimum="5" Maximum="50" Value="{Binding EnergySaverReductionPercent}" TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                    <TextBlock FontSize="13" Foreground="White" VerticalAlignment="Center" MinWidth="40" Text="{Binding EnergySaverReductionPercent, StringFormat='{}{0}%'}" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Border Height="1" Background="#353535" />
+
+                            <!-- Enforcement -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="Enforce brightness" FontSize="13" Foreground="White" />
+                                    <TextBlock Text="Re-applies brightness periodically" FontSize="11" Foreground="#a0a0a0" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnforcementEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
+                            </Grid>
+
+                            <Grid Margin="16,4,0,0" IsVisible="{Binding EnforcementEnabled}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="140" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Interval" FontSize="13" Foreground="White" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="8">
+                                    <Slider Width="80" Minimum="5" Maximum="120" Value="{Binding EnforcementIntervalSeconds}" TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                    <TextBlock FontSize="13" Foreground="White" VerticalAlignment="Center" MinWidth="32" Text="{Binding EnforcementIntervalSeconds, StringFormat='{}{0}s'}" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Monitor Configs section -->
+                    <TextBlock Text="Monitor Configs" FontSize="12" FontWeight="SemiBold" Foreground="#a0a0a0" Margin="0,4,0,2" />
+                    
+                    <!-- Empty state -->
+                    <TextBlock Text="{Binding EmptyStateText}"
+                               FontSize="13" Foreground="#a0a0a0"
+                               HorizontalAlignment="Center"
+                               Margin="0,8,0,0"
+                               IsVisible="{Binding !HasMonitors}" />
+
+                    <!-- Monitor list -->
+                    <ItemsControl ItemsSource="{Binding Monitors}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MonitorRowViewModel">
+                                <Border Background="#252525" BorderBrush="#353535" BorderThickness="1" CornerRadius="8" Margin="0,0,0,8" Padding="12,10">
+                                    <StackPanel Spacing="6">
+                                        <!-- Header row -->
+                                        <Border Background="Transparent" PointerPressed="MonitorHeader_PointerPressed">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Grid.Column="0"
+                                                           FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                                           FontSize="10"
+                                                           Foreground="#a0a0a0"
+                                                           VerticalAlignment="Center"
+                                                           Margin="0,0,8,0"
+                                                           Text="{Binding ChevronIcon}"
+                                                           IsVisible="{Binding CanExpand}" />
+
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding DisplayName}"
+                                                           FontSize="13" FontWeight="SemiBold"
+                                                           Foreground="White"
+                                                           VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis"/>
+
+                                                <ToggleSwitch Grid.Column="2"
+                                                              IsChecked="{Binding Enabled}"
+                                                              OnContent="" OffContent=""
+                                                              VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Expandable panel -->
+                                        <StackPanel Spacing="8" Margin="0,6,0,0" IsVisible="{Binding IsExpanded}">
+                                            <StackPanel Spacing="6" IsEnabled="{Binding Enabled}">
+                                                <!-- Min limit -->
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="44" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="42" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="Min" FontSize="13" Foreground="#a0a0a0" VerticalAlignment="Center" />
+                                                    <Slider Grid.Column="1"
+                                                            Minimum="0" Maximum="100"
+                                                            Value="{Binding MinBrightness}"
+                                                            TickFrequency="5" IsSnapToTickEnabled="True"
+                                                            VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="2" Text="{Binding MinBrightness, StringFormat='{}{0}%'}" FontSize="13" Foreground="White" VerticalAlignment="Center" TextAlignment="Right" />
+                                                </Grid>
+
+                                                <!-- Max limit -->
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="44" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="42" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="Max" FontSize="13" Foreground="#a0a0a0" VerticalAlignment="Center" />
+                                                    <Slider Grid.Column="1"
+                                                            Minimum="0" Maximum="100"
+                                                            Value="{Binding MaxBrightness}"
+                                                            TickFrequency="5" IsSnapToTickEnabled="True"
+                                                            VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="2" Text="{Binding MaxBrightness, StringFormat='{}{0}%'}" FontSize="13" Foreground="White" VerticalAlignment="Center" TextAlignment="Right" />
+                                                </Grid>
+
+                                                <!-- Scale multiplier -->
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="44" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="42" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="Scale" FontSize="13" Foreground="#a0a0a0" VerticalAlignment="Center" />
+                                                    <Slider Grid.Column="1"
+                                                            Minimum="0.1" Maximum="3.0"
+                                                            Value="{Binding Multiplier}"
+                                                            SmallChange="0.05" LargeChange="0.25"
+                                                            VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="2" Text="{Binding MultiplierDisplay}" FontSize="13" Foreground="White" VerticalAlignment="Center" TextAlignment="Right" />
+                                                </Grid>
+
+                                                <!-- Live target -->
+                                                <TextBlock Text="{Binding TargetText}" FontSize="11" Foreground="#0078d4" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <!-- No DDC/CI notice -->
+                                            <TextBlock Text="{Binding CapabilityNoticeText}" FontSize="11" Foreground="#a0a0a0" TextWrapping="Wrap" IsVisible="{Binding HasCapabilityNotice}" />
+
+                                            <!-- Diagnostics -->
+                                            <Border Padding="10,8" Background="#1a1a1a" BorderBrush="#353535" BorderThickness="1" CornerRadius="6">
+                                                <StackPanel Spacing="4">
+                                                    <TextBlock Text="{Binding DetectionSummaryText}" FontSize="11" FontWeight="SemiBold" Foreground="White" />
+                                                    <TextBlock Text="{Binding DetectionDetailsText}" FontSize="11" TextWrapping="Wrap" Foreground="#a0a0a0" />
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Reset button -->
+                                            <Grid IsVisible="{Binding ShowsResetButton}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Button Grid.Column="1" Content="Reset" Command="{Binding ResetCommand}" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Automatic Brightness Section -->
+                    <TextBlock Text="Automatic Brightness" FontSize="12" FontWeight="SemiBold" Foreground="#a0a0a0" Margin="0,4,0,2" />
+                    <Border Background="#252525" BorderBrush="#353535" BorderThickness="1" CornerRadius="8" Padding="12,10">
+                        <StackPanel Spacing="10">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock Text="Follow a smooth 24-hour brightness curve" FontSize="13" Foreground="White" />
+                                    <TextBlock Text="{Binding AutoBrightnessStatusText}" FontSize="11" Foreground="#a0a0a0" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoBrightnessEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
+                            </Grid>
+
+                            <Grid IsVisible="{Binding AutoBrightnessEnabled}" RowDefinitions="Auto,Auto,Auto">
+                                <Grid Grid.Row="0" Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock Text="Lock automatic brightness" FontSize="13" Foreground="White" />
+                                        <TextBlock Text="{Binding AutoBrightnessLockDescription}" FontSize="11" Foreground="#a0a0a0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoBrightnessLockEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
+                                </Grid>
+
+                                <Grid Grid.Row="1" Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Text="Drag the curve points to change brightness through the day."
+                                               FontSize="11" Foreground="#a0a0a0" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding AutoBrightnessPreviewText}"
+                                               FontSize="11" FontWeight="SemiBold"
+                                               Margin="8,0,0,0" Foreground="#0078d4"
+                                               VerticalAlignment="Center" />
+                                    <Button Grid.Column="2"
+                                            Content="Reset Curve"
+                                            Command="{Binding ResetCurveCommand}"
+                                            Margin="8,0,0,0" />
+                                </Grid>
+
+                                <StackPanel Grid.Row="2" Spacing="4">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="30" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <Grid Grid.Column="0" Margin="0,0,8,0" RowDefinitions="*,*,*,*,*">
+                                            <TextBlock Grid.Row="0" Text="100" FontSize="10" VerticalAlignment="Top" Foreground="#a0a0a0" />
+                                            <TextBlock Grid.Row="1" Text="75" FontSize="10" VerticalAlignment="Center" Foreground="#a0a0a0" />
+                                            <TextBlock Grid.Row="2" Text="50" FontSize="10" VerticalAlignment="Center" Foreground="#a0a0a0" />
+                                            <TextBlock Grid.Row="3" Text="25" FontSize="10" VerticalAlignment="Center" Foreground="#a0a0a0" />
+                                            <TextBlock Grid.Row="4" Text="0" FontSize="10" VerticalAlignment="Bottom" Foreground="#a0a0a0" />
+                                        </Grid>
+
+                                        <Border Grid.Column="1" Height="180" CornerRadius="6" Background="#1f1f1f" BorderBrush="#353535" BorderThickness="1">
+                                            <Canvas x:Name="AutoBrightnessCurveCanvas"
+                                                    Background="Transparent"
+                                                    PointerReleased="AutoBrightnessCurveCanvas_PointerReleased"
+                                                    PointerMoved="AutoBrightnessCurveCanvas_PointerMoved" />
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- Time ticks -->
+                                    <UniformGrid Margin="38,4,0,0" Columns="9">
+                                        <TextBlock Text="0" FontSize="10" HorizontalAlignment="Center" Foreground="#a0a0a0" />
+                                        <TextBlock Text="3" FontSize="10" HorizontalAlignment="Center" Foreground="#a0a0a0" />
+                                        <TextBlock Text="6" FontSize="10" HorizontalAlignment="Center" Foreground="#a0a0a0" />
+                                        <TextBlock Text="9" FontSize="10" HorizontalAlignment="Center" Foreground="#a0a0a0" />
+                                        <TextBlock Text="12" FontSize="10" HorizontalAlignment="Center" Foreground="#a0a0a0" />
+                                        <TextBlock Text="15" FontSize="10" HorizontalAlignment="Center" Foreground="#a0a0a0" />
+                                        <TextBlock Text="18" FontSize="10" HorizontalAlignment="Center" Foreground="#a0a0a0" />
+                                        <TextBlock Text="21" FontSize="10" HorizontalAlignment="Center" Foreground="#a0a0a0" />
+                                        <TextBlock Text="24" FontSize="10" HorizontalAlignment="Center" Foreground="#a0a0a0" />
+                                    </UniformGrid>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Bottom action bar -->
+            <Border Grid.Row="2" Background="#1e1e1e" BorderThickness="0,1,0,0" BorderBrush="#353535" Padding="16,10">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="{Binding StatusText}"
+                               FontSize="11" Foreground="#a0a0a0"
+                               TextWrapping="Wrap" MinHeight="16" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Content="Check Updates" Command="{Binding CheckForUpdatesCommand}" HorizontalAlignment="Left" />
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                            <Button Content="Reset All" Command="{Binding ResetAllCommand}" />
+                            <Button Content="Refresh" Command="{Binding RefreshCommand}" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Exit confirmation overlay -->
+            <Border x:Name="ExitOverlay"
+                    Grid.Row="0" Grid.RowSpan="3"
+                    Background="#80000000"
+                    IsVisible="False">
+                <Border Background="#1e1e1e"
+                        BorderBrush="#353535"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="24,20"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        MinWidth="300"
+                        MaxWidth="340">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Exit BrightSync" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+                        <TextBlock Text="Are you sure you want to exit?&#x0a;BrightSync will stop syncing monitor brightness."
+                                   FontSize="13" Foreground="#a0a0a0" TextWrapping="Wrap" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="1" Content="Cancel" Click="ExitOverlay_Cancel_Click" Margin="0,0,6,0" />
+                            <Button Grid.Column="2" Content="Exit" Click="ExitOverlay_Confirm_Click" Background="#d13438" Foreground="White" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

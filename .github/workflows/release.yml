@@ -25,21 +25,9 @@ jobs:
       matrix:
         include:
           - rid: win-x64
-            self_contained: true
-            publish_single_file: true
-            artifact_suffix: windows-x64-self-contained
-          - rid: win-x64
-            self_contained: false
-            publish_single_file: false
-            artifact_suffix: windows-x64-framework-dependent
-          - rid: win-x86
-            self_contained: true
-            publish_single_file: true
-            artifact_suffix: windows-x86-self-contained
-          - rid: win-x86
-            self_contained: false
-            publish_single_file: false
-            artifact_suffix: windows-x86-framework-dependent
+            artifact_suffix: windows-x64-aot
+          - rid: win-arm64
+            artifact_suffix: windows-arm64-aot
 
     env:
       PROJECT_PATH: BrightSync.csproj
@@ -80,9 +68,7 @@ jobs:
             '${{ env.PROJECT_PATH }}',
             '-c', '${{ env.CONFIGURATION }}',
             '-r', '${{ matrix.rid }}',
-            '--self-contained', '${{ matrix.self_contained }}',
-            '-p:PublishSingleFile=${{ matrix.publish_single_file }}',
-            '-p:PublishReadyToRun=true',
+            '-p:PublishAot=true',
             '-p:DebugType=None',
             '-p:DebugSymbols=false',
             '-p:Version=${{ steps.version.outputs.version }}',
@@ -91,13 +77,6 @@ jobs:
             '-p:InformationalVersion=${{ steps.version.outputs.version }}',
             '-o', $publishDir
           )
-
-          if ('${{ matrix.publish_single_file }}' -eq 'true') {
-            $publishArgs += @(
-              '-p:IncludeNativeLibrariesForSelfExtract=true',
-              '-p:EnableCompressionInSingleFile=true'
-            )
-          }
 
           dotnet @publishArgs
 

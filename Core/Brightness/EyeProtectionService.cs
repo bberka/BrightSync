@@ -80,7 +80,7 @@ public sealed class EyeProtectionService : IDisposable
         if (IsEnabled && EndTimeUtc.HasValue && EndTimeUtc.Value <= DateTime.UtcNow)
         {
             Log.Information("Eye protection mode expired");
-            System.Windows.Application.Current.Dispatcher.Invoke(() => SetEnabled(false));
+            Avalonia.Threading.Dispatcher.UIThread.Invoke(() => SetEnabled(false));
         }
     }
 

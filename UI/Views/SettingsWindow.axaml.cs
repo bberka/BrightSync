@@ -1,9 +1,12 @@
-using System.ComponentModel;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Shapes;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Shapes;
+using Avalonia.Input;
+using Avalonia.Media;
+using Avalonia.Threading;
 using BrightSync.Core;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
@@ -21,6 +24,12 @@ public partial class SettingsWindow : Window
     private int _draggingCurvePointIndex = -1;
     private Border? _dragValueBadge;
 
+    public SettingsWindow()
+    {
+        InitializeComponent();
+        _vm = null!;
+    }
+
     public SettingsWindow(
         BrightSyncEngine engine,
         AutoBrightnessService autoBrightness,
@@ -35,24 +44,46 @@ public partial class SettingsWindow : Window
         Title = AppVersionInfo.GetDisplayTitle();
         _vm = new SettingsWindowViewModel(engine, autoBrightness, idleReduction, eyeProtection, brightnessBoost, config, ddc, updateChecker);
         DataContext = _vm;
+        
         _vm.AutoBrightnessCurveChanged += OnAutoBrightnessCurveChanged;
-        Loaded += (_, _) =>
+        
+        Opened += (_, _) =>
         {
             PositionBottomRight();
             RenderAutoBrightnessCurve();
         };
+
         SizeChanged += (_, _) =>
         {
-            if (IsLoaded && IsVisible)
+            if (IsVisible)
                 PositionBottomRight();
+        };
+
+        Closing += (s, e) =>
+        {
+            e.Cancel = true;
+            Hide();
         };
     }
 
     public void PositionBottomRight()
     {
-        var area = SystemParameters.WorkArea;
-        Left = area.Right  - ActualWidth  - 12;
-        Top  = area.Bottom - ActualHeight - 12;
+        var screen = Screens.ScreenFromVisual(this);
+        if (screen == null) return;
+
+        var workingArea = screen.WorkingArea;
+        var scaling = screen.Scaling;
+
+        var windowPhysicalWidth = (int)(FrameSize?.Width ?? (Bounds.Width * scaling));
+        var windowPhysicalHeight = (int)(FrameSize?.Height ?? (Bounds.Height * scaling));
+
+        if (windowPhysicalWidth <= 0) windowPhysicalWidth = (int)(Width * scaling);
+        if (windowPhysicalHeight <= 0) windowPhysicalHeight = (int)(Height * scaling);
+
+        var x = workingArea.Right - windowPhysicalWidth - (int)(12 * scaling);
+        var y = workingArea.Bottom - windowPhysicalHeight - (int)(12 * scaling);
+
+        Position = new PixelPoint(x, y);
     }
 
     public void RefreshMonitors(string? statusText = null)
@@ -63,42 +94,35 @@ public partial class SettingsWindow : Window
                 : $"{statusText} Found {{0}} monitor(s).");
     }
 
-    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void TitleBar_PointerPressed(object sender, PointerPressedEventArgs e)
     {
-        if (e.LeftButton == MouseButtonState.Pressed)
-            DragMove();
+        BeginMoveDrag(e);
     }
 
-    private void MinimizeToTray_Click(object sender, RoutedEventArgs e)
+    private void MinimizeToTray_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         Hide();
     }
 
-    private void Exit_Click(object sender, RoutedEventArgs e)
+    private void Exit_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        ExitOverlay.Visibility = Visibility.Visible;
+        ExitOverlay.IsVisible = true;
     }
 
-    private void ExitOverlay_Cancel_Click(object sender, RoutedEventArgs e)
+    private void ExitOverlay_Cancel_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        ExitOverlay.Visibility = Visibility.Collapsed;
+        ExitOverlay.IsVisible = false;
     }
 
-    private void ExitOverlay_Confirm_Click(object sender, RoutedEventArgs e)
+    private void ExitOverlay_Confirm_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         ExitRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    private void MonitorHeader_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void MonitorHeader_PointerPressed(object sender, PointerPressedEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: MonitorRowViewModel vm } && vm.CanExpand)
+        if (sender is Control { DataContext: MonitorRowViewModel vm } && vm.CanExpand)
             vm.IsExpanded = !vm.IsExpanded;
-    }
-
-    protected override void OnClosing(CancelEventArgs e)
-    {
-        e.Cancel = true;
-        Hide();
     }
 
     protected override void OnClosed(EventArgs e)
@@ -110,7 +134,7 @@ public partial class SettingsWindow : Window
 
     private void OnAutoBrightnessCurveChanged(object? sender, EventArgs e)
     {
-        Dispatcher.Invoke(RenderAutoBrightnessCurve);
+        Dispatcher.UIThread.InvokeAsync(RenderAutoBrightnessCurve);
     }
 
     private void AutoBrightnessCurveCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -118,75 +142,79 @@ public partial class SettingsWindow : Window
         RenderAutoBrightnessCurve();
     }
 
-    private void AutoBrightnessCurveCanvas_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
-    {
-        if (_draggingCurvePointIndex < 0 || e.LeftButton != MouseButtonState.Pressed)
-            return;
-
-        var position = e.GetPosition(AutoBrightnessCurveCanvas);
-        var brightness = (int)CanvasYToBrightness(position.Y);
-        _vm.UpdateAutoBrightnessPoint(_draggingCurvePointIndex, brightness);
-        UpdateDragValueBadge(position.X, position.Y, brightness);
-    }
-
-    private void AutoBrightnessCurveCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    private void AutoBrightnessCurveCanvas_PointerMoved(object? sender, PointerEventArgs e)
     {
         if (_draggingCurvePointIndex < 0)
             return;
 
+        var position = e.GetPosition(AutoBrightnessCurveCanvas);
+        var brightness = (int)CanvasYToBrightness(position.Y);
+        _vm.UpdateAutoBrightnessPoint(_draggingCurvePointIndex, brightness, isDragging: true);
+        UpdateDragValueBadge(position.X, position.Y, brightness);
+    }
+
+    private void AutoBrightnessCurveCanvas_PointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (_draggingCurvePointIndex < 0)
+            return;
+
+        // Finalize setting updates and trigger autosave now that drag is finished
+        var point = _vm.AutoBrightnessCurvePoints[_draggingCurvePointIndex];
+        _vm.UpdateAutoBrightnessPoint(_draggingCurvePointIndex, point.Brightness, isDragging: false);
+
         _draggingCurvePointIndex = -1;
         RemoveDragValueBadge();
-        AutoBrightnessCurveCanvas.ReleaseMouseCapture();
+        e.Pointer.Capture(null);
         e.Handled = true;
     }
 
-    private void CurveHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void CurveHandle_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (sender is not FrameworkElement element || element.Tag is not int index)
+        if (sender is not Control element || element.Tag is not int index)
+            return;
+
+        var properties = e.GetCurrentPoint(AutoBrightnessCurveCanvas).Properties;
+        if (!properties.IsLeftButtonPressed)
             return;
 
         _draggingCurvePointIndex = index;
-        AutoBrightnessCurveCanvas.CaptureMouse();
+        e.Pointer.Capture(AutoBrightnessCurveCanvas);
         var point = _vm.AutoBrightnessCurvePoints[index];
-        UpdateDragValueBadge(e.GetPosition(AutoBrightnessCurveCanvas).X, e.GetPosition(AutoBrightnessCurveCanvas).Y, point.Brightness);
+        var pos = e.GetPosition(AutoBrightnessCurveCanvas);
+        UpdateDragValueBadge(pos.X, pos.Y, point.Brightness);
         e.Handled = true;
     }
 
     private void RenderAutoBrightnessCurve()
     {
-        if (!IsLoaded || AutoBrightnessCurveCanvas.ActualWidth <= 1 || AutoBrightnessCurveCanvas.ActualHeight <= 1)
+        var width = AutoBrightnessCurveCanvas.Bounds.Width;
+        var height = AutoBrightnessCurveCanvas.Bounds.Height;
+
+        if (width <= 1 || height <= 1)
             return;
 
         AutoBrightnessCurveCanvas.Children.Clear();
         _dragValueBadge = null;
 
-        var width = AutoBrightnessCurveCanvas.ActualWidth;
-        var height = AutoBrightnessCurveCanvas.ActualHeight;
         var points = _vm.AutoBrightnessCurvePoints;
         if (points.Count == 0)
             return;
 
+        // Draw horizontal grid lines
         for (var i = 1; i < 4; i++)
         {
             var y = height * i / 4.0;
             AutoBrightnessCurveCanvas.Children.Add(new Line
             {
-                X1 = 0,
-                X2 = width,
-                Y1 = y,
-                Y2 = y,
-                Stroke = new SolidColorBrush(System.Windows.Media.Color.FromArgb(40, 128, 128, 128)),
+                StartPoint = new Point(0, y),
+                EndPoint = new Point(width, y),
+                Stroke = new SolidColorBrush(Color.FromArgb(40, 128, 128, 128)),
                 StrokeThickness = 1
             });
         }
 
-        var curve = new Polyline
-        {
-            Stroke = (System.Windows.Media.Brush)FindResource("AccentTextFillColorPrimaryBrush"),
-            StrokeThickness = 2.5,
-            StrokeLineJoin = PenLineJoin.Round
-        };
-
+        // Draw polyline curve
+        var curvePoints = new Avalonia.Collections.AvaloniaList<Point>();
         const int samples = 240;
         for (var sample = 0; sample <= samples; sample++)
         {
@@ -195,25 +223,32 @@ public partial class SettingsWindow : Window
                 minute = 1439.999;
 
             var brightness = AutoBrightnessCurveEvaluator.Evaluate(points, TimeSpan.FromMinutes(minute));
-            curve.Points.Add(new System.Windows.Point(MinuteToCanvasX(minute, width), BrightnessToCanvasY(brightness, height)));
+            curvePoints.Add(new Point(MinuteToCanvasX(minute, width), BrightnessToCanvasY(brightness, height)));
         }
 
+        var curve = new Polyline
+        {
+            Stroke = SolidColorBrush.Parse("#0078d4"),
+            StrokeThickness = 2.5,
+            StrokeJoin = PenLineJoin.Round,
+            Points = curvePoints
+        };
         AutoBrightnessCurveCanvas.Children.Add(curve);
 
+        // Draw current time vertical line
         var nowMinute = DateTime.Now.TimeOfDay.TotalMinutes;
         var nowLine = new Line
         {
-            X1 = MinuteToCanvasX(nowMinute, width),
-            X2 = MinuteToCanvasX(nowMinute, width),
-            Y1 = 0,
-            Y2 = height,
-            Stroke = (System.Windows.Media.Brush)FindResource("AccentTextFillColorPrimaryBrush"),
+            StartPoint = new Point(MinuteToCanvasX(nowMinute, width), 0),
+            EndPoint = new Point(MinuteToCanvasX(nowMinute, width), height),
+            Stroke = SolidColorBrush.Parse("#0078d4"),
             StrokeThickness = 1,
-            StrokeDashArray = [4, 3],
+            StrokeDashArray = new Avalonia.Collections.AvaloniaList<double> { 4, 3 },
             Opacity = 0.6
         };
         AutoBrightnessCurveCanvas.Children.Add(nowLine);
 
+        // Draw handle ellipses
         for (var i = 0; i < points.Count; i++)
         {
             var point = points[i];
@@ -221,14 +256,14 @@ public partial class SettingsWindow : Window
             {
                 Width = 12,
                 Height = 12,
-                Fill = (System.Windows.Media.Brush)FindResource("ApplicationBackgroundBrush"),
-                Stroke = (System.Windows.Media.Brush)FindResource("AccentTextFillColorPrimaryBrush"),
+                Fill = SolidColorBrush.Parse("#1e1e1e"),
+                Stroke = SolidColorBrush.Parse("#0078d4"),
                 StrokeThickness = 2,
-                Cursor = System.Windows.Input.Cursors.SizeNS,
+                Cursor = new Cursor(StandardCursorType.SizeNorthSouth),
                 Tag = i
             };
 
-            ellipse.MouseLeftButtonDown += CurveHandle_MouseLeftButtonDown;
+            ellipse.PointerPressed += CurveHandle_PointerPressed;
 
             var x = MinuteToCanvasX(point.MinuteOfDay >= 1440 ? 1440 : point.MinuteOfDay, width) - (ellipse.Width / 2.0);
             var y = BrightnessToCanvasY(point.Brightness, height) - (ellipse.Height / 2.0);
@@ -244,14 +279,14 @@ public partial class SettingsWindow : Window
         {
             _dragValueBadge = new Border
             {
-                Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(230, 32, 32, 32)),
+                Background = new SolidColorBrush(Color.FromArgb(230, 32, 32, 32)),
                 CornerRadius = new CornerRadius(4),
                 Padding = new Thickness(6, 3, 6, 3),
                 Child = new TextBlock
                 {
                     FontSize = 11,
-                    Foreground = System.Windows.Media.Brushes.White,
-                    FontWeight = FontWeights.SemiBold
+                    Foreground = Brushes.White,
+                    FontWeight = FontWeight.SemiBold
                 },
                 IsHitTestVisible = false
             };
@@ -261,10 +296,10 @@ public partial class SettingsWindow : Window
         if (_dragValueBadge.Child is TextBlock text)
             text.Text = $"{brightness}%";
 
-        _dragValueBadge.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+        _dragValueBadge.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         var desired = _dragValueBadge.DesiredSize;
-        var left = Math.Clamp(x + 10, 0, Math.Max(0, AutoBrightnessCurveCanvas.ActualWidth - desired.Width));
-        var top = Math.Clamp(y - desired.Height - 10, 0, Math.Max(0, AutoBrightnessCurveCanvas.ActualHeight - desired.Height));
+        var left = Math.Clamp(x + 10, 0, Math.Max(0, AutoBrightnessCurveCanvas.Bounds.Width - desired.Width));
+        var top = Math.Clamp(y - desired.Height - 10, 0, Math.Max(0, AutoBrightnessCurveCanvas.Bounds.Height - desired.Height));
         Canvas.SetLeft(_dragValueBadge, left);
         Canvas.SetTop(_dragValueBadge, top);
     }
@@ -292,7 +327,7 @@ public partial class SettingsWindow : Window
 
     private double CanvasYToBrightness(double y)
     {
-        var height = Math.Max(1, AutoBrightnessCurveCanvas.ActualHeight);
+        var height = Math.Max(1, AutoBrightnessCurveCanvas.Bounds.Height);
         var clampedY = Math.Clamp(y, 0, height);
         return Math.Round((1.0 - (clampedY / height)) * 100.0);
     }

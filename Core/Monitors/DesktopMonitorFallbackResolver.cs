@@ -1,4 +1,4 @@
-using System.Management;
+using WmiLight;
 
 namespace BrightSync.Core.Monitors;
 
@@ -12,15 +12,9 @@ internal static class DesktopMonitorFallbackResolver
 
         try
         {
-            using var searcher = new ManagementObjectSearcher(
-                @"root\CIMV2",
-                "SELECT Name, MonitorType, PNPDeviceID FROM Win32_DesktopMonitor");
-
-            foreach (var result in searcher.Get())
+            using var connection = new WmiConnection(@"\\.\root\CIMV2");
+            foreach (var monitor in connection.CreateQuery("SELECT Name, MonitorType, PNPDeviceID FROM Win32_DesktopMonitor"))
             {
-                if (result is not ManagementObject monitor)
-                    continue;
-
                 var pnpDeviceId = monitor["PNPDeviceID"]?.ToString() ?? string.Empty;
                 if (!pnpDeviceId.Contains(hardwareId, StringComparison.OrdinalIgnoreCase))
                     continue;

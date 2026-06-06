@@ -8,7 +8,11 @@ namespace BrightSync.Core.Config;
 
 /// <summary>
 /// Loads and persists configuration to %APPDATA%\BrightSync\config.json.
-/// </summary>
+[JsonSerializable(typeof(AppConfig))]
+internal partial class AppConfigJsonContext : JsonSerializerContext
+{
+}
+
 public sealed class ConfigManager
 {
     private static readonly string ConfigDir =
@@ -21,6 +25,8 @@ public sealed class ConfigManager
         WriteIndented = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
+
+    private static readonly AppConfigJsonContext SerializerContext = new(JsonOptions);
 
     public AppConfig Config { get; } = Load();
 
@@ -41,7 +47,7 @@ public sealed class ConfigManager
     public void Save()
     {
         Directory.CreateDirectory(ConfigDir);
-        File.WriteAllText(ConfigPath, JsonSerializer.Serialize(Config, JsonOptions));
+        File.WriteAllText(ConfigPath, JsonSerializer.Serialize(Config, SerializerContext.AppConfig));
         ApplyStartWithWindows(Config.StartWithWindows);
         Log.Information("Configuration saved to {ConfigPath}. MonitorProfiles={ProfileCount}, StartWithWindows={StartWithWindows}",
             ConfigPath, Config.Monitors.Count, Config.StartWithWindows);
@@ -54,7 +60,7 @@ public sealed class ConfigManager
             if (File.Exists(ConfigPath))
             {
                 var text = File.ReadAllText(ConfigPath);
-                var config = JsonSerializer.Deserialize<AppConfig>(text, JsonOptions) ?? new AppConfig();
+                var config = JsonSerializer.Deserialize(text, SerializerContext.AppConfig) ?? new AppConfig();
                 config.AutoBrightness ??= AutoBrightnessSettings.CreateDefault();
                 config.AutoBrightness.EnsureDefaults();
                 Log.Information("Configuration loaded from {ConfigPath}", ConfigPath);

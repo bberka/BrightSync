@@ -33,11 +33,14 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
 
             _isExpanded = value;
             OnChanged();
+            OnChanged(nameof(ChevronIcon));
 
             if (_isExpanded)
                 _onExpanded?.Invoke(this);
         }
     }
+
+    public string ChevronIcon => _isExpanded ? "\uE70D" : "\uE76C";
 
     private bool _enabled;
     public bool Enabled

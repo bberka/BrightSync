@@ -3,8 +3,6 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
-    <UseWPF>true</UseWPF>
-    <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>BrightSync</RootNamespace>
     <AssemblyName>BrightSync</AssemblyName>
     <Nullable>enable</Nullable>
@@ -14,50 +12,45 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-    <!-- ReadyToRun (R2R) AOT pre-compilation -->
-    <PublishReadyToRun>true</PublishReadyToRun>
-    <!-- Single-file packaging -->
-    <PublishSingleFile>true</PublishSingleFile>
-    <!-- Bundle the .NET runtime within the app -->
-    <SelfContained>true</SelfContained>
+    <!-- Native AOT Compilation -->
+    <PublishAot>true</PublishAot>
+    <!-- Mark project as AOT compatible -->
+    <IsAotCompatible>true</IsAotCompatible>
     <!-- Target runtime identifier default (Windows 64-bit) -->
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
-    <!-- Show pre-compilation warnings -->
-    <PublishReadyToRunShowWarnings>true</PublishReadyToRunShowWarnings>
-    <!-- Compress executable to reduce file size -->
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-    <!-- Extract native libraries automatically -->
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <!-- Disable debug symbol generation to keep binary size clean -->
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Serilog" Version="4.2.0" />
-    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
-    <PackageReference Include="System.Management" Version="8.0.0" />
-    <PackageReference Include="WPF-UI" Version="3.0.5" />
+    <PackageReference Include="Avalonia" Version="12.0.4" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.4" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.4" />
+    <PackageReference Include="Microsoft.Win32.SystemEvents" Version="10.0.8" />
+    <PackageReference Include="Serilog" Version="4.3.1" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Include="WmiLight" Version="7.2.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <Page Update="UI\Views\SettingsWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <XamlRuntime>Wpf</XamlRuntime>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Update="UI\Views\QuickBrightnessWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <XamlRuntime>Wpf</XamlRuntime>
-      <SubType>Designer</SubType>
-    </Page>
+    <AvaloniaResource Include="Resources\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <TrimmerRootAssembly Include="Avalonia.Controls" />
+    <TrimmerRootAssembly Include="Avalonia.Base" />
+    <TrimmerRootAssembly Include="Avalonia.Markup.Xaml" />
+    <TrimmerRootAssembly Include="Avalonia.Desktop" />
+    <TrimmerRootAssembly Include="Avalonia.Win32" />
+    <TrimmerRootAssembly Include="Avalonia.Skia" />
+    <TrimmerRootAssembly Include="WmiLight" />
   </ItemGroup>
 
   <ItemGroup>
     <Compile Remove="BrightSync.Tests\**" />
     <EmbeddedResource Remove="BrightSync.Tests\**" />
     <None Remove="BrightSync.Tests\**" />
-    <Page Remove="BrightSync.Tests\**" />
   </ItemGroup>
 
 </Project>

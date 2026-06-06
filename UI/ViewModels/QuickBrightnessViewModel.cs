@@ -165,12 +165,12 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
 
     private void OnEyeProtectionChanged(object? sender, bool e)
     {
-        System.Windows.Application.Current.Dispatcher.Invoke(Refresh);
+        Avalonia.Threading.Dispatcher.UIThread.Invoke(Refresh);
     }
 
     private void OnBrightnessBoostChanged(object? sender, bool e)
     {
-        System.Windows.Application.Current.Dispatcher.Invoke(Refresh);
+        Avalonia.Threading.Dispatcher.UIThread.Invoke(Refresh);
     }
 
     /// <summary>Refreshes brightness + monitor targets — call when showing the popup.</summary>
@@ -210,7 +210,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
 
     private void OnBrightnessChanged(object? sender, int brightness)
     {
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
         {
             _isUpdating = true;
             InternalBrightness = brightness >= 0 ? brightness : _internalBrightness;
@@ -221,12 +221,12 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
 
     private void OnAutoBrightnessChanged(object? sender, EventArgs e)
     {
-        System.Windows.Application.Current.Dispatcher.Invoke(Refresh);
+        Avalonia.Threading.Dispatcher.UIThread.Invoke(Refresh);
     }
 
     private void OnTargetsChanged(object? sender, EventArgs e)
     {
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
         {
             OnChanged(nameof(IsIdleReductionActive));
             OnChanged(nameof(IdleReductionStatusText));

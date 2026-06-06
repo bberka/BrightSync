@@ -80,7 +80,7 @@ public sealed class BrightnessBoostService : IDisposable
         if (IsEnabled && EndTimeUtc.HasValue && EndTimeUtc.Value <= DateTime.UtcNow)
         {
             Log.Information("Brightness boost mode expired");
-            System.Windows.Application.Current.Dispatcher.Invoke(() => SetEnabled(false));
+            Avalonia.Threading.Dispatcher.UIThread.Invoke(() => SetEnabled(false));
         }
     }
 

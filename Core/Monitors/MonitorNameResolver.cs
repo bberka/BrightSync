@@ -1,4 +1,4 @@
-using System.Management;
+using WmiLight;
 using System.Runtime.InteropServices;
 using System.Text;
 using BrightSync.Core.Interop;
@@ -76,20 +76,17 @@ public static class MonitorNameResolver
             _wmiCache = new Dictionary<string, MonitorIdentity>(StringComparer.OrdinalIgnoreCase);
             try
             {
-                using var searcher = new ManagementObjectSearcher(
-                    @"root\WMI", "SELECT * FROM WmiMonitorID");
-
-                foreach (var o in searcher.Get())
+                using var connection = new WmiConnection(@"\\.\root\WMI");
+                foreach (var obj in connection.CreateQuery("SELECT * FROM WmiMonitorID"))
                 {
-                    var obj = (ManagementObject)o;
                     var instanceName = obj["InstanceName"]?.ToString() ?? string.Empty;
                     // InstanceName: "DISPLAY\DEL4141\5&abc&0&UID257_0"
                     var parts = instanceName.Split('\\');
                     if (parts.Length < 2) continue;
 
                     var hwId = parts[1];
-                    var model = DecodeUshorts(obj["UserFriendlyName"] as ushort[]);
-                    var manufacturerCode = DecodeUshorts(obj["ManufacturerName"] as ushort[]);
+                    var model = DecodeUshorts(ConvertToUshortArray(obj["UserFriendlyName"]));
+                    var manufacturerCode = DecodeUshorts(ConvertToUshortArray(obj["ManufacturerName"]));
                     var manufacturer = DecodeManufacturerCode(manufacturerCode);
 
                     var identity = BuildIdentity(manufacturer, model);
@@ -102,6 +99,24 @@ public static class MonitorNameResolver
                 /* WMI unavailable on some configurations */
             }
         }
+    }
+
+    private static ushort[]? ConvertToUshortArray(object? value)
+    {
+        if (value == null) return null;
+        if (value is ushort[] ushorts) return ushorts;
+        if (value is int[] ints) return ints.Select(i => (ushort)i).ToArray();
+        if (value is object[] objects) return objects.Select(o => Convert.ToUInt16(o)).ToArray();
+        if (value is Array array)
+        {
+            var result = new ushort[array.Length];
+            for (int i = 0; i < array.Length; i++)
+            {
+                result[i] = Convert.ToUInt16(array.GetValue(i));
+            }
+            return result;
+        }
+        return null;
     }
 
     private static string DecodeUshorts(ushort[]? arr)

@@ -1,4 +1,4 @@
-using System.Management;
+using WmiLight;
 using BrightSync.Core.Interop;
 
 namespace BrightSync.Core.Monitors;
@@ -13,15 +13,9 @@ internal static class WmiMonitorConnectionResolver
 
         try
         {
-            using var searcher = new ManagementObjectSearcher(
-                @"root\WMI",
-                "SELECT InstanceName, VideoOutputTechnology FROM WmiMonitorConnectionParams");
-
-            foreach (var result in searcher.Get())
+            using var connection = new WmiConnection(@"\\.\root\WMI");
+            foreach (var monitor in connection.CreateQuery("SELECT InstanceName, VideoOutputTechnology FROM WmiMonitorConnectionParams"))
             {
-                if (result is not ManagementObject monitor)
-                    continue;
-
                 var instanceName = monitor["InstanceName"]?.ToString() ?? string.Empty;
                 if (!instanceName.Contains(hardwareId, StringComparison.OrdinalIgnoreCase))
                     continue;

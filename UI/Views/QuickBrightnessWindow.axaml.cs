@@ -1,4 +1,6 @@
-using System.Windows;
+using System;
+using Avalonia.Controls;
+using Avalonia.Input;
 
 namespace BrightSync.UI.Views;
 
@@ -9,15 +11,9 @@ public partial class QuickBrightnessWindow : Window
         InitializeComponent();
     }
 
-    protected override void OnDeactivated(EventArgs e)
+    protected override void OnKeyDown(KeyEventArgs e)
     {
-        base.OnDeactivated(e);
-        Hide();
-    }
-
-    protected override void OnKeyDown(System.Windows.Input.KeyEventArgs e)
-    {
-        if (e.Key == System.Windows.Input.Key.Escape)
+        if (e.Key == Key.Escape)
         {
             Hide();
             e.Handled = true;

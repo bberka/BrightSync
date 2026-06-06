@@ -1,92 +1,91 @@
-<Window x:Class="BrightSync.UI.Views.QuickBrightnessWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        xmlns:vm="using:BrightSync.UI.ViewModels"
+        x:Class="BrightSync.UI.Views.QuickBrightnessWindow"
+        x:DataType="vm:QuickBrightnessViewModel"
+        x:CompileBindings="True"
         Width="300"
-        MinHeight="140"
         SizeToContent="Height"
         WindowStartupLocation="Manual"
-        ResizeMode="NoResize"
+        CanResize="False"
         ShowInTaskbar="False"
-        WindowStyle="None"
-        AllowsTransparency="True"
+        WindowDecorations="None"
         Topmost="True"
         Background="Transparent">
 
-    <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
-    </Window.Resources>
-
     <Border CornerRadius="8"
-            Background="{DynamicResource ApplicationBackgroundBrush}"
-            BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+            Background="#1e1e1e"
+            BorderBrush="#353535"
             BorderThickness="1"
             Padding="16,14">
-        <StackPanel>
-            <Grid Margin="0,0,0,10">
+        <StackPanel Spacing="10">
+            <!-- Automatic Brightness -->
+            <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0">
+                <StackPanel Grid.Column="0" Spacing="2">
                     <TextBlock Text="Automatic Brightness"
                                FontSize="13"
                                FontWeight="SemiBold"
-                               Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                               Foreground="White"/>
                     <TextBlock Text="{Binding AutoBrightnessStatusText}"
                                FontSize="11"
-                               Margin="0,2,0,0"
-                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               Foreground="#a0a0a0"
                                TextWrapping="Wrap"/>
                 </StackPanel>
-                <ui:ToggleSwitch Grid.Column="1"
-                                 IsChecked="{Binding AutoBrightnessEnabled}"
-                                 VerticalAlignment="Center"
-                                 Margin="12,0,0,0"/>
+                <ToggleSwitch Grid.Column="1"
+                              IsChecked="{Binding AutoBrightnessEnabled}"
+                              OnContent="" OffContent=""
+                              VerticalAlignment="Center"
+                              Margin="12,0,0,0"/>
             </Grid>
 
-            <Grid Margin="0,0,0,10">
+            <!-- Eye Protection -->
+            <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0">
+                <StackPanel Grid.Column="0" Spacing="2">
                     <TextBlock Text="Eye Protection"
                                FontSize="13"
                                FontWeight="SemiBold"
-                               Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                               Foreground="White"/>
                     <TextBlock Text="{Binding EyeProtectionStatusText}"
                                FontSize="11"
-                               Margin="0,2,0,0"
-                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               Foreground="#a0a0a0"
                                TextWrapping="Wrap"/>
                 </StackPanel>
-                <ui:ToggleSwitch Grid.Column="1"
-                                 IsChecked="{Binding EyeProtectionEnabled}"
-                                 VerticalAlignment="Center"
-                                 Margin="12,0,0,0"/>
+                <ToggleSwitch Grid.Column="1"
+                              IsChecked="{Binding EyeProtectionEnabled}"
+                              OnContent="" OffContent=""
+                              VerticalAlignment="Center"
+                              Margin="12,0,0,0"/>
             </Grid>
 
-            <Grid Margin="0,0,0,10">
+            <!-- Brightness Boost -->
+            <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0">
+                <StackPanel Grid.Column="0" Spacing="2">
                     <TextBlock Text="Brightness Boost"
                                FontSize="13"
                                FontWeight="SemiBold"
-                               Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                               Foreground="White"/>
                     <TextBlock Text="{Binding BrightnessBoostStatusText}"
                                FontSize="11"
-                               Margin="0,2,0,0"
-                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               Foreground="#a0a0a0"
                                TextWrapping="Wrap"/>
                 </StackPanel>
-                <ui:ToggleSwitch Grid.Column="1"
-                                 IsChecked="{Binding BrightnessBoostEnabled}"
-                                 VerticalAlignment="Center"
-                                 Margin="12,0,0,0"/>
+                <ToggleSwitch Grid.Column="1"
+                              IsChecked="{Binding BrightnessBoostEnabled}"
+                              OnContent="" OffContent=""
+                              VerticalAlignment="Center"
+                              Margin="12,0,0,0"/>
             </Grid>
 
             <!-- Internal brightness slider -->
@@ -97,37 +96,33 @@
                 </Grid.ColumnDefinitions>
                 <Slider Grid.Column="0"
                         Minimum="0" Maximum="100"
-                        Value="{Binding InternalBrightness, UpdateSourceTrigger=PropertyChanged}"
+                        Value="{Binding InternalBrightness}"
                         TickFrequency="5"
                         IsSnapToTickEnabled="True"
-                        IsMoveToPointEnabled="True"
                         VerticalAlignment="Center"
-                        IsEnabled="{Binding IsManualBrightnessEnabled}"
-                        />
+                        IsEnabled="{Binding IsManualBrightnessEnabled}"/>
                 <TextBlock Grid.Column="1"
                            Text="{Binding InternalBrightnessText}"
                            FontSize="13" FontWeight="SemiBold"
                            VerticalAlignment="Center"
                            TextAlignment="Right"
-                           Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                           Foreground="White"/>
             </Grid>
 
             <TextBlock Text="Curve editing is available in Settings."
                        FontSize="11"
-                       Margin="0,6,0,0"
-                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                       Visibility="{Binding AutoBrightnessEnabled, Converter={StaticResource BoolToVisibility}}"/>
+                       Foreground="#a0a0a0"
+                       IsVisible="{Binding AutoBrightnessEnabled}"/>
 
             <TextBlock Text="{Binding IdleReductionStatusText}"
                        FontSize="11"
-                       Margin="0,6,0,0"
-                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                       Visibility="{Binding IsIdleReductionActive, Converter={StaticResource BoolToVisibility}}"/>
+                       Foreground="#a0a0a0"
+                       IsVisible="{Binding IsIdleReductionActive}"/>
 
             <!-- Monitor targets -->
-            <ItemsControl ItemsSource="{Binding MonitorTargets}" Margin="0,6,0,0">
+            <ItemsControl ItemsSource="{Binding MonitorTargets}">
                 <ItemsControl.ItemTemplate>
-                    <DataTemplate>
+                    <DataTemplate x:DataType="vm:MonitorTargetInfo">
                         <Grid Margin="0,3">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -136,22 +131,21 @@
                             <TextBlock Grid.Column="0"
                                        Text="{Binding Name}"
                                        FontSize="12"
-                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Foreground="#a0a0a0"
                                        TextTrimming="CharacterEllipsis"/>
                             <TextBlock Grid.Column="1"
                                        Text="{Binding TargetText}"
                                        FontSize="12"
                                        Margin="8,0,0,0"
-                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                       Foreground="#a0a0a0"/>
                         </Grid>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
             <!-- Settings link -->
-            <Border Margin="0,10,0,0"
-                    BorderThickness="0,1,0,0"
-                    BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+            <Border BorderThickness="0,1,0,0"
+                    BorderBrush="#353535"
                     Padding="0,8,0,0">
                 <Button Content="Settings"
                         Command="{Binding OpenSettingsCommand}"

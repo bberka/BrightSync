@@ -1,10 +1,10 @@
-using System.Management;
+using WmiLight;
 using Serilog;
 
 namespace BrightSync.Core.Brightness;
 
 /// <summary>
-/// Helper utility to read/write internal brightness via WMI.
+/// Helper utility to read/write internal brightness via WMI (AOT compatible).
 /// </summary>
 public sealed class InternalBrightnessWatcher : IDisposable
 {
@@ -23,12 +23,9 @@ public sealed class InternalBrightnessWatcher : IDisposable
     {
         try
         {
-            using var searcher = new ManagementObjectSearcher(
-                @"root\WMI",
-                "SELECT CurrentBrightness FROM WmiMonitorBrightness");
-            foreach (var o in searcher.Get())
+            using var connection = new WmiConnection(@"\\.\root\WMI");
+            foreach (var obj in connection.CreateQuery("SELECT CurrentBrightness FROM WmiMonitorBrightness"))
             {
-                var obj = (ManagementObject)o;
                 return Convert.ToInt32(obj["CurrentBrightness"]);
             }
         }
@@ -47,18 +44,17 @@ public sealed class InternalBrightnessWatcher : IDisposable
 
         try
         {
-            var scope = new ManagementScope(@"root\WMI");
-            scope.Connect();
-
-            using var searcher = new ManagementObjectSearcher(
-                scope,
-                new ObjectQuery("SELECT * FROM WmiMonitorBrightnessMethods"));
-
+            using var connection = new WmiConnection(@"\\.\root\WMI");
             var updated = false;
-            foreach (var o in searcher.Get())
+
+            foreach (var obj in connection.CreateQuery("SELECT * FROM WmiMonitorBrightnessMethods"))
             {
-                var obj = (ManagementObject)o;
-                obj.InvokeMethod("WmiSetBrightness", [uint.MinValue, (byte)brightness]);
+                using var method = obj.GetMethod("WmiSetBrightness");
+                using var inParams = method.CreateInParameters();
+                inParams.SetPropertyValue("Timeout", (uint)0);
+                inParams.SetPropertyValue("Brightness", (byte)brightness);
+
+                obj.ExecuteMethod(method, inParams, out _);
                 updated = true;
             }
 

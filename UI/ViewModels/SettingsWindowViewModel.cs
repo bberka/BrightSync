@@ -54,7 +54,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
                 Log.Debug("Settings window requested internal brightness change to {Brightness}%", _internalBrightness);
                 if (!_engine.TrySetUserBrightness(_internalBrightness))
                 {
-                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                    Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
                     {
                         SetStatus(AutoBrightnessEnabled
                             ? "Automatic brightness is controlling the slider."
@@ -235,6 +235,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             _config.Config.EnergySaverReductionPercent = clamped;
             OnChanged();
             OnChanged(nameof(EnergySaverStatusText));
+            RefreshTargets();
             RequestAutoSave(debounce: true);
         }
     }
@@ -280,8 +281,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             _config.Config.EyeProtectionReductionPercent = clamped;
             OnChanged();
             OnChanged(nameof(EyeProtectionStatusText));
-            if (EyeProtectionEnabled)
-                _engine.ForceSync();
+            RefreshTargets();
             RequestAutoSave(debounce: true);
         }
     }
@@ -350,8 +350,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             _config.Config.BrightnessBoostPercent = clamped;
             OnChanged();
             OnChanged(nameof(BrightnessBoostStatusText));
-            if (BrightnessBoostEnabled)
-                _engine.ForceSync();
+            RefreshTargets();
             RequestAutoSave(debounce: true);
         }
     }
@@ -440,7 +439,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             OnChanged();
             OnChanged(nameof(IdleTimeoutText));
             OnChanged(nameof(IdleReductionStatusText));
-            _idleReduction.ReevaluateNow();
             RequestAutoSave(debounce: true);
         }
     }
@@ -486,10 +484,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             OnChanged();
             OnChanged(nameof(IdleReductionPercentText));
             OnChanged(nameof(IdleReductionStatusText));
-            if (_engine.IsIdleReductionActive)
-                _engine.ForceSync();
-            else
-                RefreshTargets();
+            RefreshTargets();
             RequestAutoSave(debounce: true);
         }
     }
@@ -594,7 +589,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     private void OnEyeProtectionChanged(object? sender, bool e)
     {
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
         {
             _eyeProtectionEnabled = e;
             OnChanged(nameof(EyeProtectionEnabled));
@@ -605,7 +600,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     private void OnBrightnessBoostChanged(object? sender, bool e)
     {
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
         {
             _brightnessBoostEnabled = e;
             OnChanged(nameof(BrightnessBoostEnabled));
@@ -649,7 +644,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     private void OnInternalBrightnessChanged(object? sender, int brightness)
     {
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
         {
             _isUpdatingInternalBrightness = true;
             InternalBrightness = brightness >= 0 ? brightness : _internalBrightness;
@@ -666,6 +661,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _autoSaveDebounce?.Dispose();
         _autoSaveDebounce = null;
         _config.Save();
+        _idleReduction.ReevaluateNow();
         _engine.ForceSync();
         _autoBrightness.RecalculateNow();
         SetStatus(statusText);
@@ -686,7 +682,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _autoSaveDebounce?.Dispose();
         _autoSaveDebounce = new System.Threading.Timer(_ =>
         {
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
             {
                 SaveCore($"Saved automatically at {DateTime.Now:HH:mm:ss}", "Settings auto-saved from UI after debounce");
             });
@@ -713,7 +709,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         Task.Run(() =>
         {
             _engine.RefreshMonitors();
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
             {
                 RefreshMonitorList("Found {0} monitor(s)");
             });
@@ -780,7 +776,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         Log.Warning("All settings were reset to defaults in the UI");
     }
 
-    public void UpdateAutoBrightnessPoint(int index, int brightness)
+    public void UpdateAutoBrightnessPoint(int index, int brightness, bool isDragging = false)
     {
         var curve = _config.Config.AutoBrightness.Curve;
         if (index < 0 || index >= curve.Count)
@@ -797,10 +793,14 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         OnChanged(nameof(AutoBrightnessStatusText));
         OnChanged(nameof(AutoBrightnessPreviewText));
         AutoBrightnessCurveChanged?.Invoke(this, EventArgs.Empty);
-        _autoBrightness.RecalculateNow();
-        foreach (var monitor in Monitors)
-            monitor.RefreshTargetText();
-        RequestAutoSave(debounce: true);
+
+        if (!isDragging)
+        {
+            _autoBrightness.RecalculateNow();
+            foreach (var monitor in Monitors)
+                monitor.RefreshTargetText();
+            RequestAutoSave(debounce: true);
+        }
     }
 
     private void ResetCurve()
@@ -838,7 +838,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     private void OnAutoBrightnessChanged(object? sender, EventArgs e)
     {
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
         {
             _isUpdatingInternalBrightness = true;
             InternalBrightness = _autoBrightness.GetCurrentBrightness();
@@ -858,7 +858,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     private void OnTargetsChanged(object? sender, EventArgs e)
     {
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
         {
             RefreshTargets();
             OnChanged(nameof(IdleReductionStatusText));
@@ -867,7 +867,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     private void OnIdleReductionChanged(object? sender, EventArgs e)
     {
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
         {
             RefreshTargets();
             OnChanged(nameof(IdleReductionStatusText));
@@ -892,7 +892,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         Task.Run(async () =>
         {
             var result = await _updateChecker.CheckNowAsync(force: true);
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
             {
                 _isCheckingForUpdates = false;
                 CheckForUpdatesCommand.Raise();
@@ -943,7 +943,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _statusTimer?.Dispose();
         _statusTimer = new System.Threading.Timer(_ =>
         {
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
             {
                 StatusText = string.Empty;
                 OnChanged(nameof(StatusText));
