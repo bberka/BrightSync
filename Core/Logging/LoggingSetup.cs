@@ -19,7 +19,7 @@ public static class LoggingSetup
             .WriteTo.File(
                 path: Path.Combine(logDirectory, "brightsync.log"),
                 rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 14,
+                retainedFileCountLimit: 7,
                 fileSizeLimitBytes: 5 * 1024 * 1024,
                 rollOnFileSizeLimit: true,
                 shared: true,
