@@ -2,9 +2,12 @@
 
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/bberka/BrightSync) ![GitHub top language](https://img.shields.io/github/languages/top/bberka/BrightSync) ![GitHub License](https://img.shields.io/github/license/bberka/BrightSync)
 
-BrightSync is a Windows tray app that keeps the brightness of your DDC/CI-compatible external monitors aligned to one shared brightness value.
+> [!WARNING]
+> **Pre-v1.0.0 Release**: This project is in active development and has not reached v1.0.0. Each version may introduce breaking changes to configurations, defaults, or features.
 
-On laptops, that shared value usually comes from the normal Windows brightness slider. On desktops, or on systems where Windows does not expose a brightness slider, BrightSync provides its own tray popup so you can control all supported monitors from one place.
+BrightSync is a Windows tray app that keeps the brightness of your monitors aligned to one shared master brightness value.
+
+BrightSync provides its own master brightness control (available in the tray popup or settings menu) to manage all supported displays—including your laptop's built-in integrated screen and external DDC/CI monitors—from one place.
 
 It also includes optional automatic brightness, idle dimming, per-monitor limits, and recovery features for monitors that forget their brightness after sleep or power changes.
 
@@ -12,39 +15,40 @@ It also includes optional automatic brightness, idle dimming, per-monitor limits
 
 ### Quick menu
 
-![Quick menu screenshot](assets/quick_menu.png)
+![Quick menu screenshot](assets/quick-menu.png)
 
 ### Settings window
 
-![Settings window screenshot](assets/settings_menu.png)
+![Settings window - Options](assets/settings-1.png)
+![Settings window - Monitor Configs](assets/settings-2.png)
+![Settings window - Curve Editor](assets/settings-3.png)
 
 ## What BrightSync Does
 
-- Uses one global brightness value as the source for all enabled external monitors.
-- Reads the Windows brightness level when an internal display exposes it.
-- Falls back to BrightSync's own tray slider when Windows has no usable brightness control.
-- Applies that value to external monitors through DDC/CI.
-- Lets you adjust each monitor with its own enable flag, minimum, maximum, and multiplier.
+- Uses one global master brightness value as the source for all enabled monitors.
+- Supports independent master brightness control that does not rely on Windows' native slider.
+- Treats the internal display (laptops) as a standard controllable target using a WMI backend.
+- Applies brightness to external monitors through DDC/CI.
+- Lets you adjust each monitor (both internal and external) with its own enable flag, minimum, maximum, and multiplier (ratio).
 - Can drive brightness automatically from a 24-hour curve instead of manual input.
 
 ## Features
 
 - Works on both laptops and desktops
 - Tray icon with quick brightness popup
-- Sync with the Windows brightness slider when Windows exposes one
+- Independent master brightness slider in the tray or settings
 - Automatic brightness based on a smooth 24-hour curve
 - Visual curve editor in Settings
-- Optional lock that keeps automatic brightness enabled after manual Windows brightness changes
 - Windows Energy Saver detection with configurable brightness reduction
-- Quick "Eye Protection" mode (dimming) with configurable duration and reduction amount
-- Quick "Brightness Boost" mode (brightening) with configurable duration and increase amount
-- Per-monitor enable or disable control
-- Per-monitor minimum brightness, maximum brightness, and multiplier
+- Quick "Eye Protection" mode (dimming) with configurable duration and reduction amount (applied to all targets including internal)
+- Quick "Brightness Boost" mode (brightening) with configurable duration and increase amount (applied to all targets including internal)
+- Per-monitor enable or disable control (both internal and external)
+- Per-monitor minimum brightness, maximum brightness, and multiplier (ratios)
 - Optional idle dimming after inactivity
 - Optional pause while Windows is locked
 - Optional brightness enforcement to re-apply values if a monitor changes them
 - Layered monitor detection with WMI and DisplayConfig fallbacks
-- Layered external brightness backends: low-level DDC/CI, Windows high-level monitor APIs, and write-only capability fallbacks
+- Layered brightness backends: WMI (Internal), low-level DDC/CI, Windows high-level monitor APIs, and write-only capability fallbacks
 - Apple display and Apple Studio Display detection with backend diagnostics
 - HDR-aware monitor metadata and safer enforcement behavior
 - Per-monitor detection diagnostics in Settings
@@ -60,10 +64,9 @@ It also includes optional automatic brightness, idle dimming, per-monitor limits
 
 Important notes:
 
-- BrightSync controls external monitors through DDC/CI.
-- Built-in laptop panels are handled through the normal Windows brightness APIs, not DDC/CI.
+- BrightSync controls external monitors through DDC/CI or high-level monitor APIs.
+- Built-in laptop panels are controlled via WMI (WmiSetBrightness) and treated as a normal monitor target.
 - A monitor may still appear in the app even if BrightSync cannot change its brightness.
-- If Windows does not show a native brightness slider, use the BrightSync tray slider instead.
 
 ## Install
 
@@ -77,9 +80,8 @@ If you are unsure which package to pick, start with `windows-x64-self-contained`
 ## Daily Use
 
 1. Start BrightSync.
-2. Change brightness with the Windows slider if your system has one.
-3. Otherwise, use the BrightSync tray icon and quick popup slider.
-4. Open `Settings` for monitor-specific options and advanced behavior.
+2. Adjust brightness with the BrightSync tray icon and quick popup slider (or via the settings window).
+3. Open `Settings` for monitor-specific options and advanced behavior.
 
 Behavior to know:
 
@@ -106,7 +108,7 @@ Behavior to know:
 
 - Enable a 24-hour brightness curve.
 - Drag curve points in Settings to tune brightness through the day.
-- Use `Lock automatic brightness` if you want BrightSync to ignore manual Windows brightness changes and immediately restore the automatic target.
+- `Lock automatic brightness` is a legacy toggle that is ignored as BrightSync handles display brightness independently from the native Windows slider.
 
 ### Other Options
 
@@ -122,18 +124,18 @@ Behavior to know:
 
 ## Compatibility and Troubleshooting
 
-- BrightSync now uses a layered detection pipeline. It combines DDC/CI enumeration with DisplayConfig and WMI-based metadata fallbacks to improve monitor naming and connection detection.
+- BrightSync uses a layered detection pipeline. It combines DDC/CI enumeration with DisplayConfig and WMI-based metadata fallbacks to improve monitor naming and connection detection.
 - BrightSync also uses layered external brightness control detection. If a low-level DDC/CI brightness read fails, it can fall back to the Windows high-level monitor API or a write-only capabilities path when supported by the display.
-- Apple displays, including Apple Studio Display when Windows exposes a usable brightness backend, are now identified more clearly in diagnostics.
+- Apple displays, including Apple Studio Display when Windows exposes a usable brightness backend, are identified in diagnostics.
 - HDR-capable displays are detected through DisplayConfig. When HDR is active, BrightSync avoids aggressive brightness readback enforcement on that display.
 - Open a monitor row in `Settings` to see which detection backend was used and what fallback path BrightSync took.
 - If monitor detection is unreliable, enable `Legacy DDC/CI detection`, then refresh monitors or restart the app.
-- `Legacy DDC/CI detection` keeps the older compatibility-focused enumeration path and may help on systems where richer metadata detection is unreliable.
+- `Legacy DDC/CI detection` uses a compatibility-focused enumeration path and may help on systems where richer metadata detection is unreliable.
 - If `Disable on lock screen` is enabled, BrightSync pauses external monitor reads and writes while Windows is locked and refreshes monitors after unlock.
-- Idle dimming can either scale targets down by a percentage or reduce each monitor to its configured minimum brightness.
-- Energy saver reduction automatically dims monitors when Windows is in power saving mode.
-- Eye protection mode provides temporary manual dimming by subtracting a fixed number of brightness points.
-- Brightness boost mode provides a temporary brightness increase by adding a fixed number of brightness points.
+- Idle dimming can either scale targets down by a percentage or reduce each monitor (including the internal display) to its configured minimum brightness.
+- Energy saver reduction automatically dims all monitors when Windows is in power saving mode.
+- Eye protection mode provides temporary manual dimming by subtracting a fixed number of brightness points from all monitors.
+- Brightness boost mode provides a temporary brightness increase by adding a fixed number of brightness points to all monitors.
 - Eye protection mode and Brightness boost mode are mutually exclusive. Enabling one turns the other off.
 - Brightness enforcement helps recover from monitors that reset brightness after sleep, power cycling, or input changes.
 - Automatic brightness recalculates through the day and after resume or system time changes.
