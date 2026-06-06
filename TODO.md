@@ -44,4 +44,5 @@ This document collects feature ideas that could be added to BrightSync in future
 
 ## 5. Maintenance & Stability
 
+- **Native AOT Build Support**: Add configuration and validation to support compiling the application to native code using Ahead-of-Time (AOT) compilation for faster startup times and smaller memory footprint.
 - **Automatic Crash Reporting**: (Optional) Add an opt-in mechanism to collect anonymous crash logs to improve app stability.
