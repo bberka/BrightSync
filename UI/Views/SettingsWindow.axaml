@@ -46,6 +46,9 @@
                                Foreground="White" />
                     <Button Grid.Column="1"
                             Width="32" Height="28"
+                            Padding="0"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
                             Background="Transparent"
                             BorderThickness="0"
                             Content="&#xE921;"
@@ -57,6 +60,9 @@
                             Margin="0,0,2,0" />
                     <Button Grid.Column="2"
                             Width="32" Height="28"
+                            Padding="0"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
                             Background="Transparent"
                             BorderThickness="0"
                             Content="&#xE8BB;"
