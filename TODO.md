@@ -16,8 +16,6 @@ This document collects feature ideas that could be added to BrightSync in future
 
 ## 2. Core Engine & Features
 
-- **Independent Brightness Mode**: Decouple the app's master brightness from the Windows native slider. This allows BrightSync to drive external monitors even when Windows doesn't expose a native slider, or to optionally ignore external slider changes.
-- **Internal Monitor Profile Support**: Treat the internal laptop monitor as a target instead of just a source. Allow users to set per-monitor profiles (Min/Max/Multiplier) for the built-in display.
 - **Advanced Media Detection for Idle Dimming**: Replace the current placeholder with a robust implementation using `GlobalSystemMediaTransportControlsSessionManager` (WinRT) to reliably suppress dimming during video/audio playback.
 - **Color Temperature / Blue Light Control**:
     - Sync monitor color temperature with Windows Night Light via DDC/CI VCP features.
@@ -46,5 +44,4 @@ This document collects feature ideas that could be added to BrightSync in future
 
 ## 5. Maintenance & Stability
 
-- **Better Feedback Loop Management**: When in "Independent Mode", improve the logic to distinguish between app-initiated WMI changes and user-initiated hardware key changes to prevent oscillation.
 - **Automatic Crash Reporting**: (Optional) Add an opt-in mechanism to collect anonymous crash logs to improve app stability.
