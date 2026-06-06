@@ -82,6 +82,7 @@ jobs:
             '-r', '${{ matrix.rid }}',
             '--self-contained', '${{ matrix.self_contained }}',
             '-p:PublishSingleFile=${{ matrix.publish_single_file }}',
+            '-p:PublishReadyToRun=true',
             '-p:DebugType=None',
             '-p:DebugSymbols=false',
             '-p:Version=${{ steps.version.outputs.version }}',

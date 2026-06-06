@@ -13,6 +13,26 @@
     <ApplicationIcon>Resources\app.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <!-- ReadyToRun (R2R) AOT pre-compilation -->
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <!-- Single-file packaging -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <!-- Bundle the .NET runtime within the app -->
+    <SelfContained>true</SelfContained>
+    <!-- Target runtime identifier default (Windows 64-bit) -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
+    <!-- Show pre-compilation warnings -->
+    <PublishReadyToRunShowWarnings>true</PublishReadyToRunShowWarnings>
+    <!-- Compress executable to reduce file size -->
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- Extract native libraries automatically -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- Disable debug symbol generation to keep binary size clean -->
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Serilog" Version="4.2.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
