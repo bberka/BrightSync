@@ -51,7 +51,10 @@ public sealed class InternalBrightnessWatcher : IDisposable
             {
                 using var method = obj.GetMethod("WmiSetBrightness");
                 using var inParams = method.CreateInParameters();
-                inParams.SetPropertyValue("Timeout", (uint)0);
+                // WmiLight's UInt32 setter can fail on WmiSetBrightness input objects
+                // with WBEM_E_FAILED on some systems. WMI accepts Int32 here and
+                // coerces it to the method's UInt32 Timeout parameter.
+                inParams.SetPropertyValue("Timeout", 0);
                 inParams.SetPropertyValue("Brightness", (byte)brightness);
 
                 obj.ExecuteMethod(method, inParams, out _);
