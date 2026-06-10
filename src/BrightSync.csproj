@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>BrightSync</RootNamespace>
+    <AssemblyName>BrightSync</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <!-- Native AOT Compilation -->
+    <PublishAot>true</PublishAot>
+    <!-- Mark project as AOT compatible -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <!-- Target runtime identifier default (Windows 64-bit) -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
+    <!-- Disable debug symbol generation to keep binary size clean -->
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.0.4" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.4" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.4" />
+    <PackageReference Include="Microsoft.Win32.SystemEvents" Version="10.0.8" />
+    <PackageReference Include="Serilog" Version="4.3.1" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Include="WmiLight" Version="7.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Resources/app.ico" />
+    <AvaloniaResource Include="Resources/app.png" />
+  </ItemGroup>
+  
+  
+
+  <ItemGroup>
+    <TrimmerRootAssembly Include="Avalonia.Controls" />
+    <TrimmerRootAssembly Include="Avalonia.Base" />
+    <TrimmerRootAssembly Include="Avalonia.Markup.Xaml" />
+    <TrimmerRootAssembly Include="Avalonia.Desktop" />
+    <TrimmerRootAssembly Include="Avalonia.Win32" />
+    <TrimmerRootAssembly Include="Avalonia.Skia" />
+    <TrimmerRootAssembly Include="WmiLight" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="BrightSync.Tests\**" />
+    <EmbeddedResource Remove="BrightSync.Tests\**" />
+    <None Remove="BrightSync.Tests\**" />
+  </ItemGroup>
+
+</Project>

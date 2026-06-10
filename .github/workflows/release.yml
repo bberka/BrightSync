@@ -25,9 +25,11 @@ jobs:
       matrix:
         include:
           - rid: win-x64
-            artifact_suffix: windows-x64-aot
-          - rid: win-arm64
-            artifact_suffix: windows-arm64-aot
+            self_contained: true
+            artifact_suffix: windows-x64-self-contained
+          - rid: win-x64
+            self_contained: false
+            artifact_suffix: windows-x64-framework-dependent
 
     env:
       PROJECT_PATH: BrightSync.csproj
@@ -68,7 +70,8 @@ jobs:
             '${{ env.PROJECT_PATH }}',
             '-c', '${{ env.CONFIGURATION }}',
             '-r', '${{ matrix.rid }}',
-            '-p:PublishAot=true',
+            '--self-contained', '${{ matrix.self_contained }}',
+            '-p:PublishSingleFile=true',
             '-p:DebugType=None',
             '-p:DebugSymbols=false',
             '-p:Version=${{ steps.version.outputs.version }}',
