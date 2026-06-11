@@ -32,6 +32,7 @@ internal sealed class WindowsTrayIcon : IDisposable
     private bool _registered;
     private bool _eyeProtectionEnabled;
     private bool _brightnessBoostEnabled;
+    private DateTime _lastClickRaisedAt = DateTime.MinValue;
 
     public WindowsTrayIcon()
     {
@@ -233,8 +234,7 @@ internal sealed class WindowsTrayIcon : IDisposable
                 case NativeMethods.WmLButtonUp:
                 case NativeMethods.NinSelect:
                 case NativeMethods.NinKeySelect:
-                    Log.Debug("Win32 tray icon click received. EventCode={EventCode}", eventCode);
-                    Clicked?.Invoke(this, EventArgs.Empty);
+                    RaiseClick(eventCode);
                     return IntPtr.Zero;
                 case NativeMethods.WmRButtonUp:
                 case NativeMethods.WmContextMenu:
@@ -244,6 +244,19 @@ internal sealed class WindowsTrayIcon : IDisposable
         }
 
         return NativeMethods.DefWindowProc(hwnd, message, wParam, lParam);
+    }
+
+    private void RaiseClick(int eventCode)
+    {
+        if ((DateTime.UtcNow - _lastClickRaisedAt).TotalMilliseconds < 250)
+        {
+            Log.Debug("Duplicate Win32 tray icon click ignored. EventCode={EventCode}", eventCode);
+            return;
+        }
+
+        _lastClickRaisedAt = DateTime.UtcNow;
+        Log.Debug("Win32 tray icon click received. EventCode={EventCode}", eventCode);
+        Clicked?.Invoke(this, EventArgs.Empty);
     }
 
     private void ShowContextMenu()

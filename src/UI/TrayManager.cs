@@ -35,6 +35,7 @@ public sealed class TrayManager(
     private SettingsWindow? _settingsWindow;
     private QuickBrightnessWindow? _quickPopup;
     private QuickBrightnessViewModel? _quickVm;
+    private DateTime _quickPopupShownAt = DateTime.MinValue;
     private DateTime _lastPopupClosed = DateTime.MinValue;
     private bool _disposed;
     private int _refreshInProgress;
@@ -111,6 +112,12 @@ public sealed class TrayManager(
         {
             if (_quickPopup?.IsVisible == true)
             {
+                if ((DateTime.UtcNow - _quickPopupShownAt).TotalMilliseconds < 750)
+                {
+                    Log.Debug("Ignoring tray toggle because quick brightness popup just opened");
+                    return;
+                }
+
                 Log.Debug("Hiding quick brightness popup");
                 _quickPopup.Hide();
                 return;
@@ -140,7 +147,7 @@ public sealed class TrayManager(
             _quickVm = new QuickBrightnessViewModel(engine, autoBrightness, eyeProtection, brightnessBoost, ddc, config,
                 ShowSettings);
             _quickPopup = new QuickBrightnessWindow { DataContext = _quickVm };
-            _quickPopup.Deactivated += (s, e) => _quickPopup.Hide(); // Hide when clicking away
+            _quickPopup.Deactivated += (_, _) => HideQuickPopupAfterDeactivation();
 
             _quickPopup.SizeChanged += (_, _) =>
             {
@@ -160,12 +167,28 @@ public sealed class TrayManager(
         }
 
         _quickPopup.Opacity = 0;
+        _quickPopupShownAt = DateTime.UtcNow;
         _quickPopup.Show();
         _quickPopup.UpdateLayout();
         PositionWindowAboveTray(_quickPopup);
         _quickPopup.Opacity = 1;
         _quickPopup.Activate();
         Log.Debug("Quick brightness popup shown");
+    }
+
+    private void HideQuickPopupAfterDeactivation()
+    {
+        if (_quickPopup?.IsVisible != true)
+            return;
+
+        if ((DateTime.UtcNow - _quickPopupShownAt).TotalMilliseconds < 500)
+        {
+            Log.Debug("Quick brightness popup initial deactivation ignored");
+            return;
+        }
+
+        Log.Debug("Hiding quick brightness popup after deactivation");
+        _quickPopup.Hide();
     }
 
     private void PositionWindowAboveTray(Window window)
