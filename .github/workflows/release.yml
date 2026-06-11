@@ -20,20 +20,11 @@ jobs:
   build-and-release:
     runs-on: windows-latest
 
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - rid: win-x64
-            self_contained: true
-            artifact_suffix: windows-x64-self-contained
-          - rid: win-x64
-            self_contained: false
-            artifact_suffix: windows-x64-framework-dependent
-
     env:
       PROJECT_PATH: src/BrightSync.csproj
       CONFIGURATION: Release
+      RID: win-x64
+      ARTIFACT_SUFFIX: windows-x64
 
     steps:
       - name: Checkout
@@ -64,13 +55,12 @@ jobs:
       - name: Publish
         shell: pwsh
         run: |
-          $publishDir = Join-Path $env:RUNNER_TEMP "${{ matrix.artifact_suffix }}"
+          $publishDir = Join-Path $env:RUNNER_TEMP "${{ env.ARTIFACT_SUFFIX }}"
           $publishArgs = @(
             'publish',
             '${{ env.PROJECT_PATH }}',
             '-c', '${{ env.CONFIGURATION }}',
-            '-r', '${{ matrix.rid }}',
-            '--self-contained', '${{ matrix.self_contained }}',
+            '-r', '${{ env.RID }}',
             '-p:PublishSingleFile=true',
             '-p:DebugType=None',
             '-p:DebugSymbols=false',
@@ -88,8 +78,8 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ steps.version.outputs.version }}"
-          $zipName = "BrightSync-$version-${{ matrix.artifact_suffix }}.zip"
-          $publishDir = Join-Path $env:RUNNER_TEMP "${{ matrix.artifact_suffix }}"
+          $zipName = "BrightSync-$version-${{ env.ARTIFACT_SUFFIX }}.zip"
+          $publishDir = Join-Path $env:RUNNER_TEMP "${{ env.ARTIFACT_SUFFIX }}"
           $zipPath = Join-Path $env:RUNNER_TEMP $zipName
 
           if (Test-Path $zipPath) {
