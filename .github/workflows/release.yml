@@ -32,7 +32,7 @@ jobs:
             artifact_suffix: windows-x64-framework-dependent
 
     env:
-      PROJECT_PATH: BrightSync.csproj
+      PROJECT_PATH: src/BrightSync.csproj
       CONFIGURATION: Release
 
     steps:
