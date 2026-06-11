@@ -561,6 +561,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     public RelayCommand CheckForUpdatesCommand { get; }
 
     public string StatusText { get; private set; } = string.Empty;
+    public bool HasStatusText => !string.IsNullOrWhiteSpace(StatusText);
     public string EmptyStateText { get; private set; } = string.Empty;
 
     public SettingsWindowViewModel(
@@ -970,6 +971,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     {
         StatusText = text;
         OnChanged(nameof(StatusText));
+        OnChanged(nameof(HasStatusText));
 
         _statusTimer?.Dispose();
         _statusTimer = new System.Threading.Timer(_ =>
@@ -978,6 +980,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             {
                 StatusText = string.Empty;
                 OnChanged(nameof(StatusText));
+                OnChanged(nameof(HasStatusText));
             });
         }, null, 5_000, System.Threading.Timeout.Infinite);
     }

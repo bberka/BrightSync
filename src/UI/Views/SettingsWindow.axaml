@@ -6,10 +6,10 @@
         x:CompileBindings="True"
         Title="BrightSync"
         Width="420"
+        Height="770"
         MaxWidth="420"
         MinHeight="385"
         MaxHeight="770"
-        SizeToContent="Height"
         WindowStartupLocation="Manual"
         CanResize="False"
         ShowInTaskbar="False"
@@ -23,7 +23,7 @@
             BorderThickness="1"
             MaxHeight="770">
 
-        <Grid>
+        <Grid ClipToBounds="True">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
@@ -75,8 +75,13 @@
             </Border>
 
             <!-- Content -->
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="8,8,8,8" ClipToBounds="True">
-                <StackPanel Width="390" Spacing="8">
+            <ScrollViewer Grid.Row="1"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          Padding="8,8,8,8"
+                          ClipToBounds="True">
+                <StackPanel Spacing="8"
+                            Width="372">
                     <!-- Brightness section -->
                     <TextBlock Text="Brightness" FontSize="12" FontWeight="SemiBold" Foreground="#a0a0a0"
                                Margin="0,4,0,2" />
@@ -686,15 +691,25 @@
                             </Grid>
                         </StackPanel>
                     </Border>
+
+                    <Border x:Name="FooterScrollSpacer"
+                            Height="72"
+                            IsHitTestVisible="False" />
                 </StackPanel>
             </ScrollViewer>
 
             <!-- Bottom action bar -->
-            <Border Grid.Row="2" Background="#1e1e1e" BorderThickness="0,1,0,0" BorderBrush="#353535" Padding="16,10">
+            <Border x:Name="SettingsActionBar"
+                    Grid.Row="2"
+                    Background="#1e1e1e"
+                    BorderThickness="0,1,0,0"
+                    BorderBrush="#353535"
+                    Padding="16,12">
                 <StackPanel Spacing="6">
                     <TextBlock Text="{Binding StatusText}"
                                FontSize="11" Foreground="#a0a0a0"
-                               TextWrapping="Wrap" MinHeight="16" />
+                               TextWrapping="Wrap"
+                               IsVisible="{Binding HasStatusText}" />
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />

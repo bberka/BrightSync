@@ -18,6 +18,9 @@ namespace BrightSync.UI.Views;
 
 public partial class SettingsWindow : Window
 {
+    private const double ScreenEdgeMargin = 12;
+    private const double SettingsWindowPreferredHeight = 770;
+
     public event EventHandler? ExitRequested;
 
     private readonly SettingsWindowViewModel _vm;
@@ -47,17 +50,22 @@ public partial class SettingsWindow : Window
         DataContext = _vm;
 
         _vm.AutoBrightnessCurveChanged += OnAutoBrightnessCurveChanged;
+        SettingsActionBar.SizeChanged += (_, _) => UpdateFooterScrollSpacer();
 
         Opened += (_, _) =>
         {
             PositionBottomRight();
+            UpdateFooterScrollSpacer();
             RenderAutoBrightnessCurve();
         };
 
         SizeChanged += (_, _) =>
         {
             if (IsVisible)
+            {
                 PositionBottomRight();
+                UpdateFooterScrollSpacer();
+            }
         };
 
         Closing += (s, e) =>
@@ -69,6 +77,8 @@ public partial class SettingsWindow : Window
 
     public void PositionBottomRight()
     {
+        FitHeightToWorkingArea();
+
         var screen = Screens.ScreenFromVisual(this);
         if (screen == null) return;
 
@@ -81,10 +91,31 @@ public partial class SettingsWindow : Window
         if (windowPhysicalWidth <= 0) windowPhysicalWidth = (int)(Width * scaling);
         if (windowPhysicalHeight <= 0) windowPhysicalHeight = (int)(Height * scaling);
 
-        var x = workingArea.Right - windowPhysicalWidth - (int)(12 * scaling);
-        var y = workingArea.Bottom - windowPhysicalHeight - (int)(12 * scaling);
+        var margin = (int)(ScreenEdgeMargin * scaling);
+        var x = workingArea.Right - windowPhysicalWidth - margin;
+        var y = workingArea.Bottom - windowPhysicalHeight - margin;
 
         Position = new PixelPoint(x, y);
+    }
+
+    private void FitHeightToWorkingArea()
+    {
+        var screen = Screens.ScreenFromVisual(this);
+        if (screen == null) return;
+
+        var scaling = screen.Scaling > 0 ? screen.Scaling : 1;
+        var availableHeight = (screen.WorkingArea.Height / scaling) - (ScreenEdgeMargin * 2);
+        var minimumHeight = MinHeight > 0 ? MinHeight : 385;
+        Height = Math.Clamp(availableHeight, minimumHeight, SettingsWindowPreferredHeight);
+    }
+
+    private void UpdateFooterScrollSpacer()
+    {
+        var footerHeight = SettingsActionBar.Bounds.Height;
+        if (footerHeight <= 0)
+            return;
+
+        FooterScrollSpacer.Height = Math.Ceiling(footerHeight) + 8;
     }
 
     public void RefreshMonitors(string? statusText = null)
