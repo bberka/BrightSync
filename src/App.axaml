@@ -2,20 +2,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="BrightSync.App"
              RequestedThemeVariant="Dark">
-    <TrayIcon.Icons>
-        <TrayIcons>
-            <TrayIcon Icon="/Resources/app.ico"
-                      ToolTipText="BrightSync">
-                <TrayIcon.Menu>
-                    <NativeMenu>
-                        <NativeMenuItem Header="Settings" />
-                        <NativeMenuItemSeparator />
-                        <NativeMenuItem Header="Exit" />
-                    </NativeMenu>
-                </TrayIcon.Menu>
-            </TrayIcon>
-        </TrayIcons>
-    </TrayIcon.Icons>
     <Application.Styles>
         <FluentTheme />
     </Application.Styles>

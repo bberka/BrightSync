@@ -1,13 +1,8 @@
 using System;
-using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Platform;
-using Avalonia.Styling;
 using Avalonia.Threading;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
@@ -36,7 +31,7 @@ public sealed class TrayManager(
 {
     public event EventHandler? ExitRequested;
 
-    private TrayIcon? _trayIcon;
+    private WindowsTrayIcon? _trayIcon;
     private SettingsWindow? _settingsWindow;
     private QuickBrightnessWindow? _quickPopup;
     private QuickBrightnessViewModel? _quickVm;
@@ -46,49 +41,25 @@ public sealed class TrayManager(
 
     public void Initialize()
     {
-        var trayIcons = TrayIcon.GetIcons(Application.Current!);
-        _trayIcon = trayIcons?.FirstOrDefault();
-        if (_trayIcon == null)
-        {
-            Log.Warning("Tray icon not found in App.axaml, initializing programmatically");
-            var assets = Avalonia.Platform.AssetLoader.Open(new Uri("avares://BrightSync/Resources/app.ico"));
-            _trayIcon = new TrayIcon
-            {
-                Icon = new WindowIcon(assets),
-                ToolTipText = "BrightSync \u2014 Running",
-                IsVisible = true
-            };
-            if (trayIcons == null)
-            {
-                trayIcons = new TrayIcons();
-                TrayIcon.SetIcons(Application.Current!, trayIcons);
-            }
-
-            trayIcons.Add(_trayIcon);
-        }
-        else
-        {
-            Log.Information("Tray icon resolved from App.axaml");
-        }
-
-        // Always set icon programmatically — XAML type converter may fail silently
-
-        _trayIcon.IsVisible = true;
+        _trayIcon = new WindowsTrayIcon();
+        _trayIcon.Clicked += (_, _) => ToggleQuickPopup();
+        _trayIcon.SettingsRequested += (_, _) => ShowSettings();
+        _trayIcon.RefreshRequested += (_, _) => RefreshMonitors();
+        _trayIcon.ExitRequested += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
+        _trayIcon.EyeProtectionToggleRequested += (_, _) => eyeProtection.SetEnabled(!eyeProtection.IsEnabled);
+        _trayIcon.BrightnessBoostToggleRequested += (_, _) => brightnessBoost.SetEnabled(!brightnessBoost.IsEnabled);
+        _trayIcon.EyeProtectionPresetRequested += (_, hours) => eyeProtection.SetEnabled(true, hours);
+        _trayIcon.BrightnessBoostPresetRequested += (_, hours) => brightnessBoost.SetEnabled(true, hours);
+        _trayIcon.Initialize("BrightSync - Running", eyeProtection.IsEnabled, brightnessBoost.IsEnabled);
 
         RefreshTrayMenu();
-
-        _trayIcon.Clicked += (_, _) =>
-        {
-            Log.Debug("Tray icon click received");
-            ToggleQuickPopup();
-        };
 
         engine.MasterBrightnessChanged += (_, b) =>
         {
             Dispatcher.UIThread.Post(() =>
             {
                 if (_trayIcon != null)
-                    _trayIcon.ToolTipText = $"BrightSync \u2014 Master: {b}%";
+                    _trayIcon.SetToolTip($"BrightSync - Master: {b}%");
             });
         };
 
@@ -101,70 +72,7 @@ public sealed class TrayManager(
         Dispatcher.UIThread.Post(() =>
         {
             if (_trayIcon == null) return;
-
-            var menu = new NativeMenu();
-
-            var settingsItem = new NativeMenuItem("Settings");
-            settingsItem.Click += (_, _) => ShowSettings();
-            menu.Items.Add(settingsItem);
-
-            menu.Items.Add(new NativeMenuItemSeparator());
-
-            // Eye Protection
-            var eyeItem = new NativeMenuItem("Eye Protection")
-            {
-                ToggleType = MenuItemToggleType.CheckBox,
-                IsChecked = eyeProtection.IsEnabled
-            };
-            eyeItem.Click += (_, _) => eyeProtection.SetEnabled(!eyeProtection.IsEnabled);
-
-            var eyeSubmenu = new NativeMenu();
-            var eyePresets = new[] { 1, 2, 3, 4, 8, 12, 24 };
-            foreach (var hours in eyePresets)
-            {
-                var label = hours == 1 ? "1 hour" : $"{hours} hours";
-                var presetItem = new NativeMenuItem(label);
-                presetItem.Click += (_, _) => eyeProtection.SetEnabled(true, hours);
-                eyeSubmenu.Items.Add(presetItem);
-            }
-
-            eyeItem.Menu = eyeSubmenu;
-            menu.Items.Add(eyeItem);
-
-            // Brightness Boost
-            var boostItem = new NativeMenuItem("Brightness Boost")
-            {
-                ToggleType = MenuItemToggleType.CheckBox,
-                IsChecked = brightnessBoost.IsEnabled
-            };
-            boostItem.Click += (_, _) => brightnessBoost.SetEnabled(!brightnessBoost.IsEnabled);
-
-            var boostSubmenu = new NativeMenu();
-            var boostPresets = new[] { 1, 2, 3, 4, 8, 12, 24 };
-            foreach (var hours in boostPresets)
-            {
-                var label = hours == 1 ? "1 hour" : $"{hours} hours";
-                var presetItem = new NativeMenuItem(label);
-                presetItem.Click += (_, _) => brightnessBoost.SetEnabled(true, hours);
-                boostSubmenu.Items.Add(presetItem);
-            }
-
-            boostItem.Menu = boostSubmenu;
-            menu.Items.Add(boostItem);
-
-            menu.Items.Add(new NativeMenuItemSeparator());
-
-            var refreshItem = new NativeMenuItem("Refresh Monitors");
-            refreshItem.Click += (_, _) => RefreshMonitors();
-            menu.Items.Add(refreshItem);
-
-            menu.Items.Add(new NativeMenuItemSeparator());
-
-            var exitItem = new NativeMenuItem("Exit");
-            exitItem.Click += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
-            menu.Items.Add(exitItem);
-
-            _trayIcon.Menu = menu;
+            _trayIcon.UpdateMenuState(eyeProtection.IsEnabled, brightnessBoost.IsEnabled);
         });
     }
 
@@ -330,8 +238,6 @@ public sealed class TrayManager(
 
         if (_trayIcon != null)
         {
-            var trayIcons = TrayIcon.GetIcons(Application.Current!);
-            trayIcons?.Remove(_trayIcon);
             _trayIcon.Dispose();
         }
     }

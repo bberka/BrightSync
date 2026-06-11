@@ -9,25 +9,50 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+    <!-- Project is Native AOT compatible in all configurations. Build-time AOT
+         analyzer warnings are surfaced during both Debug and Release builds. -->
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Enable invariant globalization: avoids shipping the large ICU/ globalization
+         data tables inside the AOT image. The app only renders English UI strings. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Use the reflection-free JSON code path by default. Serialization contexts
+         (see AppConfigJsonContext) supply the only type metadata that survives trim. -->
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+    <!-- No dynamic loading at runtime; everything must be available at AOT compile time. -->
+    <EnableDynamicLoading>false</EnableDynamicLoading>
+  </PropertyGroup>
+
+  <!-- MicroCom.Runtime (Avalonia's COM interop runtime) emits IL3053 AOT
+       analysis warnings; the affected code paths are dynamic COM activation
+       Avalonia does not exercise on Windows at runtime. The warnings are
+       false positives on this platform and have no functional impact, so
+       suppress them so the publish log stays clean. -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);IL3053</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <!-- Native AOT Compilation -->
     <PublishAot>true</PublishAot>
-    <!-- Mark project as AOT compatible -->
-    <IsAotCompatible>true</IsAotCompatible>
     <!-- Target runtime identifier default (Windows 64-bit) -->
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <!-- Disable debug symbol generation to keep binary size clean -->
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
+    <!-- Don't generate stack-trace data or stack traces metadata in the AOT image. -->
+    <IlcGenerateStackTraceData>false</IlcGenerateStackTraceData>
+    <!-- The default optimization preference is "Speed"; keep it small for a tray app. -->
+    <IlcOptimizationPreference>Size</IlcOptimizationPreference>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.0.4" />
     <PackageReference Include="Avalonia.Desktop" Version="12.0.4" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.4" />
-    <PackageReference Include="Microsoft.Win32.SystemEvents" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Win32.SystemEvents" Version="10.0.9" />
     <PackageReference Include="Serilog" Version="4.3.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageReference Include="WmiLight" Version="7.2.0" />
@@ -37,16 +62,28 @@
     <AvaloniaResource Include="Resources/app.ico" />
     <AvaloniaResource Include="Resources/app.png" />
   </ItemGroup>
-  
-  
 
+  <!-- Root every Avalonia assembly the app uses so the trimmer/AOT compiler
+       keeps the reflection entry points (XAML, Render, Themes, NativeMenu, etc.).
+       Without these, Native AOT will silently strip required code paths. -->
   <ItemGroup>
-    <TrimmerRootAssembly Include="Avalonia.Controls" />
+    <TrimmerRootAssembly Include="Avalonia" />
     <TrimmerRootAssembly Include="Avalonia.Base" />
-    <TrimmerRootAssembly Include="Avalonia.Markup.Xaml" />
+    <TrimmerRootAssembly Include="Avalonia.Controls" />
     <TrimmerRootAssembly Include="Avalonia.Desktop" />
-    <TrimmerRootAssembly Include="Avalonia.Win32" />
+    <TrimmerRootAssembly Include="Avalonia.Dialogs" />
+    <TrimmerRootAssembly Include="Avalonia.FreeDesktop" />
+    <TrimmerRootAssembly Include="Avalonia.HarfBuzz" />
+    <TrimmerRootAssembly Include="Avalonia.Markup" />
+    <TrimmerRootAssembly Include="Avalonia.Markup.Xaml" />
+    <TrimmerRootAssembly Include="Avalonia.MicroCom" />
+    <TrimmerRootAssembly Include="Avalonia.Native" />
+    <TrimmerRootAssembly Include="Avalonia.OpenGL" />
     <TrimmerRootAssembly Include="Avalonia.Skia" />
+    <TrimmerRootAssembly Include="Avalonia.Themes.Fluent" />
+    <TrimmerRootAssembly Include="Avalonia.Win32" />
+    <TrimmerRootAssembly Include="Avalonia.X11" />
+    <TrimmerRootAssembly Include="MicroCom.Runtime" />
     <TrimmerRootAssembly Include="WmiLight" />
   </ItemGroup>
 
