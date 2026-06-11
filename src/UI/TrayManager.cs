@@ -15,23 +15,27 @@ using Serilog;
 namespace BrightSync.UI;
 
 /// <summary>
-/// Manages the system tray icon, native context menu, quick brightness popup, and the settings window (AOT compatible).
-/// Left-click toggles the quick brightness popup; right-click shows the native context menu.
+/// Owns the system tray icon lifecycle. The <see cref="TrayIcon"/> itself is
+/// declared in <c>App.axaml</c> via <c>&lt;TrayIcon.Icons&gt;</c> and bound to a
+/// <see cref="TrayMenuViewModel"/>. This manager wires the VM's commands to the
+/// existing services and updates the tray icon's tooltip when the master
+/// brightness changes. AOT-safe: no reflection, no dynamic, primitives only.
 /// </summary>
-public sealed class TrayManager(
-    BrightSyncEngine engine,
-    AutoBrightnessService autoBrightness,
-    IdleReductionService idleReduction,
-    EyeProtectionService eyeProtection,
-    BrightnessBoostService brightnessBoost,
-    ConfigManager config,
-    DdcCiService ddc,
-    UpdateChecker updateChecker)
-    : IDisposable
+public sealed class TrayManager : IDisposable
 {
     public event EventHandler? ExitRequested;
 
-    private WindowsTrayIcon? _trayIcon;
+    private readonly TrayMenuViewModel _vm;
+    private readonly TrayIcon _trayIcon;
+    private readonly BrightSyncEngine _engine;
+    private readonly AutoBrightnessService _autoBrightness;
+    private readonly IdleReductionService _idleReduction;
+    private readonly EyeProtectionService _eyeProtection;
+    private readonly BrightnessBoostService _brightnessBoost;
+    private readonly ConfigManager _config;
+    private readonly DdcCiService _ddc;
+    private readonly UpdateChecker _updateChecker;
+
     private SettingsWindow? _settingsWindow;
     private QuickBrightnessWindow? _quickPopup;
     private QuickBrightnessViewModel? _quickVm;
@@ -40,45 +44,52 @@ public sealed class TrayManager(
     private bool _disposed;
     private int _refreshInProgress;
 
-    public void Initialize()
+    public TrayManager(
+        TrayIcon trayIcon,
+        BrightSyncEngine engine,
+        AutoBrightnessService autoBrightness,
+        IdleReductionService idleReduction,
+        EyeProtectionService eyeProtection,
+        BrightnessBoostService brightnessBoost,
+        ConfigManager config,
+        DdcCiService ddc,
+        UpdateChecker updateChecker)
     {
-        _trayIcon = new WindowsTrayIcon();
-        _trayIcon.Clicked += (_, _) => ToggleQuickPopup();
-        _trayIcon.SettingsRequested += (_, _) => ShowSettings();
-        _trayIcon.RefreshRequested += (_, _) => RefreshMonitors();
-        _trayIcon.ExitRequested += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
-        _trayIcon.EyeProtectionToggleRequested += (_, _) => eyeProtection.SetEnabled(!eyeProtection.IsEnabled);
-        _trayIcon.BrightnessBoostToggleRequested += (_, _) => brightnessBoost.SetEnabled(!brightnessBoost.IsEnabled);
-        _trayIcon.EyeProtectionPresetRequested += (_, hours) => eyeProtection.SetEnabled(true, hours);
-        _trayIcon.BrightnessBoostPresetRequested += (_, hours) => brightnessBoost.SetEnabled(true, hours);
-        _trayIcon.Initialize("BrightSync - Running", eyeProtection.IsEnabled, brightnessBoost.IsEnabled);
+        _trayIcon = trayIcon ?? throw new ArgumentNullException(nameof(trayIcon));
+        _engine = engine ?? throw new ArgumentNullException(nameof(engine));
+        _autoBrightness = autoBrightness ?? throw new ArgumentNullException(nameof(autoBrightness));
+        _idleReduction = idleReduction ?? throw new ArgumentNullException(nameof(idleReduction));
+        _eyeProtection = eyeProtection ?? throw new ArgumentNullException(nameof(eyeProtection));
+        _brightnessBoost = brightnessBoost ?? throw new ArgumentNullException(nameof(brightnessBoost));
+        _config = config ?? throw new ArgumentNullException(nameof(config));
+        _ddc = ddc ?? throw new ArgumentNullException(nameof(ddc));
+        _updateChecker = updateChecker ?? throw new ArgumentNullException(nameof(updateChecker));
 
-        RefreshTrayMenu();
+        _vm = new TrayMenuViewModel(
+            engine,
+            eyeProtection,
+            brightnessBoost,
+            openSettings: ShowSettings,
+            exitApp: () => ExitRequested?.Invoke(this, EventArgs.Empty),
+            toggleQuickPopup: ToggleQuickPopup,
+            refreshMonitors: RefreshMonitors);
 
-        engine.MasterBrightnessChanged += (_, b) =>
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-                if (_trayIcon != null)
-                    _trayIcon.SetToolTip($"BrightSync - Master: {b}%");
-            });
-        };
-
-        eyeProtection.StateChanged += (_, _) => RefreshTrayMenu();
-        brightnessBoost.StateChanged += (_, _) => RefreshTrayMenu();
+        _engine.MasterBrightnessChanged += OnMasterBrightnessChanged;
+        UpdateTooltip(_engine.MasterBrightness);
     }
 
-    private void RefreshTrayMenu()
+    public TrayMenuViewModel ViewModel => _vm;
+
+    private void OnMasterBrightnessChanged(object? sender, int brightness)
     {
-        Dispatcher.UIThread.Post(() =>
-        {
-            if (_trayIcon == null) return;
-            _trayIcon.UpdateMenuState(eyeProtection.IsEnabled, brightnessBoost.IsEnabled);
-        });
+        Dispatcher.UIThread.Post(() => UpdateTooltip(brightness));
     }
 
+    private void UpdateTooltip(int brightness)
+    {
+        _trayIcon.ToolTipText = $"BrightSync - Master: {brightness}%";
+    }
 
-    /// <summary>Opens the full settings window (used by context menu and quick popup).</summary>
     public void ShowSettings()
     {
         Log.Information("Opening settings window");
@@ -88,8 +99,7 @@ public sealed class TrayManager(
 
             if (_settingsWindow == null)
             {
-                _settingsWindow = new SettingsWindow(engine, autoBrightness, idleReduction, eyeProtection,
-                    brightnessBoost, config, ddc, updateChecker);
+                _settingsWindow = new SettingsWindow(_engine, _autoBrightness, _idleReduction, _eyeProtection, _brightnessBoost, _config, _ddc, _updateChecker);
                 _settingsWindow.ExitRequested += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
                 _settingsWindow.Show();
             }
@@ -123,7 +133,6 @@ public sealed class TrayManager(
                 return;
             }
 
-            // Prevent re-show if just closed by deactivation (tray icon click steals focus)
             if ((DateTime.UtcNow - _lastPopupClosed).TotalMilliseconds < 300)
             {
                 Log.Debug("Quick brightness popup reopen suppressed due to recent close");
@@ -144,7 +153,7 @@ public sealed class TrayManager(
 
         if (_quickPopup == null)
         {
-            _quickVm = new QuickBrightnessViewModel(engine, autoBrightness, eyeProtection, brightnessBoost, ddc, config,
+            _quickVm = new QuickBrightnessViewModel(_engine, _autoBrightness, _eyeProtection, _brightnessBoost, _ddc, _config,
                 ShowSettings);
             _quickPopup = new QuickBrightnessWindow { DataContext = _quickVm };
             _quickPopup.Deactivated += (_, _) => HideQuickPopupAfterDeactivation();
@@ -235,7 +244,7 @@ public sealed class TrayManager(
         {
             try
             {
-                engine.RefreshMonitors();
+                _engine.RefreshMonitors();
 
                 Dispatcher.UIThread.Post(() =>
                 {
@@ -250,18 +259,14 @@ public sealed class TrayManager(
         });
     }
 
-
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
         Log.Debug("Disposing tray manager");
+        _engine.MasterBrightnessChanged -= OnMasterBrightnessChanged;
         _quickVm?.Dispose();
         _quickPopup?.Close();
-
-        if (_trayIcon != null)
-        {
-            _trayIcon.Dispose();
-        }
+        _vm.Dispose();
     }
 }

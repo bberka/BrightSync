@@ -1,8 +1,63 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:BrightSync.UI.ViewModels"
              x:Class="BrightSync.App"
-             RequestedThemeVariant="Dark">
+             RequestedThemeVariant="Dark"
+             x:DataType="vm:TrayMenuViewModel">
     <Application.Styles>
         <FluentTheme />
     </Application.Styles>
+
+    <TrayIcon.Icons>
+        <TrayIcons>
+            <TrayIcon Icon="/Resources/app.ico"
+                      ToolTipText="BrightSync - Running"
+                      Command="{Binding ToggleQuickPopupCommand}">
+                <TrayIcon.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="Settings" Command="{Binding OpenSettingsCommand}" />
+
+                        <NativeMenuItem Header="Eye Protection">
+                            <NativeMenuItem.Menu>
+                                <NativeMenu>
+                                    <NativeMenuItem Header="{Binding EyeProtectionToggleHeader}"
+                                                    Command="{Binding ToggleEyeProtectionCommand}" />
+                                    <NativeMenuItemSeparator />
+                                    <NativeMenuItem Header="1 hour" Command="{Binding SetEyeProtectionPresetCommands[1]}" />
+                                    <NativeMenuItem Header="2 hours" Command="{Binding SetEyeProtectionPresetCommands[2]}" />
+                                    <NativeMenuItem Header="3 hours" Command="{Binding SetEyeProtectionPresetCommands[3]}" />
+                                    <NativeMenuItem Header="4 hours" Command="{Binding SetEyeProtectionPresetCommands[4]}" />
+                                    <NativeMenuItem Header="8 hours" Command="{Binding SetEyeProtectionPresetCommands[8]}" />
+                                    <NativeMenuItem Header="12 hours" Command="{Binding SetEyeProtectionPresetCommands[12]}" />
+                                    <NativeMenuItem Header="24 hours" Command="{Binding SetEyeProtectionPresetCommands[24]}" />
+                                </NativeMenu>
+                            </NativeMenuItem.Menu>
+                        </NativeMenuItem>
+
+                        <NativeMenuItem Header="Brightness Boost">
+                            <NativeMenuItem.Menu>
+                                <NativeMenu>
+                                    <NativeMenuItem Header="{Binding BrightnessBoostToggleHeader}"
+                                                    Command="{Binding ToggleBrightnessBoostCommand}" />
+                                    <NativeMenuItemSeparator />
+                                    <NativeMenuItem Header="1 hour" Command="{Binding SetBrightnessBoostPresetCommands[1]}" />
+                                    <NativeMenuItem Header="2 hours" Command="{Binding SetBrightnessBoostPresetCommands[2]}" />
+                                    <NativeMenuItem Header="3 hours" Command="{Binding SetBrightnessBoostPresetCommands[3]}" />
+                                    <NativeMenuItem Header="4 hours" Command="{Binding SetBrightnessBoostPresetCommands[4]}" />
+                                    <NativeMenuItem Header="8 hours" Command="{Binding SetBrightnessBoostPresetCommands[8]}" />
+                                    <NativeMenuItem Header="12 hours" Command="{Binding SetBrightnessBoostPresetCommands[12]}" />
+                                    <NativeMenuItem Header="24 hours" Command="{Binding SetBrightnessBoostPresetCommands[24]}" />
+                                </NativeMenu>
+                            </NativeMenuItem.Menu>
+                        </NativeMenuItem>
+
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Refresh Monitors" Command="{Binding RefreshMonitorsCommand}" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Exit" Command="{Binding ExitCommand}" />
+                    </NativeMenu>
+                </TrayIcon.Menu>
+            </TrayIcon>
+        </TrayIcons>
+    </TrayIcon.Icons>
 </Application>
