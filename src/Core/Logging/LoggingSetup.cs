@@ -9,7 +9,8 @@ public static class LoggingSetup
 {
     public static void Initialize()
     {
-        var logDirectory = Path.Combine(AppContext.BaseDirectory, "Logs");
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var logDirectory = Path.Combine(appData, "BrightSync", "Logs");
         Directory.CreateDirectory(logDirectory);
 
         Log.Logger = new LoggerConfiguration()
