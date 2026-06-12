@@ -89,6 +89,27 @@ jobs:
           Compress-Archive -Path (Join-Path $publishDir '*') -DestinationPath $zipPath
           "zip_path=$zipPath" >> $env:GITHUB_OUTPUT
 
+      - name: Build Installer (Inno Setup)
+        id: installer
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $publishDir = Join-Path $env:RUNNER_TEMP "${{ env.ARTIFACT_SUFFIX }}"
+          
+          # Compile the installer using ISCC (pre-installed and in PATH on GitHub windows runners)
+          iscc `
+            /dAppVersion=$version `
+            "/dPublishDir=$publishDir" `
+            /O"$env:RUNNER_TEMP" `
+            installer/installer.iss
+            
+          $setupPath = Join-Path $env:RUNNER_TEMP "BrightSync-Setup-v$version.exe"
+          if (!(Test-Path $setupPath)) {
+            throw "Setup executable was not created."
+          }
+          
+          "setup_path=$setupPath" >> $env:GITHUB_OUTPUT
+
       - name: Ensure release exists
         env:
           GH_TOKEN: ${{ github.token }}
@@ -105,11 +126,13 @@ jobs:
               --notes "Automated release for version $tag."
           }
 
-      - name: Upload asset to release
+      - name: Upload assets to release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          gh release upload "${{ steps.version.outputs.tag }}" "${{ steps.archive.outputs.zip_path }}" `
+          gh release upload "${{ steps.version.outputs.tag }}" `
+            "${{ steps.archive.outputs.zip_path }}" `
+            "${{ steps.installer.outputs.setup_path }}" `
             --repo $env:GITHUB_REPOSITORY `
             --clobber
