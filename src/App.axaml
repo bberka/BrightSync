@@ -10,7 +10,7 @@
 
     <TrayIcon.Icons>
         <TrayIcons>
-            <TrayIcon Icon="/Resources/app.ico"
+            <TrayIcon Icon="avares://BrightSync/Resources/app.png"
                       ToolTipText="BrightSync - Running"
                       Command="{Binding ToggleQuickPopupCommand}">
                 <TrayIcon.Menu>
