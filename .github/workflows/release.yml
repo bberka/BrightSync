@@ -43,34 +43,44 @@ jobs:
         run: |
           $version = (Get-Content VERSION -Raw).Trim()
           if ([string]::IsNullOrWhiteSpace($version)) {
-            throw "VERSION file is empty."
+            throw "VERSION file is empty"
           }
-
           "version=$version" >> $env:GITHUB_OUTPUT
           "tag=v$version" >> $env:GITHUB_OUTPUT
 
       - name: Restore
         run: dotnet restore ${{ env.PROJECT_PATH }}
 
-      - name: Set Version in csproj
-        shell: pwsh
-        run: |
-          $version = "${{ steps.version.outputs.version }}"
-          $csproj = "${{ env.PROJECT_PATH }}"
-          [xml]$xml = Get-Content $csproj
-          $xml.Project.PropertyGroup[0].AppendChild($xml.CreateElement("Version")).InnerText = $version
-          $xml.Save((Resolve-Path $csproj).Path)
-
       - name: Publish
-        run: dotnet publish ${{ env.PROJECT_PATH }} -c ${{ env.CONFIGURATION }} -r ${{ env.RID }}
+        run: >
+          dotnet publish ${{ env.PROJECT_PATH }}
+          -c ${{ env.CONFIGURATION }}
+          -r ${{ env.RID }}
+          /p:Version=${{ steps.version.outputs.version }}
 
-      - name: Locate Publish Directory
+      - name: Locate publish directory
         id: locate
         shell: pwsh
         run: |
-          $publishDir = (Get-ChildItem -Path "src" -Filter "publish" -Recurse -Directory).FullName | Select-Object -First 1
-          if (-not $publishDir) { throw "Could not find publish directory" }
+          $publishDir = (Get-ChildItem -Path "src" -Filter "publish" -Recurse -Directory).FullName |
+            Select-Object -First 1
+          if (-not $publishDir) {
+            throw "Could not find publish directory"
+          }
           "publish_dir=$publishDir" >> $env:GITHUB_OUTPUT
+
+      - name: Inspect publish output
+        shell: pwsh
+        run: |
+          $publishDir = "${{ steps.locate.outputs.publish_dir }}"
+          Write-Host "Publish directory: $publishDir"
+          Get-ChildItem $publishDir | Format-Table Name, Length -AutoSize
+          $exe = Join-Path $publishDir "BrightSync.exe"
+          if (Test-Path $exe) {
+            Write-Host "BrightSync.exe size: $((Get-Item $exe).Length) bytes"
+          } else {
+            throw "BrightSync.exe not found in publish directory"
+          }
 
       - name: Archive publish output
         id: archive
@@ -86,27 +96,28 @@ jobs:
           }
 
           Compress-Archive -Path (Join-Path $publishDir '*') -DestinationPath $zipPath
+          Write-Host "Archive created: $zipPath ($((Get-Item $zipPath).Length) bytes)"
           "zip_path=$zipPath" >> $env:GITHUB_OUTPUT
 
-      - name: Build Installer (Inno Setup)
+      - name: Build installer
         id: installer
         shell: pwsh
         run: |
           $version = "${{ steps.version.outputs.version }}"
           $publishDir = "${{ steps.locate.outputs.publish_dir }}"
-          
-          # Compile the installer using ISCC (pre-installed and in PATH on GitHub windows runners)
+
           iscc `
             /dAppVersion=$version `
             "/dPublishDir=$publishDir" `
             /O"$env:RUNNER_TEMP" `
             installer/installer.iss
-            
+
           $setupPath = Join-Path $env:RUNNER_TEMP "BrightSync-Setup-v$version.exe"
           if (!(Test-Path $setupPath)) {
-            throw "Setup executable was not created."
+            throw "Setup executable was not created"
           }
-          
+
+          Write-Host "Installer created: $setupPath ($((Get-Item $setupPath).Length) bytes)"
           "setup_path=$setupPath" >> $env:GITHUB_OUTPUT
 
       - name: Ensure release exists
@@ -115,14 +126,13 @@ jobs:
         shell: pwsh
         run: |
           $tag = "${{ steps.version.outputs.tag }}"
-          $title = "$tag"
 
           gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
           if ($LASTEXITCODE -ne 0) {
             gh release create $tag `
               --repo $env:GITHUB_REPOSITORY `
-              --title $title `
-              --notes "Automated release for version $tag."
+              --title $tag `
+              --notes "Automated release for version $tag"
           }
 
       - name: Upload assets to release
