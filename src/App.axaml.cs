@@ -1,12 +1,8 @@
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using Avalonia.Styling;
+using Avalonia.Platform;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
 using BrightSync.Core.Logging;
@@ -19,14 +15,14 @@ namespace BrightSync;
 
 public partial class App : Application
 {
-    private TrayManager? _trayManager;
-    private BrightSyncEngine? _syncEngine;
     private AutoBrightnessService? _autoBrightnessService;
-    private IdleReductionService? _idleReductionService;
-    private PowerSavingService? _powerSavingService;
-    private EyeProtectionService? _eyeProtectionService;
     private BrightnessBoostService? _brightnessBoostService;
     private DdcCiService? _ddcService;
+    private EyeProtectionService? _eyeProtectionService;
+    private IdleReductionService? _idleReductionService;
+    private PowerSavingService? _powerSavingService;
+    private BrightSyncEngine? _syncEngine;
+    private TrayManager? _trayManager;
     private UpdateChecker? _updateChecker;
 
     public override void Initialize()
@@ -38,16 +34,13 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Set shutdown mode to explicit since this is a tray application
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-            // Initialize Logging
             LoggingSetup.Initialize();
             Log.Information("Application starting. BaseDirectory={BaseDirectory}", AppContext.BaseDirectory);
 
             SetupExceptionHandling();
 
-            // Setup services
             var configManager = new ConfigManager();
             _ddcService = new DdcCiService(configManager);
             var watcher = new InternalBrightnessWatcher();
@@ -94,9 +87,15 @@ public partial class App : Application
             _updateChecker.Start();
             Log.Information("Update checker started");
 
-            // Initialize Tray Manager
-            var trayIcon = TrayIcon.GetIcons(this)?.OfType<TrayIcon>().FirstOrDefault()
-                ?? throw new InvalidOperationException("Tray icon was not declared in App.axaml");
+            // Construct tray icon in code so Native AOT cannot strip it
+            var trayIcon = new TrayIcon
+            {
+                Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://BrightSync/Resources/app.png"))),
+                ToolTipText = "BrightSync - Running"
+            };
+            TrayIcon.SetIcons(this, new TrayIcons { trayIcon });
+            Log.Information("Tray icon registered");
+
             _trayManager = new TrayManager(
                 trayIcon,
                 _syncEngine,
@@ -112,7 +111,9 @@ public partial class App : Application
             DataContext = _trayManager.ViewModel;
             Log.Information("Tray manager initialized");
 
-            // Open settings on manual launch; stay hidden on auto-start
+            trayIcon.Command = _trayManager.ViewModel.ToggleQuickPopupCommand;
+            trayIcon.Menu = BuildTrayMenu(_trayManager.ViewModel);
+
             var isAutoStart = Environment.GetCommandLineArgs()
                 .Any(a => a.Equals("--autostart", StringComparison.OrdinalIgnoreCase));
             Log.Information("Launch mode: {LaunchMode}", isAutoStart ? "AutoStart" : "Manual");
@@ -123,6 +124,39 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private static NativeMenu BuildTrayMenu(TrayMenuViewModel vm)
+    {
+        var eyeProtectionMenu = new NativeMenu();
+        eyeProtectionMenu.Add(new NativeMenuItem
+            { Header = vm.EyeProtectionToggleHeader, Command = vm.ToggleEyeProtectionCommand });
+        eyeProtectionMenu.Add(new NativeMenuItemSeparator());
+        foreach (var hours in new[] { 1, 2, 3, 4, 8, 12, 24 })
+            eyeProtectionMenu.Add(new NativeMenuItem
+            {
+                Header = $"{hours} hour{(hours > 1 ? "s" : "")}", Command = vm.SetEyeProtectionPresetCommands[hours]
+            });
+
+        var brightnessBoostMenu = new NativeMenu();
+        brightnessBoostMenu.Add(new NativeMenuItem
+            { Header = vm.BrightnessBoostToggleHeader, Command = vm.ToggleBrightnessBoostCommand });
+        brightnessBoostMenu.Add(new NativeMenuItemSeparator());
+        foreach (var hours in new[] { 1, 2, 3, 4, 8, 12, 24 })
+            brightnessBoostMenu.Add(new NativeMenuItem
+            {
+                Header = $"{hours} hour{(hours > 1 ? "s" : "")}", Command = vm.SetBrightnessBoostPresetCommands[hours]
+            });
+
+        var menu = new NativeMenu();
+        menu.Add(new NativeMenuItem { Header = "Settings", Command = vm.OpenSettingsCommand });
+        menu.Add(new NativeMenuItem { Header = "Eye Protection", Menu = eyeProtectionMenu });
+        menu.Add(new NativeMenuItem { Header = "Brightness Boost", Menu = brightnessBoostMenu });
+        menu.Add(new NativeMenuItemSeparator());
+        menu.Add(new NativeMenuItem { Header = "Refresh Monitors", Command = vm.RefreshMonitorsCommand });
+        menu.Add(new NativeMenuItemSeparator());
+        menu.Add(new NativeMenuItem { Header = "Exit", Command = vm.ExitCommand });
+        return menu;
     }
 
     private void SetupExceptionHandling()

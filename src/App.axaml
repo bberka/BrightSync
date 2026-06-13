@@ -1,14 +1,15 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:BrightSync.UI.ViewModels"
+             xmlns:ui="clr-namespace:BrightSync.UI"
              x:Class="BrightSync.App"
+             x:CompileBindings="True"
              RequestedThemeVariant="Dark"
-             x:DataType="vm:TrayMenuViewModel">
+             x:DataType="ui:TrayMenuViewModel">
     <Application.Styles>
         <FluentTheme />
     </Application.Styles>
 
-    <TrayIcon.Icons>
+    <!--<TrayIcon.Icons>
         <TrayIcons>
             <TrayIcon Icon="avares://BrightSync/Resources/app.png"
                       ToolTipText="BrightSync - Running"
@@ -23,13 +24,20 @@
                                     <NativeMenuItem Header="{Binding EyeProtectionToggleHeader}"
                                                     Command="{Binding ToggleEyeProtectionCommand}" />
                                     <NativeMenuItemSeparator />
-                                    <NativeMenuItem Header="1 hour" Command="{Binding SetEyeProtectionPresetCommands[1]}" />
-                                    <NativeMenuItem Header="2 hours" Command="{Binding SetEyeProtectionPresetCommands[2]}" />
-                                    <NativeMenuItem Header="3 hours" Command="{Binding SetEyeProtectionPresetCommands[3]}" />
-                                    <NativeMenuItem Header="4 hours" Command="{Binding SetEyeProtectionPresetCommands[4]}" />
-                                    <NativeMenuItem Header="8 hours" Command="{Binding SetEyeProtectionPresetCommands[8]}" />
-                                    <NativeMenuItem Header="12 hours" Command="{Binding SetEyeProtectionPresetCommands[12]}" />
-                                    <NativeMenuItem Header="24 hours" Command="{Binding SetEyeProtectionPresetCommands[24]}" />
+                                    <NativeMenuItem Header="1 hour"
+                                                    Command="{Binding SetEyeProtectionPresetCommands[1]}" />
+                                    <NativeMenuItem Header="2 hours"
+                                                    Command="{Binding SetEyeProtectionPresetCommands[2]}" />
+                                    <NativeMenuItem Header="3 hours"
+                                                    Command="{Binding SetEyeProtectionPresetCommands[3]}" />
+                                    <NativeMenuItem Header="4 hours"
+                                                    Command="{Binding SetEyeProtectionPresetCommands[4]}" />
+                                    <NativeMenuItem Header="8 hours"
+                                                    Command="{Binding SetEyeProtectionPresetCommands[8]}" />
+                                    <NativeMenuItem Header="12 hours"
+                                                    Command="{Binding SetEyeProtectionPresetCommands[12]}" />
+                                    <NativeMenuItem Header="24 hours"
+                                                    Command="{Binding SetEyeProtectionPresetCommands[24]}" />
                                 </NativeMenu>
                             </NativeMenuItem.Menu>
                         </NativeMenuItem>
@@ -40,13 +48,20 @@
                                     <NativeMenuItem Header="{Binding BrightnessBoostToggleHeader}"
                                                     Command="{Binding ToggleBrightnessBoostCommand}" />
                                     <NativeMenuItemSeparator />
-                                    <NativeMenuItem Header="1 hour" Command="{Binding SetBrightnessBoostPresetCommands[1]}" />
-                                    <NativeMenuItem Header="2 hours" Command="{Binding SetBrightnessBoostPresetCommands[2]}" />
-                                    <NativeMenuItem Header="3 hours" Command="{Binding SetBrightnessBoostPresetCommands[3]}" />
-                                    <NativeMenuItem Header="4 hours" Command="{Binding SetBrightnessBoostPresetCommands[4]}" />
-                                    <NativeMenuItem Header="8 hours" Command="{Binding SetBrightnessBoostPresetCommands[8]}" />
-                                    <NativeMenuItem Header="12 hours" Command="{Binding SetBrightnessBoostPresetCommands[12]}" />
-                                    <NativeMenuItem Header="24 hours" Command="{Binding SetBrightnessBoostPresetCommands[24]}" />
+                                    <NativeMenuItem Header="1 hour"
+                                                    Command="{Binding SetBrightnessBoostPresetCommands[1]}" />
+                                    <NativeMenuItem Header="2 hours"
+                                                    Command="{Binding SetBrightnessBoostPresetCommands[2]}" />
+                                    <NativeMenuItem Header="3 hours"
+                                                    Command="{Binding SetBrightnessBoostPresetCommands[3]}" />
+                                    <NativeMenuItem Header="4 hours"
+                                                    Command="{Binding SetBrightnessBoostPresetCommands[4]}" />
+                                    <NativeMenuItem Header="8 hours"
+                                                    Command="{Binding SetBrightnessBoostPresetCommands[8]}" />
+                                    <NativeMenuItem Header="12 hours"
+                                                    Command="{Binding SetBrightnessBoostPresetCommands[12]}" />
+                                    <NativeMenuItem Header="24 hours"
+                                                    Command="{Binding SetBrightnessBoostPresetCommands[24]}" />
                                 </NativeMenu>
                             </NativeMenuItem.Menu>
                         </NativeMenuItem>
@@ -59,5 +74,5 @@
                 </TrayIcon.Menu>
             </TrayIcon>
         </TrayIcons>
-    </TrayIcon.Icons>
+    </TrayIcon.Icons>-->
 </Application>
