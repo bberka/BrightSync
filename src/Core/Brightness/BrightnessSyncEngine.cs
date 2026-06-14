@@ -2,6 +2,7 @@ using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;
 using Microsoft.Win32;
 using Serilog;
+using Timer = System.Timers.Timer;
 
 namespace BrightSync.Core.Brightness;
 
@@ -14,20 +15,32 @@ namespace BrightSync.Core.Brightness;
 /// </summary>
 public sealed partial class BrightSyncEngine : IDisposable
 {
-    public event EventHandler<int>? MasterBrightnessChanged;
-    public event EventHandler? TargetsChanged;
+    private readonly ConfigManager _config;
 
     private readonly DdcCiService _ddc;
+    private readonly Timer _enforcementTimer;
     private readonly InternalBrightnessWatcher _watcher;
-    private readonly ConfigManager _config;
-    private PowerSavingService? _powerSaving;
-    private EyeProtectionService? _eyeProtection;
     private BrightnessBoostService? _brightnessBoost;
-    private readonly System.Timers.Timer _enforcementTimer;
-    private int _masterBrightness = -1;
-    private bool _isSessionLocked;
-    private bool _idleReductionActive;
     private bool _disposed;
+    private EyeProtectionService? _eyeProtection;
+    private bool _idleReductionActive;
+    private bool _isSessionLocked;
+    private int _masterBrightness = -1;
+    private PowerSavingService? _powerSaving;
+
+    public BrightSyncEngine(
+        DdcCiService ddc,
+        InternalBrightnessWatcher watcher,
+        ConfigManager config)
+    {
+        _ddc = ddc;
+        _watcher = watcher;
+        _config = config;
+
+        _enforcementTimer = new Timer(
+            Math.Max(5, _config.Config.EnforcementIntervalSeconds) * 1000.0);
+        _enforcementTimer.Elapsed += (_, _) => Enforce();
+    }
 
     public int MasterBrightness => _masterBrightness;
     public bool IsMonitorAccessSuspended => _config.Config.DisableMonitorAccessWhileLocked && _isSessionLocked;
@@ -39,19 +52,20 @@ public sealed partial class BrightSyncEngine : IDisposable
     public bool IsEyeProtectionActive => _config.Config.EyeProtectionEnabled;
     public bool IsBrightnessBoostActive => _config.Config.BrightnessBoostEnabled;
 
-    public BrightSyncEngine(
-        DdcCiService ddc,
-        InternalBrightnessWatcher watcher,
-        ConfigManager config)
+    public void Dispose()
     {
-        _ddc = ddc;
-        _watcher = watcher;
-        _config = config;
-
-        _enforcementTimer = new System.Timers.Timer(
-            Math.Max(5, _config.Config.EnforcementIntervalSeconds) * 1000.0);
-        _enforcementTimer.Elapsed += (_, _) => Enforce();
+        if (_disposed) return;
+        _disposed = true;
+        Log.Debug("Disposing brightness sync engine");
+        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+        SystemEvents.SessionSwitch -= OnSessionSwitch;
+        _enforcementTimer.Stop();
+        _enforcementTimer.Dispose();
+        _watcher.Dispose();
     }
+
+    public event EventHandler<int>? MasterBrightnessChanged;
+    public event EventHandler? TargetsChanged;
 
     public void SetPowerSavingService(PowerSavingService powerSaving)
     {
@@ -91,7 +105,14 @@ public sealed partial class BrightSyncEngine : IDisposable
         SystemEvents.SessionSwitch += OnSessionSwitch;
 
         // Sync all monitors (including the internal monitor which is now a target) on startup
-        SyncAllMonitors();
+        if (!_config.Config.AutoBrightness.Enabled)
+        {
+            SyncAllMonitors();
+        }
+        else
+        {
+            Log.Information("Skipping initial monitor sync because auto brightness is enabled");
+        }
     }
 
     /// <summary>
@@ -173,17 +194,5 @@ public sealed partial class BrightSyncEngine : IDisposable
                 Task.Delay(1500).ContinueWith(_ => RefreshMonitors());
                 break;
         }
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-        _disposed = true;
-        Log.Debug("Disposing brightness sync engine");
-        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
-        SystemEvents.SessionSwitch -= OnSessionSwitch;
-        _enforcementTimer.Stop();
-        _enforcementTimer.Dispose();
-        _watcher.Dispose();
     }
 }
