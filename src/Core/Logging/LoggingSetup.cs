@@ -1,5 +1,3 @@
-using System;
-using System.IO;
 using Serilog;
 using Serilog.Events;
 
@@ -13,12 +11,12 @@ public static class LoggingSetup
     public static string GetLogDirectory()
         => Path.Combine(AppDataDirectory, "Logs");
 
-    public static void Initialize()
+    public static void Initialize(bool enableConsoleOutput = true)
     {
         var logDirectory = GetLogDirectory();
         Directory.CreateDirectory(logDirectory);
 
-        Log.Logger = new LoggerConfiguration()
+        var loggerConfiguration = new LoggerConfiguration()
             .MinimumLevel.Debug()
             .MinimumLevel.Override("System", LogEventLevel.Warning)
             .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
@@ -30,9 +28,12 @@ public static class LoggingSetup
                 fileSizeLimitBytes: 5 * 1024 * 1024,
                 rollOnFileSizeLimit: true,
                 shared: true,
-                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
-            .WriteTo.Sink(new ConsoleAndDebugSink())
-            .CreateLogger();
+                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}");
+
+        if (enableConsoleOutput)
+            loggerConfiguration = loggerConfiguration.WriteTo.Sink(new ConsoleAndDebugSink());
+
+        Log.Logger = loggerConfiguration.CreateLogger();
     }
 
     private sealed class ConsoleAndDebugSink : Serilog.Core.ILogEventSink

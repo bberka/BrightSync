@@ -54,6 +54,7 @@ It also includes optional automatic brightness, idle dimming, per-monitor limits
 - Per-monitor detection diagnostics in Settings
 - Optional legacy DDC/CI detection mode for compatibility
 - Refresh monitors from the tray or Settings window
+- CLI command routing for brightness and resident app actions
 - Start with Windows
 - GitHub release update checks
 
@@ -90,6 +91,46 @@ Behavior to know:
 - The quick popup includes `Automatic Brightness`, `Eye Protection`, and `Brightness Boost` toggles for fast control.
 - Right-click the `Eye Protection` or `Brightness Boost` menus in the tray for time duration presets.
 - Most settings changes are only persisted after clicking `Save`.
+
+## Command Line
+
+BrightSync also supports command-line commands through `BrightSync.exe`.
+
+Resident-aware behavior:
+
+- If BrightSync is already running in the tray, CLI commands are forwarded to the running app through a localhost-only command server.
+- If BrightSync is not already running, only direct brightness commands run one-shot and then exit.
+- Resident-only commands never auto-start the tray app.
+- Manual CLI brightness commands respect automatic brightness. If automatic brightness is enabled, manual CLI brightness changes fail until auto mode is turned off.
+
+One-shot-capable commands:
+
+```powershell
+BrightSync.exe brightness set 55
+BrightSync.exe brightness up 10
+BrightSync.exe brightness down 10
+```
+
+Resident-only commands:
+
+```powershell
+BrightSync.exe settings show
+BrightSync.exe monitors refresh
+BrightSync.exe auto on
+BrightSync.exe auto off
+BrightSync.exe eye-protection on
+BrightSync.exe eye-protection on --hours 3
+BrightSync.exe eye-protection off
+BrightSync.exe boost on
+BrightSync.exe boost on --hours 2
+BrightSync.exe boost off
+BrightSync.exe app exit
+```
+
+Startup behavior:
+
+- `BrightSync.exe` starts the normal tray app.
+- `BrightSync.exe --autostart` starts the resident tray app hidden, the same way Windows startup uses it.
 
 ## Settings Overview
 
@@ -145,6 +186,10 @@ Behavior to know:
 BrightSync stores its configuration at:
 
 `%APPDATA%\BrightSync\config.json`
+
+While the resident app is running, BrightSync also writes localhost command-server metadata at:
+
+`%LOCALAPPDATA%\BrightSync\command-server.json`
 
 ## Updates
 

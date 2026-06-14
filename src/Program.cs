@@ -1,7 +1,7 @@
-using System;
 using System.Runtime.InteropServices;
-using System.Threading;
 using Avalonia;
+using BrightSync.Cli;
+using BrightSync.Core.Logging;
 using Serilog;
 
 namespace BrightSync;
@@ -16,6 +16,23 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        var parseResult = CliParser.Parse(args);
+        if (!parseResult.IsSuccess)
+        {
+            var feedback = new CliFeedback();
+            feedback.AttachToParentConsole();
+            LoggingSetup.Initialize(enableConsoleOutput: false);
+            feedback.WriteError(parseResult.ErrorMessage ?? "BrightSync received invalid arguments.");
+            Log.Warning("Invalid CLI arguments: {Message}", parseResult.ErrorMessage);
+            Log.CloseAndFlush();
+            return (int)CliExitCode.InvalidArguments;
+        }
+
+        if (parseResult.IsCliInvocation && parseResult.Command != null)
+            return RunCliCommand(parseResult.Command);
+
+        LoggingSetup.Initialize();
+
         // The mutex guards against a second BrightSync instance starting.
         // It is acquired up front so a duplicate launch can show a single
         // native dialog and exit before any Avalonia/Win32 state is created.
@@ -61,4 +78,37 @@ internal static class Program
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .LogToTrace();
+
+    private static int RunCliCommand(AppCommand command)
+    {
+        var feedback = new CliFeedback();
+        feedback.AttachToParentConsole();
+        LoggingSetup.Initialize(enableConsoleOutput: false);
+
+        try
+        {
+            using var residentClient = new ResidentCommandClient();
+            var router = new CliCommandRouter(residentClient, new OneShotCommandExecutor());
+            var result = router.RouteAsync(command, CancellationToken.None).GetAwaiter().GetResult();
+            if (result.IsError)
+                feedback.WriteError(result.Message);
+            else
+                feedback.WriteInfo(result.Message);
+
+            Log.Information("CLI command {CommandType} finished with exit code {ExitCode}",
+                command.CommandType,
+                (int)result.ExitCode);
+            return (int)result.ExitCode;
+        }
+        catch (Exception ex)
+        {
+            Log.Fatal(ex, "BrightSync CLI command {CommandType} failed", command.CommandType);
+            feedback.WriteError("BrightSync failed to process the command.");
+            return (int)CliExitCode.TransportFailure;
+        }
+        finally
+        {
+            Log.CloseAndFlush();
+        }
+    }
 }

@@ -257,6 +257,12 @@ public sealed class TrayManager(
         RefreshMonitorsCore(showBalloonTip: true, statusText: "Refreshing monitors...");
     }
 
+    public void RefreshMonitorsFromCommand()
+    {
+        Log.Information("CLI requested monitor refresh");
+        RefreshMonitorsCore(showBalloonTip: false, statusText: "Refreshing monitors...");
+    }
+
     public void HandleDisplayConfigurationChanged()
     {
         Log.Information("Refreshing monitor UI after display configuration change");

@@ -1,15 +1,10 @@
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using Avalonia.Styling;
+using BrightSync.Cli;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
-using BrightSync.Core.Logging;
 using BrightSync.Core.Monitors;
 using BrightSync.Core.Updates;
 using BrightSync.UI;
@@ -28,6 +23,7 @@ public partial class App : Application
     private BrightnessBoostService? _brightnessBoostService;
     private DdcCiService? _ddcService;
     private UpdateChecker? _updateChecker;
+    private ResidentCommandServer? _residentCommandServer;
 
     public override void Initialize()
     {
@@ -42,11 +38,7 @@ public partial class App : Application
             // Set shutdown mode to explicit since this is a tray application
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-            // Initialize Logging
-            LoggingSetup.Initialize();
-            Log.Information("Application starting. BaseDirectory={BaseDirectory}; LogDirectory={LogDirectory}",
-                AppContext.BaseDirectory,
-                LoggingSetup.GetLogDirectory());
+            Log.Information("Application starting. BaseDirectory={BaseDirectory}", AppContext.BaseDirectory);
 
             SetupExceptionHandling();
 
@@ -112,6 +104,16 @@ public partial class App : Application
             _trayManager.Initialize();
             Log.Information("Tray manager initialized");
 
+            _residentCommandServer = new ResidentCommandServer(
+                new ResidentCommandHandler(
+                    _syncEngine,
+                    _autoBrightnessService,
+                    _eyeProtectionService,
+                    _brightnessBoostService,
+                    _trayManager,
+                    ExitApp));
+            _residentCommandServer.Start();
+
             // Open settings on manual launch; stay hidden on auto-start
             var isAutoStart = Environment.GetCommandLineArgs()
                 .Any(a => a.Equals("--autostart", StringComparison.OrdinalIgnoreCase));
@@ -167,6 +169,7 @@ public partial class App : Application
         _powerSavingService?.Dispose();
         _eyeProtectionService?.Dispose();
         _brightnessBoostService?.Dispose();
+        _residentCommandServer?.Dispose();
         _syncEngine?.Dispose();
         _trayManager?.Dispose();
         _ddcService?.Dispose();
