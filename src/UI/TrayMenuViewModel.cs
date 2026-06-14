@@ -1,9 +1,11 @@
+using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using Avalonia.Threading;
 using BrightSync.Core.Brightness;
+using BrightSync.UI;
 
-namespace BrightSync.UI;
+namespace BrightSync.UI.ViewModels;
 
 /// <summary>
 /// View model that owns the commands and observable state for the system tray
@@ -12,17 +14,18 @@ namespace BrightSync.UI;
 /// </summary>
 public sealed class TrayMenuViewModel : INotifyPropertyChanged
 {
+    public event PropertyChangedEventHandler? PropertyChanged;
+
     /// <summary>Hour values exposed as tray menu preset items. AOT-safe literal list.</summary>
     public static readonly int[] PresetHours = [1, 2, 3, 4, 8, 12, 24];
 
-    private readonly BrightnessBoostService _brightnessBoost;
-
     private readonly BrightSyncEngine _engine;
-    private readonly Action _exitApp;
     private readonly EyeProtectionService _eyeProtection;
+    private readonly BrightnessBoostService _brightnessBoost;
     private readonly Action _openSettings;
-    private readonly Action _refreshMonitors;
+    private readonly Action _exitApp;
     private readonly Action _toggleQuickPopup;
+    private readonly Action _refreshMonitors;
 
     public TrayMenuViewModel(
         BrightSyncEngine engine,
@@ -75,14 +78,10 @@ public sealed class TrayMenuViewModel : INotifyPropertyChanged
     public int MasterBrightness => _engine.MasterBrightness;
 
     /// <summary>Header text for the Eye Protection toggle item, prefixed with a check glyph when active.</summary>
-    public string EyeProtectionToggleHeader =>
-        EyeProtectionEnabled ? "✓ Toggle Eye Protection" : "Toggle Eye Protection";
+    public string EyeProtectionToggleHeader => EyeProtectionEnabled ? "✓ Toggle Eye Protection" : "Toggle Eye Protection";
 
     /// <summary>Header text for the Brightness Boost toggle item, prefixed with a check glyph when active.</summary>
-    public string BrightnessBoostToggleHeader =>
-        BrightnessBoostEnabled ? "✓ Toggle Brightness Boost" : "Toggle Brightness Boost";
-
-    public event PropertyChangedEventHandler? PropertyChanged;
+    public string BrightnessBoostToggleHeader => BrightnessBoostEnabled ? "✓ Toggle Brightness Boost" : "Toggle Brightness Boost";
 
     private static IReadOnlyDictionary<int, RelayCommand> BuildPresetCommands(Action<int> apply)
     {
@@ -93,25 +92,24 @@ public sealed class TrayMenuViewModel : INotifyPropertyChanged
             var captured = hours;
             dict[captured] = new RelayCommand(() => apply(captured));
         }
-
         return dict;
     }
 
     private void OnMasterBrightnessChanged(object? sender, int brightness)
     {
-        Dispatcher.UIThread.Post(() =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             OnChanged(nameof(MasterBrightness)));
     }
 
     private void OnEyeProtectionStateChanged(object? sender, bool enabled)
     {
-        Dispatcher.UIThread.Post(() =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             OnChanged(nameof(EyeProtectionEnabled)));
     }
 
     private void OnBrightnessBoostStateChanged(object? sender, bool enabled)
     {
-        Dispatcher.UIThread.Post(() =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             OnChanged(nameof(BrightnessBoostEnabled)));
     }
 

@@ -1,21 +1,23 @@
+using System;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;
-using BrightSync.UI;
+using BrightSync.UI.ViewModels;
+using Xunit;
 
 namespace BrightSync.Tests;
 
 public class TrayMenuViewModelTests : IDisposable
 {
-    private readonly BrightnessBoostService _brightnessBoost;
     private readonly ConfigManager _config;
     private readonly DdcCiService _ddc;
+    private readonly InternalBrightnessWatcher _watcher;
     private readonly BrightSyncEngine _engine;
     private readonly EyeProtectionService _eyeProtection;
-    private readonly InternalBrightnessWatcher _watcher;
-    private int _exitCount;
+    private readonly BrightnessBoostService _brightnessBoost;
 
     private int _openSettingsCount;
+    private int _exitCount;
     private int _quickPopupCount;
     private int _refreshCount;
 
