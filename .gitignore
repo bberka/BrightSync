@@ -21,6 +21,3 @@ desktop.ini
 
 # Agent orchestration working files (plans, notepads, drafts)
 .omo/
-
-# Installer executables
-installer/*.exe
