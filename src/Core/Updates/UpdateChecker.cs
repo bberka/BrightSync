@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using BrightSync.Core.Config;
 using Serilog;
@@ -34,6 +35,8 @@ public sealed class UpdateChecker : IDisposable
             }, null, Timeout.InfiniteTimeSpan,
             Timeout.InfiniteTimeSpan);
     }
+
+    public UpdateCheckResult? LastResult { get; private set; }
 
     public void Dispose()
     {
@@ -75,7 +78,7 @@ public sealed class UpdateChecker : IDisposable
             if (version is null)
                 return null;
 
-            var downloadUrl = GetInstallerDownloadUrl(root);
+            var downloadUrl = GetInstallerDownloadUrl(root, RuntimeInformation.ProcessArchitecture);
             return new GitHubRelease(tagName, version, downloadUrl);
         }
         catch (Exception ex)
@@ -85,23 +88,89 @@ public sealed class UpdateChecker : IDisposable
         }
     }
 
-    private static string GetInstallerDownloadUrl(JsonElement root)
+    internal static string GetInstallerDownloadUrl(JsonElement root, Architecture processArchitecture)
     {
-        if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
+        if (!root.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
         {
-            foreach (var asset in assets.EnumerateArray())
-            {
-                if (asset.TryGetProperty("name", out var nameProp) &&
-                    asset.TryGetProperty("browser_download_url", out var urlProp))
-                {
-                    var name = nameProp.GetString();
-                    if (name != null && name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-                        return urlProp.GetString() ?? string.Empty;
-                }
-            }
+            return string.Empty;
         }
 
-        return string.Empty;
+        var releaseAssets = new List<GitHubReleaseAsset>();
+        foreach (var asset in assets.EnumerateArray())
+        {
+            if (!asset.TryGetProperty("name", out var nameProp))
+            {
+                continue;
+            }
+
+            var name = nameProp.GetString();
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            var downloadUrl = string.Empty;
+            if (asset.TryGetProperty("browser_download_url", out var browserUrlProp))
+            {
+                downloadUrl = browserUrlProp.GetString() ?? string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(downloadUrl) && asset.TryGetProperty("url", out var apiUrlProp))
+            {
+                downloadUrl = apiUrlProp.GetString() ?? string.Empty;
+            }
+
+            releaseAssets.Add(new GitHubReleaseAsset(name, downloadUrl));
+        }
+
+        return SelectInstallerDownloadUrl(releaseAssets, processArchitecture);
+    }
+
+    internal static string SelectInstallerDownloadUrl(
+        IReadOnlyList<GitHubReleaseAsset> assets,
+        Architecture processArchitecture)
+    {
+        if (assets.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var architectureToken = GetArchitectureToken(processArchitecture);
+        var installers = assets
+            .Where(static asset => asset.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            .Where(static asset => !string.IsNullOrWhiteSpace(asset.DownloadUrl))
+            .ToArray();
+
+        if (installers.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        static bool IsSetupInstaller(GitHubReleaseAsset asset)
+            => asset.Name.Contains("setup", StringComparison.OrdinalIgnoreCase);
+
+        static bool MatchesArchitecture(GitHubReleaseAsset asset, string architectureToken)
+            => !string.IsNullOrWhiteSpace(architectureToken)
+               && asset.Name.Contains(architectureToken, StringComparison.OrdinalIgnoreCase);
+
+        return installers.FirstOrDefault(asset =>
+                       IsSetupInstaller(asset) && MatchesArchitecture(asset, architectureToken))
+                   ?.DownloadUrl
+               ?? installers.FirstOrDefault(asset => MatchesArchitecture(asset, architectureToken))?.DownloadUrl
+               ?? installers.FirstOrDefault(IsSetupInstaller)?.DownloadUrl
+               ?? installers[0].DownloadUrl;
+    }
+
+    private static string GetArchitectureToken(Architecture processArchitecture)
+    {
+        return processArchitecture switch
+        {
+            Architecture.Arm64 => "arm64",
+            Architecture.X64 => "x64",
+            Architecture.X86 => "x86",
+            Architecture.Arm => "arm",
+            _ => string.Empty
+        };
     }
 
     private async Task<UpdateCheckResult> CheckForUpdatesIfNeededAsync(bool force = false)
@@ -112,7 +181,7 @@ public sealed class UpdateChecker : IDisposable
             if (!force && _configManager.Config.LastUpdateCheckDate == today)
             {
                 Log.Debug("Update check skipped because it already ran on {Date}", today);
-                return UpdateCheckResult.Skipped(today);
+                return LastResult = UpdateCheckResult.Skipped(today);
             }
 
             var latestVersion = await GetLatestReleaseVersionAsync();
@@ -132,21 +201,21 @@ public sealed class UpdateChecker : IDisposable
             {
                 Log.Information("New version available. CurrentVersion={CurrentVersion}, LatestVersion={LatestVersion}",
                     currentVersion, latestVersion);
-                var result = UpdateCheckResult.UpdateAvailable(currentVersion, latestVersion);
+                var result = LastResult = UpdateCheckResult.UpdateAvailable(currentVersion, latestVersion);
                 UpdateAvailable?.Invoke(this, result);
                 return result;
             }
 
             Log.Debug("No update required. CurrentVersion={CurrentVersion}, LatestVersion={LatestVersion}",
                 currentVersion, latestVersion);
-            return latestVersion is null
+            return LastResult = latestVersion is null
                 ? UpdateCheckResult.Unavailable(currentVersion)
                 : UpdateCheckResult.UpToDate(currentVersion, latestVersion);
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "Update check failed but will be retried later");
-            return UpdateCheckResult.Failed(ex);
+            return LastResult = UpdateCheckResult.Failed(ex);
         }
         finally
         {
@@ -212,6 +281,8 @@ public sealed class UpdateChecker : IDisposable
 }
 
 public sealed record GitHubRelease(string TagName, Version Version, string InstallerDownloadUrl);
+
+internal sealed record GitHubReleaseAsset(string Name, string DownloadUrl);
 
 public sealed record UpdateCheckResult(
     UpdateCheckStatus Status,

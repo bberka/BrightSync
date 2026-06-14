@@ -43,6 +43,7 @@ public sealed class TrayManager(
         if (_disposed) return;
         _disposed = true;
         Log.Debug("Disposing tray manager");
+        updateChecker.UpdateAvailable -= OnUpdateAvailable;
         _quickVm?.Dispose();
         _quickPopup?.Close();
 
@@ -56,6 +57,7 @@ public sealed class TrayManager(
 
     public void Initialize()
     {
+        updateChecker.UpdateAvailable += OnUpdateAvailable;
         _trayIcon = new WindowsTrayIcon();
         _trayIcon.Clicked += (_, _) => ToggleQuickPopup();
         _trayIcon.SettingsRequested += (_, _) => ShowSettings();
@@ -144,6 +146,8 @@ public sealed class TrayManager(
             {
                 _settingsWindow.Activate();
             }
+
+            ShowPendingUpdateDialogIfNeeded();
         });
     }
 
@@ -151,6 +155,28 @@ public sealed class TrayManager(
     {
         var titleText = title ?? "BrightSync Update";
         _trayIcon?.ShowNotification(titleText, message);
+    }
+
+    private void OnUpdateAvailable(object? sender, UpdateCheckResult result)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_settingsWindow?.IsVisible == true)
+            {
+                _settingsWindow.ShowUpdateAvailable(result);
+            }
+        });
+    }
+
+    private void ShowPendingUpdateDialogIfNeeded()
+    {
+        if (_settingsWindow?.IsVisible != true)
+            return;
+
+        if (updateChecker.LastResult?.Status == UpdateCheckStatus.UpdateAvailable)
+        {
+            _settingsWindow.ShowUpdateAvailable(updateChecker.LastResult);
+        }
     }
 
     private void ToggleQuickPopup()

@@ -30,6 +30,8 @@ public sealed class SelfUpdateService : IDisposable
         _config = config;
         _httpClient = new HttpClient();
         _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("BrightSync");
+        _httpClient.DefaultRequestHeaders.Accept.ParseAdd("application/octet-stream");
+        _httpClient.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         _idleWatcher = new Timer(_ => OnIdleWatcherTick(), null, Timeout.Infinite, Timeout.Infinite);
     }
 

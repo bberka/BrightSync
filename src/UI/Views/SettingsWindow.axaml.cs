@@ -128,6 +128,11 @@ public partial class SettingsWindow : Window
                 : $"{statusText} Found {{0}} monitor(s).");
     }
 
+    public void ShowUpdateAvailable(UpdateCheckResult result)
+    {
+        _vm.ShowUpdateAvailable(result);
+    }
+
     private void TitleBar_PointerPressed(object sender, PointerPressedEventArgs e)
     {
         BeginMoveDrag(e);

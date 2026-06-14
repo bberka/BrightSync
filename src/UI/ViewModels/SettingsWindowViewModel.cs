@@ -1094,9 +1094,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
                 CheckForUpdatesCommand.Raise();
                 if (result.Status == UpdateCheckStatus.UpdateAvailable)
                 {
-                    UpdateStatusText =
-                        $"BrightSync v{result.LatestVersion} is available (current: v{result.CurrentVersion}).";
-                    IsUpdateDialogVisible = true;
+                    ShowUpdateAvailable(result);
                 }
                 else
                 {
@@ -1160,6 +1158,15 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     private void DismissUpdate()
     {
         IsUpdateDialogVisible = false;
+    }
+
+    public void ShowUpdateAvailable(UpdateCheckResult result)
+    {
+        if (result.Status != UpdateCheckStatus.UpdateAvailable)
+            return;
+
+        UpdateStatusText = $"BrightSync v{result.LatestVersion} is available (current: v{result.CurrentVersion}).";
+        IsUpdateDialogVisible = true;
     }
 
     private static string BuildUpdateStatusText(UpdateCheckResult result)
