@@ -120,6 +120,21 @@ internal sealed class WindowsTrayIcon : IDisposable
                 Marshal.GetLastWin32Error());
     }
 
+    public void ShowNotification(string title, string message)
+    {
+        if (_windowHandle == IntPtr.Zero || !_registered)
+            return;
+
+        var data = CreateNotifyIconData(string.Empty);
+        data.uFlags = NativeMethods.NifInfo;
+        data.szInfoTitle = CreateFixedString(title, 64);
+        data.szInfo = CreateFixedString(message, 256);
+        data.dwInfoFlags = NativeMethods.NiiFInfo;
+        if (!NativeMethods.Shell_NotifyIcon(NativeMethods.NimModify, ref data))
+            Log.Warning("Shell_NotifyIcon(NIM_MODIFY notification) failed. LastWin32Error={LastWin32Error}",
+                Marshal.GetLastWin32Error());
+    }
+
     public void UpdateMenuState(bool eyeProtectionEnabled, bool brightnessBoostEnabled)
     {
         _eyeProtectionEnabled = eyeProtectionEnabled;
@@ -422,6 +437,8 @@ internal sealed class WindowsTrayIcon : IDisposable
         public const uint NifMessage = 0x00000001;
         public const uint NifIcon = 0x00000002;
         public const uint NifTip = 0x00000004;
+        public const uint NifInfo = 0x00000010;
+        public const uint NiiFInfo = 0x00000001;
         public const uint NimAdd = 0x00000000;
         public const uint NimModify = 0x00000001;
         public const uint NimDelete = 0x00000002;

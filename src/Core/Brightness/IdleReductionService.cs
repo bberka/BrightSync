@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using BrightSync.Core.Config;
 using Microsoft.Win32;
 using Serilog;
@@ -7,10 +8,9 @@ namespace BrightSync.Core.Brightness;
 
 public sealed class IdleReductionService : IDisposable
 {
-    public event EventHandler? StateChanged;
+    private readonly ConfigManager _config;
 
     private readonly BrightSyncEngine _engine;
-    private readonly ConfigManager _config;
     private readonly Timer _timer;
     private bool _disposed;
 
@@ -20,6 +20,18 @@ public sealed class IdleReductionService : IDisposable
         _config = config;
         _timer = new Timer(_ => SafeEvaluate(), null, Timeout.Infinite, Timeout.Infinite);
     }
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _disposed = true;
+        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+        _timer.Dispose();
+    }
+
+    public event EventHandler? StateChanged;
 
     public void Start()
     {
@@ -63,11 +75,11 @@ public sealed class IdleReductionService : IDisposable
             RaiseStateChanged();
     }
 
-    private TimeSpan GetIdleDuration()
+    public TimeSpan GetIdleDuration()
     {
         var info = new LASTINPUTINFO
         {
-            cbSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf<LASTINPUTINFO>()
+            cbSize = (uint)Marshal.SizeOf<LASTINPUTINFO>()
         };
 
         if (!GetLastInputInfo(ref info))
@@ -106,20 +118,10 @@ public sealed class IdleReductionService : IDisposable
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public void Dispose()
-    {
-        if (_disposed)
-            return;
-
-        _disposed = true;
-        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
-        _timer.Dispose();
-    }
-
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [DllImport("user32.dll")]
     private static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
 
-    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Sequential)]
     private struct LASTINPUTINFO
     {
         public uint cbSize;

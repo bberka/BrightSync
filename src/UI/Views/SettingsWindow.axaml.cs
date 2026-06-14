@@ -42,12 +42,13 @@ public partial class SettingsWindow : Window
         BrightnessBoostService brightnessBoost,
         ConfigManager config,
         DdcCiService ddc,
-        UpdateChecker updateChecker)
+        UpdateChecker updateChecker,
+        SelfUpdateService selfUpdate)
     {
         InitializeComponent();
         Title = AppVersionInfo.GetDisplayTitle();
         _vm = new SettingsWindowViewModel(engine, autoBrightness, idleReduction, eyeProtection, brightnessBoost, config,
-            ddc, updateChecker);
+            ddc, updateChecker, selfUpdate);
         DataContext = _vm;
 
         _vm.AutoBrightnessCurveChanged += OnAutoBrightnessCurveChanged;
@@ -150,6 +151,16 @@ public partial class SettingsWindow : Window
     private void ExitOverlay_Confirm_Click(object sender, RoutedEventArgs e)
     {
         ExitRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void UpdateOverlay_Install_Click(object? sender, RoutedEventArgs e)
+    {
+        _vm.InstallUpdateCommand.Execute(null);
+    }
+
+    private void UpdateOverlay_Later_Click(object? sender, RoutedEventArgs e)
+    {
+        _vm.DismissUpdateCommand.Execute(null);
     }
 
     private void SidebarButton_Click(object sender, RoutedEventArgs e)

@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Net.Http;
 using System.Text.Json;
 using BrightSync.Core.Config;
 using Serilog;
@@ -10,7 +8,6 @@ namespace BrightSync.Core.Updates;
 public sealed class UpdateChecker : IDisposable
 {
     private const string LatestReleaseApiUrl = "https://api.github.com/repos/bberka/BrightSync/releases/latest";
-    private const string ReleasesPageUrl = "https://github.com/bberka/BrightSync/releases";
 
     private static readonly HttpClient HttpClient = CreateHttpClient();
 
@@ -25,7 +22,10 @@ public sealed class UpdateChecker : IDisposable
             {
                 try
                 {
-                    await CheckForUpdatesIfNeededAsync();
+                    if (_configManager.Config.AutoCheckUpdates)
+                        await CheckForUpdatesIfNeededAsync();
+                    else
+                        Log.Debug("Background update check skipped (AutoCheckUpdates disabled)");
                 }
                 catch (Exception e)
                 {
@@ -34,6 +34,16 @@ public sealed class UpdateChecker : IDisposable
             }, null, Timeout.InfiniteTimeSpan,
             Timeout.InfiniteTimeSpan);
     }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        Log.Debug("Disposing update checker");
+        _timer.Dispose();
+    }
+
+    public event EventHandler<UpdateCheckResult>? UpdateAvailable;
 
     public void Start()
     {
@@ -46,12 +56,52 @@ public sealed class UpdateChecker : IDisposable
         return await CheckForUpdatesIfNeededAsync(force);
     }
 
-    public void Dispose()
+    public async Task<GitHubRelease?> GetLatestReleaseInfoAsync()
     {
-        if (_disposed) return;
-        _disposed = true;
-        Log.Debug("Disposing update checker");
-        _timer.Dispose();
+        try
+        {
+            using var response = await HttpClient.GetAsync(LatestReleaseApiUrl);
+            response.EnsureSuccessStatusCode();
+
+            await using var stream = await response.Content.ReadAsStreamAsync();
+            using var document = await JsonDocument.ParseAsync(stream);
+
+            var root = document.RootElement;
+            if (!root.TryGetProperty("tag_name", out var tagProperty))
+                return null;
+
+            var tagName = tagProperty.GetString() ?? string.Empty;
+            var version = TryParseVersion(tagName);
+            if (version is null)
+                return null;
+
+            var downloadUrl = GetInstallerDownloadUrl(root);
+            return new GitHubRelease(tagName, version, downloadUrl);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to fetch latest release info");
+            return null;
+        }
+    }
+
+    private static string GetInstallerDownloadUrl(JsonElement root)
+    {
+        if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var asset in assets.EnumerateArray())
+            {
+                if (asset.TryGetProperty("name", out var nameProp) &&
+                    asset.TryGetProperty("browser_download_url", out var urlProp))
+                {
+                    var name = nameProp.GetString();
+                    if (name != null && name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                        return urlProp.GetString() ?? string.Empty;
+                }
+            }
+        }
+
+        return string.Empty;
     }
 
     private async Task<UpdateCheckResult> CheckForUpdatesIfNeededAsync(bool force = false)
@@ -82,8 +132,9 @@ public sealed class UpdateChecker : IDisposable
             {
                 Log.Information("New version available. CurrentVersion={CurrentVersion}, LatestVersion={LatestVersion}",
                     currentVersion, latestVersion);
-                OpenReleasesPage();
-                return UpdateCheckResult.UpdateAvailable(currentVersion, latestVersion);
+                var result = UpdateCheckResult.UpdateAvailable(currentVersion, latestVersion);
+                UpdateAvailable?.Invoke(this, result);
+                return result;
             }
 
             Log.Debug("No update required. CurrentVersion={CurrentVersion}, LatestVersion={LatestVersion}",
@@ -151,15 +202,6 @@ public sealed class UpdateChecker : IDisposable
         return Version.TryParse(normalized, out var version) ? version : null;
     }
 
-    private static void OpenReleasesPage()
-    {
-        Process.Start(new ProcessStartInfo
-        {
-            FileName = ReleasesPageUrl,
-            UseShellExecute = true
-        });
-    }
-
     private static HttpClient CreateHttpClient()
     {
         var client = new HttpClient();
@@ -168,6 +210,8 @@ public sealed class UpdateChecker : IDisposable
         return client;
     }
 }
+
+public sealed record GitHubRelease(string TagName, Version Version, string InstallerDownloadUrl);
 
 public sealed record UpdateCheckResult(
     UpdateCheckStatus Status,

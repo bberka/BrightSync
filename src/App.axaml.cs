@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using BrightSync.Cli;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
@@ -14,16 +15,17 @@ namespace BrightSync;
 
 public partial class App : Application
 {
-    private TrayManager? _trayManager;
-    private BrightSyncEngine? _syncEngine;
     private AutoBrightnessService? _autoBrightnessService;
-    private IdleReductionService? _idleReductionService;
-    private PowerSavingService? _powerSavingService;
-    private EyeProtectionService? _eyeProtectionService;
     private BrightnessBoostService? _brightnessBoostService;
     private DdcCiService? _ddcService;
-    private UpdateChecker? _updateChecker;
+    private EyeProtectionService? _eyeProtectionService;
+    private IdleReductionService? _idleReductionService;
+    private PowerSavingService? _powerSavingService;
     private ResidentCommandServer? _residentCommandServer;
+    private SelfUpdateService? _selfUpdateService;
+    private BrightSyncEngine? _syncEngine;
+    private TrayManager? _trayManager;
+    private UpdateChecker? _updateChecker;
 
     public override void Initialize()
     {
@@ -89,6 +91,20 @@ public partial class App : Application
             _updateChecker.Start();
             Log.Information("Update checker started");
 
+            _selfUpdateService = new SelfUpdateService(_updateChecker, _idleReductionService, configManager);
+            _selfUpdateService.UpdateDownloaded += (_, message) =>
+                Dispatcher.UIThread.Post(() => _trayManager?.ShowUpdateNotification(message));
+            _selfUpdateService.InstallStarted += (_, _) =>
+                Dispatcher.UIThread.Post(() => _trayManager?.ShowUpdateNotification("Installing update...",
+                    "BrightSync Update"));
+            _selfUpdateService.InstallCompleted += (_, _) =>
+                Dispatcher.UIThread.Post(() => _trayManager?.ShowUpdateNotification("Update installed",
+                    "BrightSync Update"));
+            _selfUpdateService.InstallFailed += (_, error) =>
+                Dispatcher.UIThread.Post(() => _trayManager?.ShowUpdateNotification(error, "Update Failed"));
+            _selfUpdateService.Start();
+            Log.Information("Self-update service started");
+
             // Initialize Tray Manager
             _trayManager = new TrayManager(
                 _syncEngine,
@@ -98,7 +114,8 @@ public partial class App : Application
                 _brightnessBoostService,
                 configManager,
                 _ddcService,
-                _updateChecker);
+                _updateChecker,
+                _selfUpdateService);
 
             _trayManager.ExitRequested += (_, _) => ExitApp();
             _trayManager.Initialize();
@@ -170,6 +187,7 @@ public partial class App : Application
         _eyeProtectionService?.Dispose();
         _brightnessBoostService?.Dispose();
         _residentCommandServer?.Dispose();
+        _selfUpdateService?.Dispose();
         _syncEngine?.Dispose();
         _trayManager?.Dispose();
         _ddcService?.Dispose();

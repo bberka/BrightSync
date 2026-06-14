@@ -23,7 +23,8 @@ public sealed class TrayManager(
     BrightnessBoostService brightnessBoost,
     ConfigManager config,
     DdcCiService ddc,
-    UpdateChecker updateChecker)
+    UpdateChecker updateChecker,
+    SelfUpdateService selfUpdate)
     : IDisposable
 {
     private bool _disposed;
@@ -129,7 +130,7 @@ public sealed class TrayManager(
             if (_settingsWindow == null)
             {
                 _settingsWindow = new SettingsWindow(engine, autoBrightness, idleReduction, eyeProtection,
-                    brightnessBoost, config, ddc, updateChecker);
+                    brightnessBoost, config, ddc, updateChecker, selfUpdate);
                 _settingsWindow.ExitRequested += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
                 _settingsWindow.Show();
             }
@@ -144,6 +145,12 @@ public sealed class TrayManager(
                 _settingsWindow.Activate();
             }
         });
+    }
+
+    public void ShowUpdateNotification(string message, string? title = null)
+    {
+        var titleText = title ?? "BrightSync Update";
+        _trayIcon?.ShowNotification(titleText, message);
     }
 
     private void ToggleQuickPopup()

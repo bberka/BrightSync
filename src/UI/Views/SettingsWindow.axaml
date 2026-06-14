@@ -17,6 +17,55 @@
         Topmost="True"
         Background="Transparent">
 
+    <Window.Styles>
+        <Style Selector="ComboBox.settings-combobox">
+            <Setter Property="Background" Value="#252525" />
+            <Setter Property="BorderBrush" Value="#353535" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="MinHeight" Value="30" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="ComboBox.settings-combobox:pointerover">
+            <Setter Property="BorderBrush" Value="#4a4a4a" />
+        </Style>
+        <Style Selector="ComboBox.settings-combobox:pointerover /template/ Border#Background">
+            <Setter Property="Background" Value="#2b2b2b" />
+            <Setter Property="BorderBrush" Value="#4a4a4a" />
+        </Style>
+        <Style Selector="ComboBox.settings-combobox:focus, ComboBox.settings-combobox:dropdownopen">
+            <Setter Property="BorderBrush" Value="#0078d4" />
+        </Style>
+        <Style
+            Selector="ComboBox.settings-combobox:focus /template/ Border#Background, ComboBox.settings-combobox:dropdownopen /template/ Border#Background">
+            <Setter Property="Background" Value="#252525" />
+            <Setter Property="BorderBrush" Value="#0078d4" />
+        </Style>
+        <Style Selector="ComboBox.settings-combobox ComboBoxItem">
+            <Setter Property="Background" Value="#1e1e1e" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
+        <Style Selector="ComboBox.settings-combobox ComboBoxItem:pointerover">
+            <Setter Property="Background" Value="#2d2d2d" />
+        </Style>
+        <Style Selector="ComboBox.settings-combobox ComboBoxItem:selected">
+            <Setter Property="Background" Value="#0078d4" />
+        </Style>
+        <Style Selector="ComboBox.settings-combobox Popup Border">
+            <Setter Property="Background" Value="#1e1e1e" />
+            <Setter Property="BorderBrush" Value="#353535" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+    </Window.Styles>
+
     <Border CornerRadius="8"
             Background="#1e1e1e"
             BorderBrush="#353535"
@@ -283,6 +332,59 @@
                                                       IsChecked="{Binding DisableMonitorAccessWhileLocked}"
                                                       OnContent="" OffContent="" VerticalAlignment="Center" />
                                     </Grid>
+
+                                    <Border Height="1" Background="#353535" />
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="Automatically check for updates" FontSize="13"
+                                                       Foreground="White" />
+                                            <TextBlock
+                                                Text="Check on startup, daily, and when your system goes idle"
+                                                FontSize="11" Foreground="#a0a0a0" />
+                                        </StackPanel>
+                                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoCheckUpdates}"
+                                                      OnContent="" OffContent="" VerticalAlignment="Center" />
+                                    </Grid>
+
+                                    <Border Height="1" Background="#353535" />
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="Automatically install updates" FontSize="13"
+                                                       Foreground="White" />
+                                            <TextBlock Text="Download and install in the background"
+                                                       FontSize="11" Foreground="#a0a0a0" />
+                                        </StackPanel>
+                                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoInstallUpdates}"
+                                                      OnContent="" OffContent="" VerticalAlignment="Center" />
+                                    </Grid>
+
+                                    <StackPanel Margin="16,4,0,0"
+                                                IsVisible="{Binding IsAutoInstallModeVisible}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="148" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Install mode" FontSize="13"
+                                                       Foreground="White" VerticalAlignment="Center" />
+                                            <ComboBox Grid.Column="1"
+                                                      Classes="settings-combobox"
+                                                      SelectedIndex="{Binding AutoInstallModeIndex}">
+                                                <ComboBoxItem Content="When idle" />
+                                                <ComboBoxItem Content="Instantly" />
+                                            </ComboBox>
+                                        </Grid>
+                                    </StackPanel>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -985,6 +1087,46 @@
                                     Margin="0,0,6,0" />
                             <Button Grid.Column="2" Content="Exit" Click="ExitOverlay_Confirm_Click"
                                     Background="#d13438" Foreground="White" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </Border>
+
+            <!-- Update confirmation overlay -->
+            <Border x:Name="UpdateOverlay"
+                    Grid.Row="0" Grid.RowSpan="3"
+                    Background="#80000000"
+                    IsVisible="{Binding IsUpdateDialogVisible}">
+                <Border Background="#1e1e1e"
+                        BorderBrush="#353535"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="24,20"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        MinWidth="320"
+                        MaxWidth="360">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Update Available"
+                                   FontSize="16" FontWeight="SemiBold" Foreground="White" />
+                        <TextBlock Text="{Binding UpdateStatusText}"
+                                   FontSize="13" Foreground="#a0a0a0" TextWrapping="Wrap" />
+                        <ProgressBar Value="{Binding UpdateDownloadProgress}"
+                                     Minimum="0" Maximum="100"
+                                     IsVisible="{Binding IsUpdateDownloading}"
+                                     Height="4" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="1" Content="Later"
+                                    Click="UpdateOverlay_Later_Click"
+                                    Margin="0,0,8,0" />
+                            <Button Grid.Column="2" Content="Install Now"
+                                    Click="UpdateOverlay_Install_Click"
+                                    IsEnabled="{Binding !IsUpdateDownloading}" />
                         </Grid>
                     </StackPanel>
                 </Border>

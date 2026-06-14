@@ -32,7 +32,11 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     private readonly BrightSyncEngine _engine;
     private readonly EyeProtectionService _eyeProtection;
     private readonly IdleReductionService _idleReduction;
+    private readonly SelfUpdateService _selfUpdate;
     private readonly UpdateChecker _updateChecker;
+    private bool _autoCheckUpdates;
+    private AutoInstallMode _autoInstallMode;
+    private bool _autoInstallUpdates;
     private Timer? _autoSaveDebounce;
 
     private int _brightnessBoostDefaultDurationHours;
@@ -70,6 +74,8 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     private int _internalBrightness;
     private bool _isCheckingForUpdates;
+    private bool _isUpdateDialogVisible;
+    private bool _isUpdateDownloading;
     private bool _isUpdatingInternalBrightness;
 
     private SettingsSection _selectedSection = SettingsSection.General;
@@ -77,6 +83,8 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     private bool _startWithWindows;
     private Timer? _statusTimer;
     private bool _suspendAutoSave;
+    private int _updateDownloadProgress;
+    private string _updateStatusText = string.Empty;
 
     private bool _useLegacyDdcCiDetection;
 
@@ -88,7 +96,8 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         BrightnessBoostService brightnessBoost,
         ConfigManager config,
         DdcCiService ddc,
-        UpdateChecker updateChecker)
+        UpdateChecker updateChecker,
+        SelfUpdateService selfUpdate)
     {
         _engine = engine;
         _autoBrightness = autoBrightness;
@@ -98,6 +107,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _config = config;
         _ddc = ddc;
         _updateChecker = updateChecker;
+        _selfUpdate = selfUpdate;
 
         var initial = engine.MasterBrightness;
         _internalBrightness = initial >= 0 ? initial : 50;
@@ -119,11 +129,16 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _idleReductionToMinimum = config.Config.IdleReductionToMinimum;
         _idleReductionPercent = Math.Clamp(config.Config.IdleReductionPercent, 10, 100);
         _idleIgnoreMediaPlayback = config.Config.IdleIgnoreMediaPlayback;
+        _autoCheckUpdates = config.Config.AutoCheckUpdates;
+        _autoInstallUpdates = config.Config.AutoInstallUpdates;
+        _autoInstallMode = config.Config.AutoInstallMode;
 
         RefreshCommand = new RelayCommand(Refresh);
         ResetAllCommand = new RelayCommand(ResetAll);
         ResetCurveCommand = new RelayCommand(ResetCurve);
         CheckForUpdatesCommand = new RelayCommand(CheckForUpdates, () => !_isCheckingForUpdates);
+        InstallUpdateCommand = new RelayCommand(InstallUpdate);
+        DismissUpdateCommand = new RelayCommand(DismissUpdate);
 
         engine.MasterBrightnessChanged += OnInternalBrightnessChanged;
         engine.TargetsChanged += OnTargetsChanged;
@@ -625,6 +640,106 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     public ICommand ResetAllCommand { get; }
     public ICommand ResetCurveCommand { get; }
     public RelayCommand CheckForUpdatesCommand { get; }
+    public RelayCommand InstallUpdateCommand { get; }
+    public RelayCommand DismissUpdateCommand { get; }
+
+    public bool AutoCheckUpdates
+    {
+        get => _autoCheckUpdates;
+        set
+        {
+            if (_autoCheckUpdates == value)
+                return;
+
+            _autoCheckUpdates = value;
+            _config.Config.AutoCheckUpdates = value;
+            OnChanged();
+            RequestAutoSave();
+        }
+    }
+
+    public bool AutoInstallUpdates
+    {
+        get => _autoInstallUpdates;
+        set
+        {
+            if (_autoInstallUpdates == value)
+                return;
+
+            _autoInstallUpdates = value;
+            _config.Config.AutoInstallUpdates = value;
+            OnChanged();
+            OnChanged(nameof(IsAutoInstallModeVisible));
+            RequestAutoSave();
+        }
+    }
+
+    public bool IsAutoInstallModeVisible => _autoInstallUpdates;
+
+    public AutoInstallMode AutoInstallMode
+    {
+        get => _autoInstallMode;
+        set
+        {
+            if (_autoInstallMode == value)
+                return;
+
+            _autoInstallMode = value;
+            _config.Config.AutoInstallMode = value;
+            OnChanged();
+            OnChanged(nameof(AutoInstallModeIndex));
+            RequestAutoSave();
+        }
+    }
+
+    public int AutoInstallModeIndex
+    {
+        get => _autoInstallMode == AutoInstallMode.WhenIdle ? 0 : 1;
+        set { AutoInstallMode = value == 0 ? AutoInstallMode.WhenIdle : AutoInstallMode.Instantly; }
+    }
+
+    public bool IsUpdateDialogVisible
+    {
+        get => _isUpdateDialogVisible;
+        set
+        {
+            if (_isUpdateDialogVisible == value)
+                return;
+
+            _isUpdateDialogVisible = value;
+            OnChanged();
+        }
+    }
+
+    public bool IsUpdateDownloading
+    {
+        get => _isUpdateDownloading;
+        set
+        {
+            _isUpdateDownloading = value;
+            OnChanged();
+        }
+    }
+
+    public int UpdateDownloadProgress
+    {
+        get => _updateDownloadProgress;
+        set
+        {
+            _updateDownloadProgress = value;
+            OnChanged();
+        }
+    }
+
+    public string UpdateStatusText
+    {
+        get => _updateStatusText;
+        set
+        {
+            _updateStatusText = value;
+            OnChanged();
+        }
+    }
 
     public string StatusText { get; private set; } = string.Empty;
     public bool HasStatusText => !string.IsNullOrWhiteSpace(StatusText);
@@ -822,6 +937,9 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             BrightnessBoostDefaultDurationHours = 1;
             StartWithWindows = false;
             UseLegacyDdcCiDetection = false;
+            AutoCheckUpdates = true;
+            AutoInstallUpdates = true;
+            AutoInstallMode = AutoInstallMode.WhenIdle;
 
             foreach (var monitor in Monitors)
                 monitor.Reset();
@@ -843,6 +961,10 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         OnChanged(nameof(EyeProtectionStatusText));
         OnChanged(nameof(BrightnessBoostEnabled));
         OnChanged(nameof(BrightnessBoostStatusText));
+        OnChanged(nameof(AutoCheckUpdates));
+        OnChanged(nameof(AutoInstallUpdates));
+        OnChanged(nameof(IsAutoInstallModeVisible));
+        OnChanged(nameof(AutoInstallModeIndex));
         AutoBrightnessCurveChanged?.Invoke(this, EventArgs.Empty);
         SaveCore("Reset all settings to defaults and saved.",
             "All settings were reset to defaults and auto-saved from the UI");
@@ -954,7 +1076,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             monitor.RefreshTargetText();
     }
 
-    private void CheckForUpdates()
+    private async void CheckForUpdates()
     {
         if (_isCheckingForUpdates)
             return;
@@ -963,16 +1085,81 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         CheckForUpdatesCommand.Raise();
         SetStatus("Checking for updates...");
 
-        Task.Run(async () =>
+        try
         {
-            var result = await _updateChecker.CheckNowAsync(force: true);
+            var result = await _selfUpdate.CheckForUpdateAsync();
             Dispatcher.UIThread.Invoke(() =>
             {
                 _isCheckingForUpdates = false;
                 CheckForUpdatesCommand.Raise();
-                SetStatus(BuildUpdateStatusText(result));
+                if (result.Status == UpdateCheckStatus.UpdateAvailable)
+                {
+                    UpdateStatusText =
+                        $"BrightSync v{result.LatestVersion} is available (current: v{result.CurrentVersion}).";
+                    IsUpdateDialogVisible = true;
+                }
+                else
+                {
+                    SetStatus(BuildUpdateStatusText(result));
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            Dispatcher.UIThread.Invoke(() =>
+            {
+                _isCheckingForUpdates = false;
+                CheckForUpdatesCommand.Raise();
+                SetStatus($"Update check failed: {ex.Message}");
+            });
+        }
+    }
+
+    private async void InstallUpdate()
+    {
+        if (_isUpdateDownloading)
+            return;
+
+        _isUpdateDownloading = true;
+        IsUpdateDownloading = true;
+        UpdateStatusText = "Downloading update...";
+        UpdateDownloadProgress = 0;
+
+        var progress = new Progress<int>(p =>
+        {
+            Dispatcher.UIThread.Invoke(() =>
+            {
+                UpdateDownloadProgress = p;
+                UpdateStatusText = $"Downloading update... {p}%";
             });
         });
+
+        try
+        {
+            var release = await _updateChecker.GetLatestReleaseInfoAsync();
+            if (release == null)
+            {
+                UpdateStatusText = "Failed to fetch release info.";
+                return;
+            }
+
+            await _selfUpdate.DownloadAndInstallAsync(release, progress);
+        }
+        catch (Exception ex)
+        {
+            UpdateStatusText = $"Download failed: {ex.Message}";
+            Log.Error(ex, "Manual update install failed");
+        }
+        finally
+        {
+            _isUpdateDownloading = false;
+            IsUpdateDownloading = false;
+        }
+    }
+
+    private void DismissUpdate()
+    {
+        IsUpdateDialogVisible = false;
     }
 
     private static string BuildUpdateStatusText(UpdateCheckResult result)
@@ -980,7 +1167,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         return result.Status switch
         {
             UpdateCheckStatus.UpdateAvailable =>
-                $"Update available: v{result.LatestVersion} (current v{result.CurrentVersion}). Opening releases page.",
+                $"Update available: v{result.LatestVersion} (current v{result.CurrentVersion}).",
             UpdateCheckStatus.UpToDate =>
                 result.CurrentVersion is null
                     ? "You are up to date."

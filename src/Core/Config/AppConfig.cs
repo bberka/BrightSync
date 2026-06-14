@@ -73,4 +73,19 @@ public sealed class AppConfig
 
     /// <summary>The last local calendar date when BrightSync checked for updates.</summary>
     public DateOnly? LastUpdateCheckDate { get; set; }
+
+    /// <summary>Whether to run background update checks on startup, daily, and when idle.</summary>
+    public bool AutoCheckUpdates { get; set; } = true;
+
+    /// <summary>Whether to automatically download and install updates without user interaction.</summary>
+    public bool AutoInstallUpdates { get; set; } = true;
+
+    /// <summary>When auto-install should trigger the setup executable.</summary>
+    public AutoInstallMode AutoInstallMode { get; set; } = AutoInstallMode.WhenIdle;
+}
+
+public enum AutoInstallMode
+{
+    WhenIdle,
+    Instantly
 }
