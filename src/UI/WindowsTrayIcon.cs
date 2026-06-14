@@ -1,12 +1,14 @@
-using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
-using System.Threading;
 using Microsoft.Win32;
 using Serilog;
 
 namespace BrightSync.UI;
 
+/// <summary>
+/// There is some bug with native menu tray icon with recommended avalonia UI however it is path dependant somehow and does not work properly when published into a different location. So we had to use default WinAPI.
+/// If you wish to later refactor this and dump usage of this class. Ensure that it is nativeaot safe and after publishing the application move the publish files to another location like C ProgramFiles and run the app to check if tray icon is still showed.
+/// </summary>
 internal sealed class WindowsTrayIcon : IDisposable
 {
     private const int IconId = 1;
@@ -24,19 +26,45 @@ internal sealed class WindowsTrayIcon : IDisposable
 
     private readonly string _windowClassName = $"BrightSyncTrayWindow-{Guid.NewGuid():N}";
     private readonly NativeMethods.WndProc _wndProc;
-
-    private IntPtr _windowHandle;
-    private IntPtr _moduleHandle;
+    private bool _brightnessBoostEnabled;
+    private bool _eyeProtectionEnabled;
     private IntPtr _iconHandle;
+    private DateTime _lastClickRaisedAt = DateTime.MinValue;
+    private IntPtr _moduleHandle;
     private bool _ownsIconHandle;
     private bool _registered;
-    private bool _eyeProtectionEnabled;
-    private bool _brightnessBoostEnabled;
-    private DateTime _lastClickRaisedAt = DateTime.MinValue;
+
+    private IntPtr _windowHandle;
 
     public WindowsTrayIcon()
     {
         _wndProc = WindowProc;
+    }
+
+    public void Dispose()
+    {
+        if (_registered)
+        {
+            var data = CreateNotifyIconData(string.Empty);
+            if (!NativeMethods.Shell_NotifyIcon(NativeMethods.NimDelete, ref data))
+                Log.Warning("Shell_NotifyIcon(NIM_DELETE) failed. LastWin32Error={LastWin32Error}",
+                    Marshal.GetLastWin32Error());
+            _registered = false;
+        }
+
+        if (_iconHandle != IntPtr.Zero && _ownsIconHandle)
+        {
+            NativeMethods.DestroyIcon(_iconHandle);
+            _iconHandle = IntPtr.Zero;
+        }
+
+        if (_windowHandle != IntPtr.Zero)
+        {
+            NativeMethods.DestroyWindow(_windowHandle);
+            _windowHandle = IntPtr.Zero;
+        }
+
+        NativeMethods.UnregisterClass(_windowClassName, _moduleHandle);
     }
 
     public event EventHandler? Clicked;
@@ -375,32 +403,6 @@ internal sealed class WindowsTrayIcon : IDisposable
             BrightnessBoostPresetRequested?.Invoke(this, PresetHours[command - CommandBoostPresetBase]);
     }
 
-    public void Dispose()
-    {
-        if (_registered)
-        {
-            var data = CreateNotifyIconData(string.Empty);
-            if (!NativeMethods.Shell_NotifyIcon(NativeMethods.NimDelete, ref data))
-                Log.Warning("Shell_NotifyIcon(NIM_DELETE) failed. LastWin32Error={LastWin32Error}",
-                    Marshal.GetLastWin32Error());
-            _registered = false;
-        }
-
-        if (_iconHandle != IntPtr.Zero && _ownsIconHandle)
-        {
-            NativeMethods.DestroyIcon(_iconHandle);
-            _iconHandle = IntPtr.Zero;
-        }
-
-        if (_windowHandle != IntPtr.Zero)
-        {
-            NativeMethods.DestroyWindow(_windowHandle);
-            _windowHandle = IntPtr.Zero;
-        }
-
-        NativeMethods.UnregisterClass(_windowClassName, _moduleHandle);
-    }
-
     private static void ThrowLastWin32Error(string message)
     {
         throw new Win32Exception(Marshal.GetLastWin32Error(), message);
@@ -408,6 +410,8 @@ internal sealed class WindowsTrayIcon : IDisposable
 
     private static partial class NativeMethods
     {
+        public delegate IntPtr WndProc(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
+
         public const int WmApp = 0x8000;
         public const int WmLButtonUp = 0x0202;
         public const int WmRButtonUp = 0x0205;
@@ -433,55 +437,6 @@ internal sealed class WindowsTrayIcon : IDisposable
         public const uint TpmReturNcmd = 0x00000100;
 
         public const int IdiApplication = 32512;
-
-        public delegate IntPtr WndProc(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
-
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        public struct WndClassEx
-        {
-            public int cbSize;
-            public uint style;
-            public WndProc lpfnWndProc;
-            public int cbClsExtra;
-            public int cbWndExtra;
-            public IntPtr hInstance;
-            public IntPtr hIcon;
-            public IntPtr hCursor;
-            public IntPtr hbrBackground;
-            public string? lpszMenuName;
-            public string lpszClassName;
-            public IntPtr hIconSm;
-        }
-
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        public struct NotifyIconData
-        {
-            public int cbSize;
-            public IntPtr hWnd;
-            public int uID;
-            public uint uFlags;
-            public int uCallbackMessage;
-            public IntPtr hIcon;
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 128, ArraySubType = UnmanagedType.U2)]
-            public char[] szTip;
-            public uint dwState;
-            public uint dwStateMask;
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 256, ArraySubType = UnmanagedType.U2)]
-            public char[] szInfo;
-            public uint uVersion;
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 64, ArraySubType = UnmanagedType.U2)]
-            public char[] szInfoTitle;
-            public uint dwInfoFlags;
-            public Guid guidItem;
-            public IntPtr hBalloonIcon;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct Point
-        {
-            public int X;
-            public int Y;
-        }
 
         [DllImport("user32.dll", EntryPoint = "RegisterClassExW", SetLastError = true, CharSet = CharSet.Unicode)]
         public static extern ushort RegisterClassEx(ref WndClassEx lpwcx);
@@ -561,5 +516,58 @@ internal sealed class WindowsTrayIcon : IDisposable
             int y,
             IntPtr hWnd,
             IntPtr lptpm);
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        public struct WndClassEx
+        {
+            public int cbSize;
+            public uint style;
+            public WndProc lpfnWndProc;
+            public int cbClsExtra;
+            public int cbWndExtra;
+            public IntPtr hInstance;
+            public IntPtr hIcon;
+            public IntPtr hCursor;
+            public IntPtr hbrBackground;
+            public string? lpszMenuName;
+            public string lpszClassName;
+            public IntPtr hIconSm;
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        public struct NotifyIconData
+        {
+            public int cbSize;
+            public IntPtr hWnd;
+            public int uID;
+            public uint uFlags;
+            public int uCallbackMessage;
+            public IntPtr hIcon;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 128, ArraySubType = UnmanagedType.U2)]
+            public char[] szTip;
+
+            public uint dwState;
+            public uint dwStateMask;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 256, ArraySubType = UnmanagedType.U2)]
+            public char[] szInfo;
+
+            public uint uVersion;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 64, ArraySubType = UnmanagedType.U2)]
+            public char[] szInfoTitle;
+
+            public uint dwInfoFlags;
+            public Guid guidItem;
+            public IntPtr hBalloonIcon;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct Point
+        {
+            public int X;
+            public int Y;
+        }
     }
 }
