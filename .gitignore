@@ -18,6 +18,3 @@ packages/
 Thumbs.db
 desktop.ini
 .DS_Store
-
-# Agent orchestration working files (plans, notepads, drafts)
-.omo/

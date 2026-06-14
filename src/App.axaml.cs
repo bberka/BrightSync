@@ -32,6 +32,7 @@ public partial class App : Application
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
+        DataContext = this;
     }
 
     public override void OnFrameworkInitializationCompleted()
@@ -95,10 +96,7 @@ public partial class App : Application
             Log.Information("Update checker started");
 
             // Initialize Tray Manager
-            var trayIcon = TrayIcon.GetIcons(this)?.OfType<TrayIcon>().FirstOrDefault()
-                ?? throw new InvalidOperationException("Tray icon was not declared in App.axaml");
             _trayManager = new TrayManager(
-                trayIcon,
                 _syncEngine,
                 _autoBrightnessService,
                 _idleReductionService,
@@ -109,7 +107,7 @@ public partial class App : Application
                 _updateChecker);
 
             _trayManager.ExitRequested += (_, _) => ExitApp();
-            DataContext = _trayManager.ViewModel;
+            _trayManager.Initialize();
             Log.Information("Tray manager initialized");
 
             // Open settings on manual launch; stay hidden on auto-start
