@@ -1,10 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.ComponentModel;
 using Avalonia;
+using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using BrightSync.Core;
@@ -20,8 +20,9 @@ public partial class SettingsWindow : Window
 {
     private const double ScreenEdgeMargin = 12;
     private const double SettingsWindowPreferredHeight = 770;
+    private readonly List<StackPanel> _sectionPanels = new();
 
-    public event EventHandler? ExitRequested;
+    private readonly List<Button> _sidebarButtons = new();
 
     private readonly SettingsWindowViewModel _vm;
     private int _draggingCurvePointIndex = -1;
@@ -50,22 +51,29 @@ public partial class SettingsWindow : Window
         DataContext = _vm;
 
         _vm.AutoBrightnessCurveChanged += OnAutoBrightnessCurveChanged;
-        SettingsActionBar.SizeChanged += (_, _) => UpdateFooterScrollSpacer();
+        _vm.PropertyChanged += OnViewModelPropertyChanged;
+
+        _sidebarButtons.AddRange([
+            SidebarGeneralBtn, SidebarBrightnessBtn, SidebarAutoBtn, SidebarSavingBtn,
+            SidebarModesBtn, SidebarMonitorsBtn, SidebarAboutBtn
+        ]);
+        _sectionPanels.AddRange([
+            GeneralPanel, BrightnessPanel, AutoPanel, SavingPanel, ModesPanel, MonitorsPanel,
+            AboutPanel
+        ]);
+
+        UpdateSidebarActiveState();
 
         Opened += (_, _) =>
         {
             PositionBottomRight();
-            UpdateFooterScrollSpacer();
             RenderAutoBrightnessCurve();
         };
 
         SizeChanged += (_, _) =>
         {
             if (IsVisible)
-            {
                 PositionBottomRight();
-                UpdateFooterScrollSpacer();
-            }
         };
 
         Closing += (s, e) =>
@@ -74,6 +82,8 @@ public partial class SettingsWindow : Window
             Hide();
         };
     }
+
+    public event EventHandler? ExitRequested;
 
     public void PositionBottomRight()
     {
@@ -109,15 +119,6 @@ public partial class SettingsWindow : Window
         Height = Math.Clamp(availableHeight, minimumHeight, SettingsWindowPreferredHeight);
     }
 
-    private void UpdateFooterScrollSpacer()
-    {
-        var footerHeight = SettingsActionBar.Bounds.Height;
-        if (footerHeight <= 0)
-            return;
-
-        FooterScrollSpacer.Height = Math.Ceiling(footerHeight) + 8;
-    }
-
     public void RefreshMonitors(string? statusText = null)
     {
         _vm.RefreshMonitorList(
@@ -131,24 +132,60 @@ public partial class SettingsWindow : Window
         BeginMoveDrag(e);
     }
 
-    private void MinimizeToTray_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private void MinimizeToTray_Click(object sender, RoutedEventArgs e)
     {
         Hide();
     }
 
-    private void Exit_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private void Exit_Click(object sender, RoutedEventArgs e)
     {
         ExitOverlay.IsVisible = true;
     }
 
-    private void ExitOverlay_Cancel_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private void ExitOverlay_Cancel_Click(object sender, RoutedEventArgs e)
     {
         ExitOverlay.IsVisible = false;
     }
 
-    private void ExitOverlay_Confirm_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private void ExitOverlay_Confirm_Click(object sender, RoutedEventArgs e)
     {
         ExitRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void SidebarButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.Tag is not string tag)
+            return;
+
+        if (Enum.TryParse<SettingsSection>(tag, out var section))
+            _vm.SelectedSection = section;
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SettingsWindowViewModel.SelectedSection))
+            UpdateSidebarActiveState();
+    }
+
+    private void UpdateSidebarActiveState()
+    {
+        var sections = Enum.GetValues<SettingsSection>();
+        for (var i = 0; i < sections.Length && i < _sidebarButtons.Count && i < _sectionPanels.Count; i++)
+        {
+            var isActive = sections[i] == _vm.SelectedSection;
+            _sidebarButtons[i].Background = isActive
+                ? new SolidColorBrush(Color.FromArgb(30, 0, 120, 212))
+                : Brushes.Transparent;
+            _sidebarButtons[i].Foreground = isActive
+                ? SolidColorBrush.Parse("#0078d4")
+                : Brushes.White;
+            _sectionPanels[i].IsVisible = isActive;
+        }
+
+        if (_vm.SelectedSection == SettingsSection.Auto)
+        {
+            Dispatcher.UIThread.InvokeAsync(RenderAutoBrightnessCurve, DispatcherPriority.Background);
+        }
     }
 
     private void MonitorHeader_PointerPressed(object sender, PointerPressedEventArgs e)
@@ -160,6 +197,7 @@ public partial class SettingsWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         _vm.AutoBrightnessCurveChanged -= OnAutoBrightnessCurveChanged;
+        _vm.PropertyChanged -= OnViewModelPropertyChanged;
         _vm.Dispose();
         base.OnClosed(e);
     }
@@ -167,11 +205,6 @@ public partial class SettingsWindow : Window
     private void OnAutoBrightnessCurveChanged(object? sender, EventArgs e)
     {
         Dispatcher.UIThread.InvokeAsync(RenderAutoBrightnessCurve);
-    }
-
-    private void AutoBrightnessCurveCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        RenderAutoBrightnessCurve();
     }
 
     private void AutoBrightnessCurveCanvas_PointerMoved(object? sender, PointerEventArgs e)
@@ -190,7 +223,6 @@ public partial class SettingsWindow : Window
         if (_draggingCurvePointIndex < 0)
             return;
 
-        // Finalize setting updates and trigger autosave now that drag is finished
         var point = _vm.AutoBrightnessCurvePoints[_draggingCurvePointIndex];
         _vm.UpdateAutoBrightnessPoint(_draggingCurvePointIndex, point.Brightness, isDragging: false);
 
@@ -246,7 +278,7 @@ public partial class SettingsWindow : Window
         }
 
         // Draw polyline curve
-        var curvePoints = new Avalonia.Collections.AvaloniaList<Point>();
+        var curvePoints = new AvaloniaList<Point>();
         const int samples = 240;
         for (var sample = 0; sample <= samples; sample++)
         {
@@ -275,7 +307,7 @@ public partial class SettingsWindow : Window
             EndPoint = new Point(MinuteToCanvasX(nowMinute, width), height),
             Stroke = SolidColorBrush.Parse("#0078d4"),
             StrokeThickness = 1,
-            StrokeDashArray = new Avalonia.Collections.AvaloniaList<double> { 4, 3 },
+            StrokeDashArray = new AvaloniaList<double> { 4, 3 },
             Opacity = 0.6
         };
         AutoBrightnessCurveCanvas.Children.Add(nowLine);
@@ -331,7 +363,8 @@ public partial class SettingsWindow : Window
 
         _dragValueBadge.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         var desired = _dragValueBadge.DesiredSize;
-        var left = Math.Clamp(x + 10, 0, Math.Max(0, AutoBrightnessCurveCanvas.Bounds.Width - desired.Width));
+        var left = Math.Clamp(x + 10, 0,
+            Math.Max(0, AutoBrightnessCurveCanvas.Bounds.Width - desired.Width));
         var top = Math.Clamp(y - desired.Height - 10, 0,
             Math.Max(0, AutoBrightnessCurveCanvas.Bounds.Height - desired.Height));
         Canvas.SetLeft(_dragValueBadge, left);

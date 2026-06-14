@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using Avalonia.Threading;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;
@@ -10,30 +11,131 @@ using Serilog;
 
 namespace BrightSync.UI.ViewModels;
 
+public enum SettingsSection
+{
+    General,
+    Brightness,
+    Auto,
+    Saving,
+    Modes,
+    Monitors,
+    About
+}
+
 public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposable
 {
-    public event PropertyChangedEventHandler? PropertyChanged;
-    public event EventHandler? AutoBrightnessCurveChanged;
-
-    private readonly BrightSyncEngine _engine;
     private readonly AutoBrightnessService _autoBrightness;
-    private readonly IdleReductionService _idleReduction;
-    private readonly EyeProtectionService _eyeProtection;
     private readonly BrightnessBoostService _brightnessBoost;
     private readonly ConfigManager _config;
     private readonly DdcCiService _ddc;
+
+    private readonly BrightSyncEngine _engine;
+    private readonly EyeProtectionService _eyeProtection;
+    private readonly IdleReductionService _idleReduction;
     private readonly UpdateChecker _updateChecker;
-    private bool _isUpdatingInternalBrightness;
+    private Timer? _autoSaveDebounce;
+
+    private int _brightnessBoostDefaultDurationHours;
+
+    private bool _brightnessBoostEnabled;
+
+    private int _brightnessBoostPercent;
+    private Timer? _brightnessDebounce;
+
+    private bool _disableMonitorAccessWhileLocked;
+
+    private bool _energySaverReductionEnabled;
+
+    private int _energySaverReductionPercent;
+
+    private bool _enforcementEnabled;
+
+    private int _enforcementInterval;
+
+    private int _eyeProtectionDefaultDurationHours;
+
+    private bool _eyeProtectionEnabled;
+
+    private int _eyeProtectionReductionPercent;
+
+    private bool _idleIgnoreMediaPlayback;
+
+    private bool _idleReductionEnabled;
+
+    private int _idleReductionPercent;
+
+    private bool _idleReductionToMinimum;
+
+    private int _idleTimeoutMinutes;
+
+    private int _internalBrightness;
     private bool _isCheckingForUpdates;
+    private bool _isUpdatingInternalBrightness;
+
+    private SettingsSection _selectedSection = SettingsSection.General;
+
+    private bool _startWithWindows;
+    private Timer? _statusTimer;
     private bool _suspendAutoSave;
-    private System.Threading.Timer? _statusTimer;
-    private System.Threading.Timer? _brightnessDebounce;
-    private System.Threading.Timer? _autoSaveDebounce;
+
+    private bool _useLegacyDdcCiDetection;
+
+    public SettingsWindowViewModel(
+        BrightSyncEngine engine,
+        AutoBrightnessService autoBrightness,
+        IdleReductionService idleReduction,
+        EyeProtectionService eyeProtection,
+        BrightnessBoostService brightnessBoost,
+        ConfigManager config,
+        DdcCiService ddc,
+        UpdateChecker updateChecker)
+    {
+        _engine = engine;
+        _autoBrightness = autoBrightness;
+        _idleReduction = idleReduction;
+        _eyeProtection = eyeProtection;
+        _brightnessBoost = brightnessBoost;
+        _config = config;
+        _ddc = ddc;
+        _updateChecker = updateChecker;
+
+        var initial = engine.MasterBrightness;
+        _internalBrightness = initial >= 0 ? initial : 50;
+        _enforcementInterval = config.Config.EnforcementIntervalSeconds;
+        _enforcementEnabled = config.Config.EnforcementEnabled;
+        _startWithWindows = config.Config.StartWithWindows;
+        _useLegacyDdcCiDetection = config.Config.UseLegacyDdcCiDetection;
+        _energySaverReductionEnabled = config.Config.EnergySaverReductionEnabled;
+        _energySaverReductionPercent = Math.Clamp(config.Config.EnergySaverReductionPercent, 5, 50);
+        _eyeProtectionEnabled = config.Config.EyeProtectionEnabled;
+        _eyeProtectionReductionPercent = Math.Clamp(config.Config.EyeProtectionReductionPercent, 5, 80);
+        _eyeProtectionDefaultDurationHours = Math.Clamp(config.Config.EyeProtectionDefaultDurationHours, 1, 24);
+        _brightnessBoostEnabled = config.Config.BrightnessBoostEnabled;
+        _brightnessBoostPercent = Math.Clamp(config.Config.BrightnessBoostPercent, 5, 100);
+        _brightnessBoostDefaultDurationHours = Math.Clamp(config.Config.BrightnessBoostDefaultDurationHours, 1, 24);
+        _disableMonitorAccessWhileLocked = config.Config.DisableMonitorAccessWhileLocked;
+        _idleReductionEnabled = config.Config.IdleReductionEnabled;
+        _idleTimeoutMinutes = Math.Clamp(config.Config.IdleTimeoutMinutes, 1, 120);
+        _idleReductionToMinimum = config.Config.IdleReductionToMinimum;
+        _idleReductionPercent = Math.Clamp(config.Config.IdleReductionPercent, 10, 100);
+        _idleIgnoreMediaPlayback = config.Config.IdleIgnoreMediaPlayback;
+
+        RefreshCommand = new RelayCommand(Refresh);
+        ResetAllCommand = new RelayCommand(ResetAll);
+        ResetCurveCommand = new RelayCommand(ResetCurve);
+        CheckForUpdatesCommand = new RelayCommand(CheckForUpdates, () => !_isCheckingForUpdates);
+
+        engine.MasterBrightnessChanged += OnInternalBrightnessChanged;
+        engine.TargetsChanged += OnTargetsChanged;
+        autoBrightness.StateChanged += OnAutoBrightnessChanged;
+        idleReduction.StateChanged += OnIdleReductionChanged;
+        eyeProtection.StateChanged += OnEyeProtectionChanged;
+        brightnessBoost.StateChanged += OnBrightnessBoostChanged;
+        BuildMonitorList();
+    }
 
     public ObservableCollection<MonitorRowViewModel> Monitors { get; } = new();
     public bool HasMonitors => Monitors.Count > 0;
-
-    private int _internalBrightness;
 
     public int InternalBrightness
     {
@@ -50,19 +152,19 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             if (_isUpdatingInternalBrightness || AutoBrightnessEnabled) return;
 
             _brightnessDebounce?.Dispose();
-            _brightnessDebounce = new System.Threading.Timer(_ =>
+            _brightnessDebounce = new Timer(_ =>
             {
                 Log.Debug("Settings window requested internal brightness change to {Brightness}%", _internalBrightness);
                 if (!_engine.TrySetUserBrightness(_internalBrightness))
                 {
-                    Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
+                    Dispatcher.UIThread.Invoke(() =>
                     {
                         SetStatus(AutoBrightnessEnabled
                             ? "Automatic brightness is controlling the slider."
                             : "Using as virtual reference for external monitors.");
                     });
                 }
-            }, null, 300, System.Threading.Timeout.Infinite);
+            }, null, 300, Timeout.Infinite);
         }
     }
 
@@ -145,8 +247,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         }
     }
 
-    private int _enforcementInterval;
-
     public int EnforcementIntervalSeconds
     {
         get => _enforcementInterval;
@@ -161,8 +261,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             RequestAutoSave(debounce: true);
         }
     }
-
-    private bool _enforcementEnabled;
 
     public bool EnforcementEnabled
     {
@@ -179,8 +277,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         }
     }
 
-    private bool _startWithWindows;
-
     public bool StartWithWindows
     {
         get => _startWithWindows;
@@ -195,8 +291,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             RequestAutoSave();
         }
     }
-
-    private bool _useLegacyDdcCiDetection;
 
     public bool UseLegacyDdcCiDetection
     {
@@ -215,8 +309,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         }
     }
 
-    private bool _energySaverReductionEnabled;
-
     public bool EnergySaverReductionEnabled
     {
         get => _energySaverReductionEnabled;
@@ -232,8 +324,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             RequestAutoSave();
         }
     }
-
-    private int _energySaverReductionPercent;
 
     public int EnergySaverReductionPercent
     {
@@ -265,8 +355,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         }
     }
 
-    private bool _eyeProtectionEnabled;
-
     public bool EyeProtectionEnabled
     {
         get => _eyeProtectionEnabled;
@@ -281,8 +369,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             OnChanged(nameof(EyeProtectionStatusText));
         }
     }
-
-    private int _eyeProtectionReductionPercent;
 
     public int EyeProtectionReductionPercent
     {
@@ -301,8 +387,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             RequestAutoSave(debounce: true);
         }
     }
-
-    private int _eyeProtectionDefaultDurationHours;
 
     public int EyeProtectionDefaultDurationHours
     {
@@ -339,8 +423,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         }
     }
 
-    private bool _brightnessBoostEnabled;
-
     public bool BrightnessBoostEnabled
     {
         get => _brightnessBoostEnabled;
@@ -355,8 +437,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             OnChanged(nameof(BrightnessBoostStatusText));
         }
     }
-
-    private int _brightnessBoostPercent;
 
     public int BrightnessBoostPercent
     {
@@ -375,8 +455,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             RequestAutoSave(debounce: true);
         }
     }
-
-    private int _brightnessBoostDefaultDurationHours;
 
     public int BrightnessBoostDefaultDurationHours
     {
@@ -413,8 +491,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         }
     }
 
-    private bool _disableMonitorAccessWhileLocked;
-
     public bool DisableMonitorAccessWhileLocked
     {
         get => _disableMonitorAccessWhileLocked;
@@ -429,8 +505,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             RequestAutoSave();
         }
     }
-
-    private bool _idleReductionEnabled;
 
     public bool IdleReductionEnabled
     {
@@ -449,8 +523,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             RequestAutoSave();
         }
     }
-
-    private int _idleTimeoutMinutes;
 
     public int IdleTimeoutMinutes
     {
@@ -471,8 +543,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     }
 
     public string IdleTimeoutText => $"{_idleTimeoutMinutes} min";
-
-    private bool _idleReductionToMinimum;
 
     public bool IdleReductionToMinimum
     {
@@ -497,8 +567,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     public bool IsIdleReductionPercentVisible => !_idleReductionToMinimum;
 
-    private int _idleReductionPercent;
-
     public int IdleReductionPercent
     {
         get => _idleReductionPercent;
@@ -519,8 +587,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     }
 
     public string IdleReductionPercentText => $"{_idleReductionPercent}%";
-
-    private bool _idleIgnoreMediaPlayback;
 
     public bool IdleIgnoreMediaPlayback
     {
@@ -564,63 +630,39 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     public bool HasStatusText => !string.IsNullOrWhiteSpace(StatusText);
     public string EmptyStateText { get; private set; } = string.Empty;
 
-    public SettingsWindowViewModel(
-        BrightSyncEngine engine,
-        AutoBrightnessService autoBrightness,
-        IdleReductionService idleReduction,
-        EyeProtectionService eyeProtection,
-        BrightnessBoostService brightnessBoost,
-        ConfigManager config,
-        DdcCiService ddc,
-        UpdateChecker updateChecker)
+    public SettingsSection SelectedSection
     {
-        _engine = engine;
-        _autoBrightness = autoBrightness;
-        _idleReduction = idleReduction;
-        _eyeProtection = eyeProtection;
-        _brightnessBoost = brightnessBoost;
-        _config = config;
-        _ddc = ddc;
-        _updateChecker = updateChecker;
+        get => _selectedSection;
+        set
+        {
+            if (_selectedSection == value)
+                return;
 
-        var initial = engine.MasterBrightness;
-        _internalBrightness = initial >= 0 ? initial : 50;
-        _enforcementInterval = config.Config.EnforcementIntervalSeconds;
-        _enforcementEnabled = config.Config.EnforcementEnabled;
-        _startWithWindows = config.Config.StartWithWindows;
-        _useLegacyDdcCiDetection = config.Config.UseLegacyDdcCiDetection;
-        _energySaverReductionEnabled = config.Config.EnergySaverReductionEnabled;
-        _energySaverReductionPercent = Math.Clamp(config.Config.EnergySaverReductionPercent, 5, 50);
-        _eyeProtectionEnabled = config.Config.EyeProtectionEnabled;
-        _eyeProtectionReductionPercent = Math.Clamp(config.Config.EyeProtectionReductionPercent, 5, 80);
-        _eyeProtectionDefaultDurationHours = Math.Clamp(config.Config.EyeProtectionDefaultDurationHours, 1, 24);
-        _brightnessBoostEnabled = config.Config.BrightnessBoostEnabled;
-        _brightnessBoostPercent = Math.Clamp(config.Config.BrightnessBoostPercent, 5, 100);
-        _brightnessBoostDefaultDurationHours = Math.Clamp(config.Config.BrightnessBoostDefaultDurationHours, 1, 24);
-        _disableMonitorAccessWhileLocked = config.Config.DisableMonitorAccessWhileLocked;
-        _idleReductionEnabled = config.Config.IdleReductionEnabled;
-        _idleTimeoutMinutes = Math.Clamp(config.Config.IdleTimeoutMinutes, 1, 120);
-        _idleReductionToMinimum = config.Config.IdleReductionToMinimum;
-        _idleReductionPercent = Math.Clamp(config.Config.IdleReductionPercent, 10, 100);
-        _idleIgnoreMediaPlayback = config.Config.IdleIgnoreMediaPlayback;
-
-        RefreshCommand = new RelayCommand(Refresh);
-        ResetAllCommand = new RelayCommand(ResetAll);
-        ResetCurveCommand = new RelayCommand(ResetCurve);
-        CheckForUpdatesCommand = new RelayCommand(CheckForUpdates, () => !_isCheckingForUpdates);
-
-        engine.MasterBrightnessChanged += OnInternalBrightnessChanged;
-        engine.TargetsChanged += OnTargetsChanged;
-        autoBrightness.StateChanged += OnAutoBrightnessChanged;
-        idleReduction.StateChanged += OnIdleReductionChanged;
-        eyeProtection.StateChanged += OnEyeProtectionChanged;
-        brightnessBoost.StateChanged += OnBrightnessBoostChanged;
-        BuildMonitorList();
+            _selectedSection = value;
+            OnChanged();
+            if (value == SettingsSection.Auto)
+                AutoBrightnessCurveChanged?.Invoke(this, EventArgs.Empty);
+        }
     }
+
+    public void Dispose()
+    {
+        _brightnessDebounce?.Dispose();
+        _autoSaveDebounce?.Dispose();
+        _statusTimer?.Dispose();
+        _engine.MasterBrightnessChanged -= OnInternalBrightnessChanged;
+        _engine.TargetsChanged -= OnTargetsChanged;
+        _autoBrightness.StateChanged -= OnAutoBrightnessChanged;
+        _idleReduction.StateChanged -= OnIdleReductionChanged;
+        Log.Debug("Disposed settings window view model");
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    public event EventHandler? AutoBrightnessCurveChanged;
 
     private void OnEyeProtectionChanged(object? sender, bool e)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
+        Dispatcher.UIThread.Invoke(() =>
         {
             _eyeProtectionEnabled = e;
             OnChanged(nameof(EyeProtectionEnabled));
@@ -631,7 +673,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     private void OnBrightnessBoostChanged(object? sender, bool e)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
+        Dispatcher.UIThread.Invoke(() =>
         {
             _brightnessBoostEnabled = e;
             OnChanged(nameof(BrightnessBoostEnabled));
@@ -675,7 +717,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     private void OnInternalBrightnessChanged(object? sender, int brightness)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
+        Dispatcher.UIThread.Invoke(() =>
         {
             _isUpdatingInternalBrightness = true;
             InternalBrightness = brightness >= 0 ? brightness : _internalBrightness;
@@ -711,15 +753,15 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         }
 
         _autoSaveDebounce?.Dispose();
-        _autoSaveDebounce = new System.Threading.Timer(
+        _autoSaveDebounce = new Timer(
             _ =>
             {
-                Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
+                Dispatcher.UIThread.Invoke(() =>
                 {
                     SaveCore($"Saved automatically at {DateTime.Now:HH:mm:ss}",
                         "Settings auto-saved from UI after debounce");
                 });
-            }, null, 600, System.Threading.Timeout.Infinite);
+            }, null, 600, Timeout.Infinite);
     }
 
     private void RunWithAutoSaveSuspended(Action action)
@@ -742,7 +784,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         Task.Run(() =>
         {
             _engine.RefreshMonitors();
-            Avalonia.Threading.Dispatcher.UIThread.Invoke(() => { RefreshMonitorList("Found {0} monitor(s)"); });
+            Dispatcher.UIThread.Invoke(() => { RefreshMonitorList("Found {0} monitor(s)"); });
         });
     }
 
@@ -870,7 +912,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     private void OnAutoBrightnessChanged(object? sender, EventArgs e)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
+        Dispatcher.UIThread.Invoke(() =>
         {
             _isUpdatingInternalBrightness = true;
             InternalBrightness = _autoBrightness.GetCurrentBrightness();
@@ -890,7 +932,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     private void OnTargetsChanged(object? sender, EventArgs e)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
+        Dispatcher.UIThread.Invoke(() =>
         {
             RefreshTargets();
             OnChanged(nameof(IdleReductionStatusText));
@@ -899,7 +941,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     private void OnIdleReductionChanged(object? sender, EventArgs e)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
+        Dispatcher.UIThread.Invoke(() =>
         {
             RefreshTargets();
             OnChanged(nameof(IdleReductionStatusText));
@@ -924,7 +966,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         Task.Run(async () =>
         {
             var result = await _updateChecker.CheckNowAsync(force: true);
-            Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
+            Dispatcher.UIThread.Invoke(() =>
             {
                 _isCheckingForUpdates = false;
                 CheckForUpdatesCommand.Raise();
@@ -974,29 +1016,17 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         OnChanged(nameof(HasStatusText));
 
         _statusTimer?.Dispose();
-        _statusTimer = new System.Threading.Timer(_ =>
+        _statusTimer = new Timer(_ =>
         {
-            Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
+            Dispatcher.UIThread.Invoke(() =>
             {
                 StatusText = string.Empty;
                 OnChanged(nameof(StatusText));
                 OnChanged(nameof(HasStatusText));
             });
-        }, null, 5_000, System.Threading.Timeout.Infinite);
+        }, null, 5_000, Timeout.Infinite);
     }
 
     private void OnChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-
-    public void Dispose()
-    {
-        _brightnessDebounce?.Dispose();
-        _autoSaveDebounce?.Dispose();
-        _statusTimer?.Dispose();
-        _engine.MasterBrightnessChanged -= OnInternalBrightnessChanged;
-        _engine.TargetsChanged -= OnTargetsChanged;
-        _autoBrightness.StateChanged -= OnAutoBrightnessChanged;
-        _idleReduction.StateChanged -= OnIdleReductionChanged;
-        Log.Debug("Disposed settings window view model");
-    }
 }
