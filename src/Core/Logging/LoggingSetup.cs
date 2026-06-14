@@ -7,9 +7,15 @@ namespace BrightSync.Core.Logging;
 
 public static class LoggingSetup
 {
+    private static readonly string AppDataDirectory =
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BrightSync");
+
+    public static string GetLogDirectory()
+        => Path.Combine(AppDataDirectory, "Logs");
+
     public static void Initialize()
     {
-        var logDirectory = Path.Combine(AppContext.BaseDirectory, "Logs");
+        var logDirectory = GetLogDirectory();
         Directory.CreateDirectory(logDirectory);
 
         Log.Logger = new LoggerConfiguration()

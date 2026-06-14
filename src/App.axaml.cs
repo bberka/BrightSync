@@ -44,7 +44,9 @@ public partial class App : Application
 
             // Initialize Logging
             LoggingSetup.Initialize();
-            Log.Information("Application starting. BaseDirectory={BaseDirectory}", AppContext.BaseDirectory);
+            Log.Information("Application starting. BaseDirectory={BaseDirectory}; LogDirectory={LogDirectory}",
+                AppContext.BaseDirectory,
+                LoggingSetup.GetLogDirectory());
 
             SetupExceptionHandling();
 
