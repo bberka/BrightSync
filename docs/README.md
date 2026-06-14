@@ -19,9 +19,12 @@ It also includes optional automatic brightness, idle dimming, per-monitor limits
 
 ### Settings window
 
-![Settings window - Options](assets/settings-1.png)
-![Settings window - Monitor Configs](assets/settings-2.png)
-![Settings window - Curve Editor](assets/settings-3.png)
+![Settings window - 1](assets/settings-1.png)
+![Settings window - 2](assets/settings-2.png)
+![Settings window - 3](assets/settings-3.png)
+![Settings window - 4](assets/settings-3.png)
+![Settings window - 5](assets/settings-3.png)
+![Settings window - 6](assets/settings-3.png)
 
 ## What BrightSync Does
 
