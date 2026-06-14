@@ -10,6 +10,10 @@
   #define PublishDir "..\src\bin\Release\net10.0-windows\win-x64\publish"
 #endif
 
+#ifndef AppArch
+  #define AppArch "x64"
+#endif
+
 [Setup]
 ; Unique App Id
 AppId={{0E12368B-B2B0-4A94-9D9B-F5BC332D6DE0}}
@@ -24,11 +28,17 @@ AppMutex=BrightSync-SingleInstance-Mutex-Guid-9b3d-098c86e194a9
 DefaultDirName={autopf}\{#AppName}
 DisableProgramGroupPage=yes
 LicenseFile=..\LICENSE
-; Use standard 64-bit install path since the app is compiled for win-x64
+; Use appropriate install path based on architecture
+#if AppArch == "arm64"
+ArchitecturesInstallIn64BitMode=arm64
+ArchitecturesAllowed=arm64
+#else
 ArchitecturesInstallIn64BitMode=x64compatible
+ArchitecturesAllowed=x64compatible
+#endif
 ; Output configuration
 OutputDir=.
-OutputBaseFilename={#AppName}-Setup-v{#AppVersion}
+OutputBaseFilename={#AppName}-Setup-v{#AppVersion}-{#AppArch}
 SetupIconFile=..\src\Resources\app.ico
 Compression=lzma2/max
 SolidCompression=yes

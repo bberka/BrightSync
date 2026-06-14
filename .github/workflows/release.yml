@@ -14,17 +14,26 @@ permissions:
 
 concurrency:
   group: release-${{ github.ref }}
+
   cancel-in-progress: false
 
 jobs:
   build-and-release:
     runs-on: windows-latest
 
+    strategy:
+      matrix:
+        include:
+          - rid: win-x64
+            suffix: windows-x64
+            arch: x64
+          - rid: win-arm64
+            suffix: windows-arm64
+            arch: arm64
+
     env:
       PROJECT_PATH: src/BrightSync.csproj
       CONFIGURATION: Release
-      RID: win-x64
-      ARTIFACT_SUFFIX: windows-x64
 
     steps:
       - name: Checkout
@@ -55,12 +64,12 @@ jobs:
       - name: Publish
         shell: pwsh
         run: |
-          $publishDir = Join-Path $env:RUNNER_TEMP "${{ env.ARTIFACT_SUFFIX }}"
+          $publishDir = Join-Path $env:RUNNER_TEMP "${{ matrix.suffix }}"
           $publishArgs = @(
             'publish',
             '${{ env.PROJECT_PATH }}',
             '-c', '${{ env.CONFIGURATION }}',
-            '-r', '${{ env.RID }}',
+            '-r', '${{ matrix.rid }}',
             '-p:PublishSingleFile=true',
             '-p:DebugType=None',
             '-p:DebugSymbols=false',
@@ -78,8 +87,8 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ steps.version.outputs.version }}"
-          $zipName = "BrightSync-$version-${{ env.ARTIFACT_SUFFIX }}.zip"
-          $publishDir = Join-Path $env:RUNNER_TEMP "${{ env.ARTIFACT_SUFFIX }}"
+          $zipName = "BrightSync-$version-${{ matrix.suffix }}.zip"
+          $publishDir = Join-Path $env:RUNNER_TEMP "${{ matrix.suffix }}"
           $zipPath = Join-Path $env:RUNNER_TEMP $zipName
 
           if (Test-Path $zipPath) {
@@ -111,16 +120,17 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ steps.version.outputs.version }}"
-          $publishDir = Join-Path $env:RUNNER_TEMP "${{ env.ARTIFACT_SUFFIX }}"
+          $publishDir = Join-Path $env:RUNNER_TEMP "${{ matrix.suffix }}"
 
           # Compile the installer using ISCC (pre-installed and in PATH on GitHub windows runners)
           iscc `
             /dAppVersion=$version `
             "/dPublishDir=$publishDir" `
+            /dAppArch=${{ matrix.arch }} `
             /O"$env:RUNNER_TEMP" `
             installer/installer.iss
 
-          $setupPath = Join-Path $env:RUNNER_TEMP "BrightSync-Setup-v$version.exe"
+          $setupPath = Join-Path $env:RUNNER_TEMP "BrightSync-Setup-v$version-${{ matrix.arch }}.exe"
           if (!(Test-Path $setupPath)) {
             throw "Setup executable was not created."
           }
