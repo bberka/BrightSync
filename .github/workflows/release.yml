@@ -95,12 +95,7 @@ jobs:
             Remove-Item -LiteralPath $zipPath -Force
           }
 
-          $excludedExtensions = @('.pdb', '.xml', '.txt')
-          $files = Get-ChildItem -Path $publishDir -Recurse -File |
-            Where-Object { $excludedExtensions -notcontains $_.Extension }
-
-          Compress-Archive -Path $files.FullName -DestinationPath $zipPath
-
+          Compress-Archive -Path (Join-Path $publishDir '*') -DestinationPath $zipPath
           Write-Host "Archive created: $zipPath ($((Get-Item $zipPath).Length) bytes)"
           "zip_path=$zipPath" >> $env:GITHUB_OUTPUT
 
