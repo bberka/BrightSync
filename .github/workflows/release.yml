@@ -61,6 +61,7 @@ jobs:
             '${{ env.PROJECT_PATH }}',
             '-c', '${{ env.CONFIGURATION }}',
             '-r', '${{ env.RID }}',
+            '-p:PublishSingleFile=true',
             '-p:DebugType=None',
             '-p:DebugSymbols=false',
             '-p:Version=${{ steps.version.outputs.version }}',
