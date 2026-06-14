@@ -85,9 +85,6 @@
     <TrimmerRootAssembly Include="Avalonia.X11" />
     <TrimmerRootAssembly Include="MicroCom.Runtime" />
     <TrimmerRootAssembly Include="WmiLight" />
-    <TrimmerRootAssembly Include="Avalonia.Win32" />
-    <TrimmerRootAssembly Include="Microsoft.Win32.SystemEvents" />
-    <TrimmerRootAssembly Include="System.Drawing.Primitives" />
   </ItemGroup>
 
   <ItemGroup>
