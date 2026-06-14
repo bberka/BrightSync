@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
@@ -29,16 +26,32 @@ public sealed class TrayManager(
     UpdateChecker updateChecker)
     : IDisposable
 {
-    public event EventHandler? ExitRequested;
+    private bool _disposed;
+    private DateTime _lastPopupClosed = DateTime.MinValue;
+    private QuickBrightnessWindow? _quickPopup;
+    private DateTime _quickPopupShownAt = DateTime.MinValue;
+    private QuickBrightnessViewModel? _quickVm;
+    private int _refreshInProgress;
+    private SettingsWindow? _settingsWindow;
 
     private WindowsTrayIcon? _trayIcon;
-    private SettingsWindow? _settingsWindow;
-    private QuickBrightnessWindow? _quickPopup;
-    private QuickBrightnessViewModel? _quickVm;
-    private DateTime _quickPopupShownAt = DateTime.MinValue;
-    private DateTime _lastPopupClosed = DateTime.MinValue;
-    private bool _disposed;
-    private int _refreshInProgress;
+
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        Log.Debug("Disposing tray manager");
+        _quickVm?.Dispose();
+        _quickPopup?.Close();
+
+        if (_trayIcon != null)
+        {
+            _trayIcon.Dispose();
+        }
+    }
+
+    public event EventHandler? ExitRequested;
 
     public void Initialize()
     {
@@ -51,21 +64,24 @@ public sealed class TrayManager(
         _trayIcon.BrightnessBoostToggleRequested += (_, _) => brightnessBoost.SetEnabled(!brightnessBoost.IsEnabled);
         _trayIcon.EyeProtectionPresetRequested += (_, hours) => eyeProtection.SetEnabled(true, hours);
         _trayIcon.BrightnessBoostPresetRequested += (_, hours) => brightnessBoost.SetEnabled(true, hours);
-        _trayIcon.Initialize("BrightSync - Running", eyeProtection.IsEnabled, brightnessBoost.IsEnabled);
+        _trayIcon.Initialize(BuildTrayToolTip(), eyeProtection.IsEnabled, brightnessBoost.IsEnabled);
 
         RefreshTrayMenu();
 
-        engine.MasterBrightnessChanged += (_, b) =>
+        engine.MasterBrightnessChanged += (_, _) => RefreshTrayToolTip();
+        autoBrightness.StateChanged += (_, _) => RefreshTrayToolTip();
+        eyeProtection.StateChanged += (_, _) =>
         {
-            Dispatcher.UIThread.Post(() =>
-            {
-                if (_trayIcon != null)
-                    _trayIcon.SetToolTip($"BrightSync - Master: {b}%");
-            });
+            RefreshTrayMenu();
+            RefreshTrayToolTip();
+        };
+        brightnessBoost.StateChanged += (_, _) =>
+        {
+            RefreshTrayMenu();
+            RefreshTrayToolTip();
         };
 
-        eyeProtection.StateChanged += (_, _) => RefreshTrayMenu();
-        brightnessBoost.StateChanged += (_, _) => RefreshTrayMenu();
+        RefreshTrayToolTip();
     }
 
     private void RefreshTrayMenu()
@@ -75,6 +91,30 @@ public sealed class TrayManager(
             if (_trayIcon == null) return;
             _trayIcon.UpdateMenuState(eyeProtection.IsEnabled, brightnessBoost.IsEnabled);
         });
+    }
+
+    private void RefreshTrayToolTip()
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_trayIcon == null) return;
+            _trayIcon.SetToolTip(BuildTrayToolTip());
+        });
+    }
+
+    private string BuildTrayToolTip()
+    {
+        var brightness = autoBrightness.IsEnabled ? autoBrightness.GetCurrentBrightness() : engine.MasterBrightness;
+        var safeBrightness = brightness >= 0 ? brightness : 50;
+        var mode = autoBrightness.IsEnabled ? "Auto" : "Manual";
+
+        if (eyeProtection.IsEnabled)
+            return $"BrightSync - Global brightness: {safeBrightness}% | {mode} | Eye Protection";
+
+        if (brightnessBoost.IsEnabled)
+            return $"BrightSync - Global brightness: {safeBrightness}% | {mode} | Boost";
+
+        return $"BrightSync - Global brightness: {safeBrightness}% | {mode}";
     }
 
 
@@ -248,20 +288,5 @@ public sealed class TrayManager(
                 Interlocked.Exchange(ref _refreshInProgress, 0);
             }
         });
-    }
-
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-        _disposed = true;
-        Log.Debug("Disposing tray manager");
-        _quickVm?.Dispose();
-        _quickPopup?.Close();
-
-        if (_trayIcon != null)
-        {
-            _trayIcon.Dispose();
-        }
     }
 }
