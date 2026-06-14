@@ -86,7 +86,24 @@ jobs:
             Remove-Item -LiteralPath $zipPath -Force
           }
 
-          Compress-Archive -Path (Join-Path $publishDir '*') -DestinationPath $zipPath
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $files = Get-ChildItem -Path $publishDir -Recurse -File | Where-Object { $_.Extension -ne '.pdb' }
+          $archive = [System.IO.Compression.ZipFile]::Open($zipPath, [System.IO.Compression.ZipArchiveMode]::Create)
+
+          try {
+            foreach ($file in $files) {
+              $entryPath = [System.IO.Path]::GetRelativePath($publishDir, $file.FullName)
+              [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                $archive,
+                $file.FullName,
+                $entryPath,
+                [System.IO.Compression.CompressionLevel]::Optimal) | Out-Null
+            }
+          }
+          finally {
+            $archive.Dispose()
+          }
+
           "zip_path=$zipPath" >> $env:GITHUB_OUTPUT
 
       - name: Build Installer (Inno Setup)

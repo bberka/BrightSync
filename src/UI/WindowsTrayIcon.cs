@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using Serilog;
@@ -13,6 +14,7 @@ internal sealed class WindowsTrayIcon : IDisposable
 {
     private const int IconId = 1;
     private const int CallbackMessage = NativeMethods.WmApp + 42;
+    private static readonly Guid TrayIconGuid = new("0E12368B-B2B0-4A94-9D9B-F5BC332D6DE0");
 
     private const int CommandSettings = 1001;
     private const int CommandRefresh = 1002;
@@ -114,7 +116,7 @@ internal sealed class WindowsTrayIcon : IDisposable
             return;
 
         var data = CreateNotifyIconData(toolTip);
-        data.uFlags = NativeMethods.NifTip;
+        data.uFlags = NativeMethods.NifTip | NativeMethods.NifGuid;
         if (!NativeMethods.Shell_NotifyIcon(NativeMethods.NimModify, ref data))
             Log.Warning("Shell_NotifyIcon(NIM_MODIFY tooltip) failed. LastWin32Error={LastWin32Error}",
                 Marshal.GetLastWin32Error());
@@ -169,7 +171,7 @@ internal sealed class WindowsTrayIcon : IDisposable
     private void AddIcon(string toolTip)
     {
         var data = CreateNotifyIconData(toolTip);
-        data.uFlags = NativeMethods.NifMessage | NativeMethods.NifIcon | NativeMethods.NifTip;
+        data.uFlags = NativeMethods.NifMessage | NativeMethods.NifIcon | NativeMethods.NifTip | NativeMethods.NifGuid;
         data.uCallbackMessage = CallbackMessage;
         data.hIcon = _iconHandle;
 
@@ -201,6 +203,7 @@ internal sealed class WindowsTrayIcon : IDisposable
             cbSize = Marshal.SizeOf<NativeMethods.NotifyIconData>(),
             hWnd = _windowHandle,
             uID = IconId,
+            guidItem = TrayIconGuid,
             szTip = CreateFixedString(toolTip, 128),
             szInfo = new char[256],
             szInfoTitle = new char[64]
@@ -217,7 +220,7 @@ internal sealed class WindowsTrayIcon : IDisposable
 
     private static bool PromoteCurrentExecutableNotificationIcon()
     {
-        var processPath = Environment.ProcessPath;
+        var processPath = NormalizeExecutablePath(Environment.ProcessPath);
         if (string.IsNullOrWhiteSpace(processPath))
             return false;
 
@@ -229,9 +232,13 @@ internal sealed class WindowsTrayIcon : IDisposable
         {
             foreach (var subKeyName in settings.GetSubKeyNames())
             {
-                using var subKey = settings.OpenSubKey(subKeyName, writable: true);
-                if (subKey?.GetValue("ExecutablePath") is not string executablePath ||
-                    !string.Equals(executablePath, processPath, StringComparison.OrdinalIgnoreCase))
+                var writableSubKey = settings.OpenSubKey(subKeyName, writable: true);
+                if (writableSubKey == null)
+                    continue;
+
+                using RegistryKey subKey = writableSubKey;
+                var executablePath = NormalizeExecutablePath(subKey.GetValue("ExecutablePath") as string);
+                if (!string.Equals(executablePath, processPath, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -250,6 +257,65 @@ internal sealed class WindowsTrayIcon : IDisposable
 
         Log.Debug("Windows notification icon settings entry was not found for {ExecutablePath}", processPath);
         return false;
+    }
+
+    private static string? NormalizeExecutablePath(string? rawPath)
+    {
+        if (string.IsNullOrWhiteSpace(rawPath))
+            return null;
+
+        var normalizedPath = Environment.ExpandEnvironmentVariables(rawPath.Trim().Trim('"'));
+        if (TryResolveKnownFolderPath(normalizedPath, out var resolvedPath))
+            normalizedPath = resolvedPath;
+
+        try
+        {
+            return Path.GetFullPath(normalizedPath);
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Failed to normalize executable path {ExecutablePath}", rawPath);
+            return normalizedPath;
+        }
+    }
+
+    private static bool TryResolveKnownFolderPath(string rawPath, out string resolvedPath)
+    {
+        resolvedPath = string.Empty;
+
+        var separatorIndex = rawPath.IndexOf('\\');
+        if (separatorIndex <= 0)
+            return false;
+
+        var knownFolderIdText = rawPath[..separatorIndex];
+        if (!Guid.TryParse(knownFolderIdText, out var knownFolderId))
+            return false;
+
+        var knownFolderPath = GetKnownFolderPath(knownFolderId);
+        if (string.IsNullOrWhiteSpace(knownFolderPath))
+            return false;
+
+        var relativePath = rawPath[(separatorIndex + 1)..];
+        resolvedPath = string.IsNullOrEmpty(relativePath)
+            ? knownFolderPath
+            : Path.Combine(knownFolderPath, relativePath);
+        return true;
+    }
+
+    private static string? GetKnownFolderPath(Guid knownFolderId)
+    {
+        var result = NativeMethods.SHGetKnownFolderPath(knownFolderId, 0, IntPtr.Zero, out var pathPointer);
+        if (result != 0 || pathPointer == IntPtr.Zero)
+            return null;
+
+        try
+        {
+            return Marshal.PtrToStringUni(pathPointer);
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(pathPointer);
+        }
     }
 
     private IntPtr WindowProc(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam)
@@ -422,6 +488,7 @@ internal sealed class WindowsTrayIcon : IDisposable
         public const uint NifMessage = 0x00000001;
         public const uint NifIcon = 0x00000002;
         public const uint NifTip = 0x00000004;
+        public const uint NifGuid = 0x00000020;
         public const uint NimAdd = 0x00000000;
         public const uint NimModify = 0x00000001;
         public const uint NimDelete = 0x00000002;
@@ -478,6 +545,13 @@ internal sealed class WindowsTrayIcon : IDisposable
             [Out] IntPtr[] phiconLarge,
             [Out] IntPtr[] phiconSmall,
             int nIcons);
+
+        [DllImport("shell32.dll")]
+        public static extern int SHGetKnownFolderPath(
+            [MarshalAs(UnmanagedType.LPStruct)] Guid rfid,
+            uint dwFlags,
+            IntPtr hToken,
+            out IntPtr ppszPath);
 
         [DllImport("user32.dll", EntryPoint = "LoadIconW", SetLastError = true)]
         public static extern IntPtr LoadIcon(IntPtr hInstance, IntPtr lpIconName);
