@@ -461,44 +461,6 @@
                                     </Grid>
                                 </StackPanel>
                             </Border>
-
-                            <Border Background="#252525" BorderBrush="#353535" BorderThickness="1" CornerRadius="8"
-                                    Padding="12,10">
-                                <StackPanel Spacing="8">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
-                                            <TextBlock Text="Energy saver reduction" FontSize="13" Foreground="White" />
-                                            <TextBlock Text="{Binding EnergySaverStatusText}"
-                                                       FontSize="11" Foreground="#a0a0a0" TextWrapping="Wrap" />
-                                        </StackPanel>
-                                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnergySaverReductionEnabled}"
-                                                      OnContent="" OffContent="" VerticalAlignment="Center" />
-                                    </Grid>
-
-                                    <Grid Margin="16,4,0,0" IsVisible="{Binding EnergySaverReductionEnabled}">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="180" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="Reduction" FontSize="13" Foreground="White"
-                                                   VerticalAlignment="Center" />
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal"
-                                                    HorizontalAlignment="Right"
-                                                    VerticalAlignment="Center" Spacing="8">
-                                            <Slider Width="110" Minimum="5" Maximum="50"
-                                                    Value="{Binding EnergySaverReductionPercent}" TickFrequency="5"
-                                                    IsSnapToTickEnabled="True" VerticalAlignment="Center" />
-                                            <TextBlock FontSize="13" Foreground="White" VerticalAlignment="Center"
-                                                       MinWidth="40"
-                                                       Text="{Binding EnergySaverReductionPercent, StringFormat='{}{0}%'}" />
-                                        </StackPanel>
-                                    </Grid>
-                                </StackPanel>
-                            </Border>
                         </StackPanel>
 
                         <!-- Auto Section -->
@@ -627,6 +589,45 @@
                         <!-- Saving Section -->
                         <StackPanel x:Name="SavingPanel" Spacing="10" Margin="16,12" IsVisible="False">
                             <TextBlock Text="Power Saving" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+
+                            <Border Background="#252525" BorderBrush="#353535" BorderThickness="1" CornerRadius="8"
+                                    Padding="12,10">
+                                <StackPanel Spacing="8">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="Energy saver reduction" FontSize="13" Foreground="White" />
+                                            <TextBlock Text="{Binding EnergySaverStatusText}"
+                                                       FontSize="11" Foreground="#a0a0a0" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnergySaverReductionEnabled}"
+                                                      OnContent="" OffContent="" VerticalAlignment="Center" />
+                                    </Grid>
+
+                                    <Grid Margin="16,4,0,0" IsVisible="{Binding EnergySaverReductionEnabled}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="180" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Reduction" FontSize="13" Foreground="White"
+                                                   VerticalAlignment="Center" />
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                                    HorizontalAlignment="Right"
+                                                    VerticalAlignment="Center" Spacing="8">
+                                            <Slider Width="110" Minimum="5" Maximum="50"
+                                                    Value="{Binding EnergySaverReductionPercent}" TickFrequency="5"
+                                                    IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                            <TextBlock FontSize="13" Foreground="White" VerticalAlignment="Center"
+                                                       MinWidth="40"
+                                                       Text="{Binding EnergySaverReductionPercent, StringFormat='{}{0}%'}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
                             <Border Background="#252525" BorderBrush="#353535" BorderThickness="1" CornerRadius="8"
                                     Padding="12,10">
                                 <StackPanel Spacing="8">
