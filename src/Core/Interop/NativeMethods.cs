@@ -132,6 +132,10 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     public static extern int DisplayConfigGetDeviceInfo(ref DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO_2 requestPacket);
 
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool GetCursorPos(out POINTL lpPoint);
+
     public delegate bool MonitorEnumProc(
         IntPtr hMonitor,
         IntPtr hdcMonitor,

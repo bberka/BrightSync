@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Platform;
 using Avalonia.Threading;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
@@ -139,7 +140,7 @@ public sealed class TrayManager(
             else if (!_settingsWindow.IsVisible)
             {
                 _settingsWindow.Show();
-                _settingsWindow.PositionBottomRight();
+                _settingsWindow.PositionBottomRight(useCursorScreen: true);
                 _settingsWindow.Activate();
             }
             else
@@ -266,7 +267,13 @@ public sealed class TrayManager(
 
     private void PositionWindowAboveTray(Window window)
     {
-        var screen = window.Screens.ScreenFromVisual(window) ?? window.Screens.Primary;
+        Screen? screen = null;
+        if (BrightSync.Core.Interop.NativeMethods.GetCursorPos(out var p))
+        {
+            screen = window.Screens.ScreenFromPoint(new PixelPoint(p.x, p.y));
+        }
+
+        screen ??= window.Screens.ScreenFromVisual(window) ?? window.Screens.Primary;
         if (screen == null) return;
 
         var workingArea = screen.WorkingArea;

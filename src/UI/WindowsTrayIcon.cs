@@ -114,7 +114,7 @@ internal sealed class WindowsTrayIcon : IDisposable
             return;
 
         var data = CreateNotifyIconData(toolTip);
-        data.uFlags = NativeMethods.NifTip;
+        data.uFlags = NativeMethods.NifTip | NativeMethods.NifShowTip;
         if (!NativeMethods.Shell_NotifyIcon(NativeMethods.NimModify, ref data))
             Log.Warning("Shell_NotifyIcon(NIM_MODIFY tooltip) failed. LastWin32Error={LastWin32Error}",
                 Marshal.GetLastWin32Error());
@@ -184,7 +184,7 @@ internal sealed class WindowsTrayIcon : IDisposable
     private void AddIcon(string toolTip)
     {
         var data = CreateNotifyIconData(toolTip);
-        data.uFlags = NativeMethods.NifMessage | NativeMethods.NifIcon | NativeMethods.NifTip;
+        data.uFlags = NativeMethods.NifMessage | NativeMethods.NifIcon | NativeMethods.NifTip | NativeMethods.NifShowTip;
         data.uCallbackMessage = CallbackMessage;
         data.hIcon = _iconHandle;
 
@@ -438,6 +438,7 @@ internal sealed class WindowsTrayIcon : IDisposable
         public const uint NifIcon = 0x00000002;
         public const uint NifTip = 0x00000004;
         public const uint NifInfo = 0x00000010;
+        public const uint NifShowTip = 0x00000080;
         public const uint NiiFInfo = 0x00000001;
         public const uint NimAdd = 0x00000000;
         public const uint NimModify = 0x00000001;

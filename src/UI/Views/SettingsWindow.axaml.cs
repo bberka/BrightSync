@@ -6,6 +6,7 @@ using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Platform;
 using Avalonia.Threading;
 using BrightSync.Core;
 using BrightSync.Core.Brightness;
@@ -67,14 +68,14 @@ public partial class SettingsWindow : Window
 
         Opened += (_, _) =>
         {
-            PositionBottomRight();
+            PositionBottomRight(useCursorScreen: true);
             RenderAutoBrightnessCurve();
         };
 
         SizeChanged += (_, _) =>
         {
             if (IsVisible)
-                PositionBottomRight();
+                PositionBottomRight(useCursorScreen: false);
         };
 
         Closing += (s, e) =>
@@ -86,12 +87,18 @@ public partial class SettingsWindow : Window
 
     public event EventHandler? ExitRequested;
 
-    public void PositionBottomRight()
+    public void PositionBottomRight(bool useCursorScreen = true)
     {
-        FitHeightToWorkingArea();
+        Screen? screen = null;
+        if (useCursorScreen && BrightSync.Core.Interop.NativeMethods.GetCursorPos(out var p))
+        {
+            screen = Screens.ScreenFromPoint(new PixelPoint(p.x, p.y));
+        }
 
-        var screen = Screens.ScreenFromVisual(this);
+        screen ??= Screens.ScreenFromVisual(this) ?? Screens.Primary;
         if (screen == null) return;
+
+        FitHeightToWorkingArea(screen);
 
         var workingArea = screen.WorkingArea;
         var scaling = screen.Scaling;
@@ -109,11 +116,8 @@ public partial class SettingsWindow : Window
         Position = new PixelPoint(x, y);
     }
 
-    private void FitHeightToWorkingArea()
+    private void FitHeightToWorkingArea(Screen screen)
     {
-        var screen = Screens.ScreenFromVisual(this);
-        if (screen == null) return;
-
         var scaling = screen.Scaling > 0 ? screen.Scaling : 1;
         var availableHeight = (screen.WorkingArea.Height / scaling) - (ScreenEdgeMargin * 2);
         var minimumHeight = MinHeight > 0 ? MinHeight : 385;
