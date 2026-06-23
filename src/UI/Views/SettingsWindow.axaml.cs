@@ -28,6 +28,7 @@ public partial class SettingsWindow : Window
     private readonly SettingsWindowViewModel _vm;
     private int _draggingCurvePointIndex = -1;
     private Border? _dragValueBadge;
+    private Screen? _targetScreen;
 
     public SettingsWindow()
     {
@@ -66,6 +67,21 @@ public partial class SettingsWindow : Window
 
         UpdateSidebarActiveState();
 
+        PositionChanged += (_, _) =>
+        {
+            var screen = Screens.ScreenFromPoint(Position);
+            if (screen != null)
+            {
+                _targetScreen = screen;
+            }
+        };
+
+        ScalingChanged += (_, _) =>
+        {
+            if (IsVisible)
+                PositionBottomRight(useCursorScreen: false);
+        };
+
         Opened += (_, _) =>
         {
             PositionBottomRight(useCursorScreen: true);
@@ -95,19 +111,24 @@ public partial class SettingsWindow : Window
             screen = Screens.ScreenFromPoint(new PixelPoint(p.x, p.y));
         }
 
-        screen ??= Screens.ScreenFromVisual(this) ?? Screens.Primary;
+        screen ??= _targetScreen ?? Screens.ScreenFromPoint(Position) ?? Screens.ScreenFromVisual(this) ?? Screens.Primary;
         if (screen == null) return;
+
+        _targetScreen = screen;
 
         FitHeightToWorkingArea(screen);
 
         var workingArea = screen.WorkingArea;
         var scaling = screen.Scaling;
 
-        var windowPhysicalWidth = (int)(FrameSize?.Width ?? (Bounds.Width * scaling));
-        var windowPhysicalHeight = (int)(FrameSize?.Height ?? (Bounds.Height * scaling));
+        var width = Bounds.Width > 0 ? Bounds.Width : Width;
+        var height = Bounds.Height > 0 ? Bounds.Height : Height;
 
-        if (windowPhysicalWidth <= 0) windowPhysicalWidth = (int)(Width * scaling);
-        if (windowPhysicalHeight <= 0) windowPhysicalHeight = (int)(Height * scaling);
+        if (double.IsNaN(width) || width <= 0) width = 560;
+        if (double.IsNaN(height) || height <= 0) height = 770;
+
+        var windowPhysicalWidth = (int)(width * scaling);
+        var windowPhysicalHeight = (int)(height * scaling);
 
         var margin = (int)(ScreenEdgeMargin * scaling);
         var x = workingArea.Right - windowPhysicalWidth - margin;

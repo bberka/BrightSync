@@ -229,6 +229,12 @@ public sealed class TrayManager(
                     PositionWindowAboveTray(_quickPopup);
             };
 
+            _quickPopup.ScalingChanged += (_, _) =>
+            {
+                if (_quickPopup.IsVisible)
+                    PositionWindowAboveTray(_quickPopup);
+            };
+
             _quickPopup.PropertyChanged += (s, e) =>
             {
                 if (e.Property == Window.IsVisibleProperty && e.NewValue is false)
@@ -273,17 +279,20 @@ public sealed class TrayManager(
             screen = window.Screens.ScreenFromPoint(new PixelPoint(p.x, p.y));
         }
 
-        screen ??= window.Screens.ScreenFromVisual(window) ?? window.Screens.Primary;
+        screen ??= window.Screens.ScreenFromPoint(window.Position) ?? window.Screens.ScreenFromVisual(window) ?? window.Screens.Primary;
         if (screen == null) return;
 
         var workingArea = screen.WorkingArea;
         var scaling = screen.Scaling;
 
-        var windowPhysicalWidth = (int)(window.FrameSize?.Width ?? (window.Bounds.Width * scaling));
-        var windowPhysicalHeight = (int)(window.FrameSize?.Height ?? (window.Bounds.Height * scaling));
+        var width = window.Bounds.Width > 0 ? window.Bounds.Width : window.Width;
+        var height = window.Bounds.Height > 0 ? window.Bounds.Height : window.Height;
 
-        if (windowPhysicalWidth <= 0) windowPhysicalWidth = (int)(window.Width * scaling);
-        if (windowPhysicalHeight <= 0) windowPhysicalHeight = (int)(window.Height * scaling);
+        if (double.IsNaN(width) || width <= 0) width = 360;
+        if (double.IsNaN(height) || height <= 0) height = 150;
+
+        var windowPhysicalWidth = (int)(width * scaling);
+        var windowPhysicalHeight = (int)(height * scaling);
 
         var x = workingArea.Right - windowPhysicalWidth - (int)(12 * scaling);
         var y = workingArea.Bottom - windowPhysicalHeight - (int)(12 * scaling);
