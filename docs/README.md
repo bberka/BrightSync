@@ -46,7 +46,7 @@ BrightSync is built around the philosophy of **"Configure once, and never think 
 ## Features
 
 - Works on both laptops and desktops
-- Tray icon with quick brightness popup
+- Tray icon with hover tooltip (displays current master brightness, mode, and active states) and quick brightness popup
 - Independent master brightness slider in the tray or settings
 - Automatic brightness based on a smooth 24-hour curve
 - Visual curve editor in Settings

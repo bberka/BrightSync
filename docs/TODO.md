@@ -23,7 +23,6 @@ This document tracks planned features and design decisions for BrightSync.
 - **Wider Connection Topology Support**: Improve handling of complex MST hubs, daisy chains, and USB-C docks.
 
 ### UI / UX
-- **Tray Icon Tooltip Details**: Display master brightness percentage or active monitor states when hovering over the tray icon.
 - **Localization**: Resource-based UI translation capabilities for multi-language support (Lower Priority).
 
 ---
