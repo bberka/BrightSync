@@ -33,6 +33,7 @@ It also includes optional automatic brightness, idle dimming, per-monitor limits
 - Treats the internal display (laptops) as a standard controllable target using a WMI backend.
 - Applies brightness to external monitors through DDC/CI.
 - Lets you adjust each monitor (both internal and external) with its own enable flag, minimum, maximum, and multiplier (ratio).
+- Supports advanced monitor hardware controls (Contrast, Volume, RGB Gains, Color Presets, and Input Source) for compatible DDC/CI external monitors.
 - Can drive brightness automatically from a 24-hour curve instead of manual input.
 
 ## Features
@@ -47,6 +48,7 @@ It also includes optional automatic brightness, idle dimming, per-monitor limits
 - Quick "Brightness Boost" mode (brightening) with configurable duration and increase amount (applied to all targets including internal)
 - Per-monitor enable or disable control (both internal and external)
 - Per-monitor minimum brightness, maximum brightness, and multiplier (ratios)
+- Per-monitor hardware controls for external displays, allowing you to configure Contrast, Volume, RGB Color Gains (Red, Green, Blue), Color Presets, and active Input Source directly from the UI
 - Optional idle dimming after inactivity
 - Optional pause while Windows is locked
 - Optional brightness enforcement to re-apply values if a monitor changes them
@@ -146,7 +148,18 @@ Startup behavior:
 - Enable or disable individual monitors.
 - Clamp each monitor with minimum and maximum brightness.
 - Scale a monitor brighter or dimmer with a multiplier.
-- Expand any monitor row to see detection diagnostics and fallback details.
+- Expand any monitor row to see detection diagnostics, fallback details, and advanced hardware controls (if supported by DDC/CI).
+
+#### Advanced Hardware Controls
+
+If an external monitor supports DDC/CI capability command probing, expanding its row in **Settings** exposes additional hardware adjustments:
+- **Contrast**: Adjust the display's hardware contrast value.
+- **Volume**: Change the monitor's built-in speaker volume (if equipped).
+- **RGB Gains (Color Warmth)**: Adjust individual Red, Green, and Blue subpixel gains to fine-tune color balance.
+- **Color Presets**: Select from supported factory color temperatures and presets (such as *sRGB*, *Display Native*, *5000K*, *6500K*, *9300K*, or *User Defined*).
+- **Input Source**: Digitally switch the active monitor video input (e.g. *HDMI 1*, *HDMI 2*, *DisplayPort 1*, *DisplayPort 2*, *USB-C*, *VGA*, *DVI*).
+
+*Note on performance & persistence:* Sliders for Contrast, Volume, and RGB Gains utilize a 150ms debounce window to prevent stuttering and display lag during interactive dragging, while Color Preset and Input Source dropdowns apply instantly. All values are saved to the configuration file (`config.json`) and re-applied when the application starts or when monitors are refreshed.
 
 ### Automatic Brightness
 
@@ -175,6 +188,7 @@ Startup behavior:
 - Open a monitor row in `Settings` to see which detection backend was used and what fallback path BrightSync took.
 - If monitor detection is unreliable, enable `Legacy DDC/CI detection`, then refresh monitors or restart the app.
 - `Legacy DDC/CI detection` uses a compatibility-focused enumeration path and may help on systems where richer metadata detection is unreliable.
+- **Advanced Hardware Controls & Presets**: Some monitors lock or disable physical RGB gain adjustment controls on the hardware side when a specific Color Preset (e.g., sRGB) or picture mode is selected. If you find the Red, Green, or Blue sliders disabled or unresponsive, try changing the Color Preset dropdown to *User Defined* or *Display Native*. Additionally, internal laptop panels controlled via WMI do not support DDC/CI VCP features and will not show the Advanced Hardware Controls section.
 - If `Disable on lock screen` is enabled, BrightSync pauses external monitor reads and writes while Windows is locked and refreshes monitors after unlock.
 - Idle dimming can either scale targets down by a percentage or reduce each monitor (including the internal display) to its configured minimum brightness.
 - Energy saver reduction automatically dims all monitors when Windows is in power saving mode.
