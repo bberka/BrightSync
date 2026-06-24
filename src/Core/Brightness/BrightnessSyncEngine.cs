@@ -18,6 +18,7 @@ public sealed partial class BrightSyncEngine : IDisposable
     private readonly ConfigManager _config;
 
     private readonly DdcCiService _ddc;
+    public DdcCiService Ddc => _ddc;
     private readonly Timer _enforcementTimer;
     private readonly Timer _periodicRefreshTimer;
     private readonly InternalBrightnessWatcher _watcher;

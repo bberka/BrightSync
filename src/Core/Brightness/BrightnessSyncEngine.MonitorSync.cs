@@ -1,3 +1,5 @@
+using BrightSync.Core.Interop;
+using BrightSync.Core.Monitors;
 using Serilog;
 
 namespace BrightSync.Core.Brightness;
@@ -33,6 +35,48 @@ public sealed partial class BrightSyncEngine
         _ddc.Refresh();
         Log.Information("Monitor refresh complete. KnownMonitors={MonitorCount}", _ddc.GetMonitors().Count);
         ForceSync();
+        ApplyAllPersistedSettings();
+    }
+
+    public void ApplyPersistedSettings(DdcMonitor monitor)
+    {
+        if (IsMonitorAccessSuspended || !monitor.SupportsDdcCi) return;
+
+        var profile = _config.GetOrCreateProfile(monitor.DeviceName);
+        if (!profile.Enabled) return;
+
+        if (profile.Contrast.HasValue && monitor.SupportsContrast)
+        {
+            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_CONTRAST, (uint)profile.Contrast.Value);
+        }
+        if (profile.Volume.HasValue && monitor.SupportsVolume)
+        {
+            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_VOLUME, (uint)profile.Volume.Value);
+        }
+        if (profile.ColorPreset.HasValue && monitor.SupportsColorPreset)
+        {
+            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_COLOR_PRESET, (uint)profile.ColorPreset.Value);
+        }
+        if (profile.InputSource.HasValue && monitor.SupportsInputSource)
+        {
+            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_INPUT_SOURCE, (uint)profile.InputSource.Value);
+        }
+        if (monitor.SupportsRgbGains && profile.RedGain.HasValue && profile.GreenGain.HasValue && profile.BlueGain.HasValue)
+        {
+            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_RED_GAIN, (uint)profile.RedGain.Value);
+            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_GREEN_GAIN, (uint)profile.GreenGain.Value);
+            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_BLUE_GAIN, (uint)profile.BlueGain.Value);
+        }
+    }
+
+    public void ApplyAllPersistedSettings()
+    {
+        if (IsMonitorAccessSuspended) return;
+
+        foreach (var monitor in _ddc.GetMonitors())
+        {
+            ApplyPersistedSettings(monitor);
+        }
     }
 
     public bool TrySetUserBrightness(int brightness)

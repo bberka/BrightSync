@@ -1,4 +1,4 @@
-﻿namespace BrightSync.Core.Config;
+namespace BrightSync.Core.Config;
 
 public sealed class MonitorProfile
 {
@@ -31,11 +31,26 @@ public sealed class MonitorProfile
     /// </summary>
     public double Multiplier { get; set; } = DefaultMultiplier;
 
+    public int? Contrast { get; set; }
+    public int? ColorPreset { get; set; }
+    public int? Volume { get; set; }
+    public int? RedGain { get; set; }
+    public int? GreenGain { get; set; }
+    public int? BlueGain { get; set; }
+    public int? InputSource { get; set; }
+
     public void Reset()
     {
         Enabled = DefaultEnabled;
         MinBrightness = DefaultMinBrightness;
         MaxBrightness = DefaultMaxBrightness;
         Multiplier = DefaultMultiplier;
+        Contrast = null;
+        ColorPreset = null;
+        Volume = null;
+        RedGain = null;
+        GreenGain = null;
+        BlueGain = null;
+        InputSource = null;
     }
 }

@@ -1,4 +1,6 @@
-﻿namespace BrightSync.Core.Monitors;
+using System.Collections.Generic;
+
+namespace BrightSync.Core.Monitors;
 
 /// <summary>
 /// Represents a connected display that BrightSync can inspect and, in some cases, control.
@@ -76,6 +78,29 @@ public sealed class DdcMonitor
 
     /// <summary>Human-readable diagnostics describing the detection decisions and fallbacks.</summary>
     public string DetectionDetails { get; init; } = string.Empty;
+
+    public List<uint>? SupportedPresets { get; set; }
+    public List<uint>? SupportedInputs { get; set; }
+
+    public bool SupportsContrast { get; set; }
+    public int MaxContrast { get; set; } = 100;
+    public int CurrentContrast { get; set; }
+
+    public bool SupportsVolume { get; set; }
+    public int MaxVolume { get; set; } = 100;
+    public int CurrentVolume { get; set; }
+
+    public bool SupportsColorPreset { get; set; }
+    public int CurrentColorPreset { get; set; }
+
+    public bool SupportsRgbGains { get; set; }
+    public int MaxRgbGain { get; set; } = 100;
+    public int CurrentRedGain { get; set; }
+    public int CurrentGreenGain { get; set; }
+    public int CurrentBlueGain { get; set; }
+
+    public bool SupportsInputSource { get; set; }
+    public int CurrentInputSource { get; set; }
 
     internal IntPtr Handle { get; init; }
 

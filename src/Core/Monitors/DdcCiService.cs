@@ -219,7 +219,7 @@ public sealed class DdcCiService : IDisposable
                     isAppleStudioDisplay,
                     brightnessSupport.SupportsBrightnessControl);
 
-                _monitors.Add(new DdcMonitor
+                var m = new DdcMonitor
                 {
                     DeviceName = deviceName,
                     ManufacturerName = detection.ManufacturerName,
@@ -247,7 +247,10 @@ public sealed class DdcCiService : IDisposable
                     DetectionDetails = details,
                     Handle = pm.hPhysicalMonitor,
                     Group = group
-                });
+                };
+
+                ProbeAdvancedCapabilities(m);
+                _monitors.Add(m);
 
                 Log.Debug(
                     "Detected monitor. DetectionMode={DetectionMode}, Device={DeviceName}, FriendlyName={FriendlyName}, SupportsDdcCi={SupportsDdcCi}, IsInternal={IsInternal}, DetectionBackend={DetectionBackend}, BrightnessBackend={BrightnessBackend}, HdrEnabled={HdrEnabled}",
@@ -294,6 +297,218 @@ public sealed class DdcCiService : IDisposable
         }
 
         return string.Join(" ", parts.Where(part => !string.IsNullOrWhiteSpace(part)));
+    }
+
+    public bool SetVcpFeature(DdcMonitor monitor, byte vcpCode, uint value)
+    {
+        lock (_lock)
+        {
+            if (_disposed || monitor.IsInternal) return false;
+            
+            for (var attempt = 0; attempt < 2; attempt++)
+            {
+                if (NativeMethods.SetVCPFeature(monitor.Handle, vcpCode, value))
+                    return true;
+                if (attempt < 1)
+                    Thread.Sleep(RetryDelayMilliseconds);
+            }
+            return false;
+        }
+    }
+
+    public bool GetVcpFeature(DdcMonitor monitor, byte vcpCode, out uint currentValue, out uint maxValue)
+    {
+        currentValue = 0;
+        maxValue = 0;
+        lock (_lock)
+        {
+            if (_disposed || monitor.IsInternal) return false;
+
+            for (var attempt = 0; attempt < 2; attempt++)
+            {
+                if (NativeMethods.GetVCPFeatureAndVCPFeatureReply(
+                        monitor.Handle,
+                        vcpCode,
+                        out _,
+                        out var current,
+                        out var max))
+                {
+                    currentValue = current;
+                    maxValue = max;
+                    return true;
+                }
+                
+                var err = Marshal.GetLastWin32Error();
+                Log.Debug("GetVcpFeature failed. Monitor={Monitor}, VcpCode=0x{Vcp:X2}, Error=0x{Error:X8}, Attempt={Attempt}", 
+                    monitor.FriendlyName, vcpCode, err, attempt + 1);
+
+                if (attempt < 1)
+                    Thread.Sleep(RetryDelayMilliseconds);
+            }
+            return false;
+        }
+    }
+
+    private string? GetCapabilitiesString(IntPtr hMonitor)
+    {
+        if (!NativeMethods.GetCapabilitiesStringLength(hMonitor, out var length))
+        {
+            var err = Marshal.GetLastWin32Error();
+            Log.Debug("Failed to get capabilities string length. Error=0x{Error:X8}", err);
+            return null;
+        }
+
+        if (length == 0) return null;
+
+        var buffer = new byte[length];
+        if (!NativeMethods.CapabilitiesRequestAndCapabilitiesReply(hMonitor, buffer, length))
+        {
+            var err = Marshal.GetLastWin32Error();
+            Log.Debug("Failed to get capabilities string. Error=0x{Error:X8}", err);
+            return null;
+        }
+
+        return System.Text.Encoding.ASCII.GetString(buffer).Trim('\0');
+    }
+
+    private static Dictionary<byte, List<uint>> ParseCapabilities(string capString)
+    {
+        var result = new Dictionary<byte, List<uint>>();
+        try
+        {
+            var vcpIndex = capString.IndexOf("vcp", StringComparison.OrdinalIgnoreCase);
+            if (vcpIndex < 0) return result;
+
+            var openParen = capString.IndexOf('(', vcpIndex);
+            if (openParen < 0) return result;
+
+            var parenCount = 1;
+            var i = openParen + 1;
+            var vcpBlock = "";
+            for (; i < capString.Length; i++)
+            {
+                if (capString[i] == '(') parenCount++;
+                else if (capString[i] == ')')
+                {
+                    parenCount--;
+                    if (parenCount == 0)
+                    {
+                        vcpBlock = capString.Substring(openParen + 1, i - openParen - 1);
+                        break;
+                    }
+                }
+            }
+
+            if (string.IsNullOrEmpty(vcpBlock)) return result;
+
+            var index = 0;
+            while (index < vcpBlock.Length)
+            {
+                while (index < vcpBlock.Length && char.IsWhiteSpace(vcpBlock[index]))
+                    index++;
+
+                if (index >= vcpBlock.Length) break;
+
+                var tokenStart = index;
+                while (index < vcpBlock.Length && char.IsLetterOrDigit(vcpBlock[index]))
+                    index++;
+
+                if (index == tokenStart)
+                {
+                    index++;
+                    continue;
+                }
+
+                var token = vcpBlock.Substring(tokenStart, index - tokenStart);
+                if (byte.TryParse(token, System.Globalization.NumberStyles.HexNumber, null, out var vcpCode))
+                {
+                    var supportedValues = new List<uint>();
+                    if (index < vcpBlock.Length && vcpBlock[index] == '(')
+                    {
+                        var closeIndex = vcpBlock.IndexOf(')', index);
+                        if (closeIndex > index)
+                        {
+                            var valuesStr = vcpBlock.Substring(index + 1, closeIndex - index - 1);
+                            var valTokens = valuesStr.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries);
+                            foreach (var valToken in valTokens)
+                            {
+                                if (uint.TryParse(valToken, System.Globalization.NumberStyles.HexNumber, null, out var val))
+                                {
+                                    supportedValues.Add(val);
+                                }
+                            }
+                            index = closeIndex + 1;
+                        }
+                    }
+                    result[vcpCode] = supportedValues;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Failed to parse capabilities string");
+        }
+
+        return result;
+    }
+
+    private void ProbeAdvancedCapabilities(DdcMonitor monitor)
+    {
+        if (monitor.IsInternal)
+            return;
+
+        Log.Debug("Probing advanced capabilities for monitor: {Monitor}", monitor.FriendlyName);
+
+        var capStr = GetCapabilitiesString(monitor.Handle);
+        Dictionary<byte, List<uint>>? parsedCaps = null;
+        if (!string.IsNullOrEmpty(capStr))
+        {
+            Log.Debug("Capabilities string for {Monitor}: {CapStr}", monitor.FriendlyName, capStr);
+            parsedCaps = ParseCapabilities(capStr);
+            
+            if (parsedCaps.TryGetValue(NativeMethods.VCP_COLOR_PRESET, out var presets))
+                monitor.SupportedPresets = presets;
+
+            if (parsedCaps.TryGetValue(NativeMethods.VCP_INPUT_SOURCE, out var inputs))
+                monitor.SupportedInputs = inputs;
+        }
+
+        if (GetVcpFeature(monitor, NativeMethods.VCP_CONTRAST, out var contrastVal, out var contrastMax))
+        {
+            monitor.SupportsContrast = true;
+            monitor.CurrentContrast = (int)contrastVal;
+            monitor.MaxContrast = (int)contrastMax;
+        }
+
+        if (GetVcpFeature(monitor, NativeMethods.VCP_VOLUME, out var volVal, out var volMax))
+        {
+            monitor.SupportsVolume = true;
+            monitor.CurrentVolume = (int)volVal;
+            monitor.MaxVolume = (int)volMax;
+        }
+
+        if (GetVcpFeature(monitor, NativeMethods.VCP_COLOR_PRESET, out var presetVal, out _))
+        {
+            monitor.SupportsColorPreset = true;
+            monitor.CurrentColorPreset = (int)presetVal;
+        }
+
+        if (GetVcpFeature(monitor, NativeMethods.VCP_RED_GAIN, out var redVal, out var rgbMax) &&
+            GetVcpFeature(monitor, NativeMethods.VCP_GREEN_GAIN, out var greenVal, out _) &&
+            GetVcpFeature(monitor, NativeMethods.VCP_BLUE_GAIN, out var blueVal, out _))
+        {
+            monitor.SupportsRgbGains = true;
+            monitor.CurrentRedGain = (int)redVal;
+            monitor.CurrentGreenGain = (int)greenVal;
+            monitor.CurrentBlueGain = (int)blueVal;
+            monitor.MaxRgbGain = (int)rgbMax;
+        }
+
+        if (GetVcpFeature(monitor, NativeMethods.VCP_INPUT_SOURCE, out var inputVal, out _))
+        {
+            monitor.SupportsInputSource = true;
+            monitor.CurrentInputSource = (int)inputVal;
+        }
     }
 
     private static bool TrySetVcpBrightness(DdcMonitor monitor, int brightnessPercent, int retryCount)

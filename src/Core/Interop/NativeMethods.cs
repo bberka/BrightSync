@@ -5,6 +5,13 @@ namespace BrightSync.Core.Interop;
 internal static class NativeMethods
 {
     public const byte VCP_BRIGHTNESS = 0x10;
+    public const byte VCP_CONTRAST = 0x12;
+    public const byte VCP_COLOR_PRESET = 0x14;
+    public const byte VCP_RED_GAIN = 0x16;
+    public const byte VCP_GREEN_GAIN = 0x18;
+    public const byte VCP_BLUE_GAIN = 0x1A;
+    public const byte VCP_VOLUME = 0x62;
+    public const byte VCP_INPUT_SOURCE = 0x60;
     public const int ENUM_CURRENT_SETTINGS = -1;
     public const uint QDC_ONLY_ACTIVE_PATHS = 0x00000002;
     public const uint DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME = 1;

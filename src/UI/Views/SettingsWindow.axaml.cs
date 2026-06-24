@@ -29,11 +29,13 @@ public partial class SettingsWindow : Window
     private int _draggingCurvePointIndex = -1;
     private Border? _dragValueBadge;
     private Screen? _targetScreen;
+    private readonly IPlatformSettings? _platformSettings;
 
     public SettingsWindow()
     {
         InitializeComponent();
         _vm = null!;
+        _platformSettings = null;
     }
 
     public SettingsWindow(
@@ -55,6 +57,12 @@ public partial class SettingsWindow : Window
 
         _vm.AutoBrightnessCurveChanged += OnAutoBrightnessCurveChanged;
         _vm.PropertyChanged += OnViewModelPropertyChanged;
+
+        _platformSettings = Avalonia.VisualTree.VisualExtensions.GetPlatformSettings(this);
+        if (_platformSettings != null)
+        {
+            _platformSettings.ColorValuesChanged += OnPlatformColorValuesChanged;
+        }
 
         _sidebarButtons.AddRange([
             SidebarGeneralBtn, SidebarBrightnessBtn, SidebarAutoBtn, SidebarSavingBtn,
@@ -202,6 +210,15 @@ public partial class SettingsWindow : Window
             _vm.SelectedSection = section;
     }
 
+    private void OnPlatformColorValuesChanged(object? sender, PlatformColorValues e)
+    {
+        Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            UpdateSidebarActiveState();
+            RenderAutoBrightnessCurve();
+        });
+    }
+
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(SettingsWindowViewModel.SelectedSection))
@@ -210,15 +227,24 @@ public partial class SettingsWindow : Window
 
     private void UpdateSidebarActiveState()
     {
+        var accentColor = Color.FromRgb(0, 120, 212);
+        if (Application.Current?.TryFindResource("SystemAccentColor", out var res) == true && res is Color parsedColor)
+        {
+            accentColor = parsedColor;
+        }
+
+        var activeBg = new SolidColorBrush(Color.FromArgb(30, accentColor.R, accentColor.G, accentColor.B));
+        var activeFg = new SolidColorBrush(accentColor);
+
         var sections = Enum.GetValues<SettingsSection>();
         for (var i = 0; i < sections.Length && i < _sidebarButtons.Count && i < _sectionPanels.Count; i++)
         {
             var isActive = sections[i] == _vm.SelectedSection;
             _sidebarButtons[i].Background = isActive
-                ? new SolidColorBrush(Color.FromArgb(30, 0, 120, 212))
+                ? activeBg
                 : Brushes.Transparent;
             _sidebarButtons[i].Foreground = isActive
-                ? SolidColorBrush.Parse("#0078d4")
+                ? activeFg
                 : Brushes.White;
             _sectionPanels[i].IsVisible = isActive;
         }
@@ -237,6 +263,10 @@ public partial class SettingsWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        if (_platformSettings != null)
+        {
+            _platformSettings.ColorValuesChanged -= OnPlatformColorValuesChanged;
+        }
         _vm.AutoBrightnessCurveChanged -= OnAutoBrightnessCurveChanged;
         _vm.PropertyChanged -= OnViewModelPropertyChanged;
         _vm.Dispose();
@@ -331,9 +361,16 @@ public partial class SettingsWindow : Window
             curvePoints.Add(new Point(MinuteToCanvasX(minute, width), BrightnessToCanvasY(brightness, height)));
         }
 
+        var accentColor = Color.FromRgb(0, 120, 212);
+        if (Application.Current?.TryFindResource("SystemAccentColor", out var res) == true && res is Color parsedColor)
+        {
+            accentColor = parsedColor;
+        }
+        var accentBrush = new SolidColorBrush(accentColor);
+
         var curve = new Polyline
         {
-            Stroke = SolidColorBrush.Parse("#0078d4"),
+            Stroke = accentBrush,
             StrokeThickness = 2.5,
             StrokeJoin = PenLineJoin.Round,
             Points = curvePoints
@@ -346,7 +383,7 @@ public partial class SettingsWindow : Window
         {
             StartPoint = new Point(MinuteToCanvasX(nowMinute, width), 0),
             EndPoint = new Point(MinuteToCanvasX(nowMinute, width), height),
-            Stroke = SolidColorBrush.Parse("#0078d4"),
+            Stroke = accentBrush,
             StrokeThickness = 1,
             StrokeDashArray = new AvaloniaList<double> { 4, 3 },
             Opacity = 0.6
@@ -362,7 +399,7 @@ public partial class SettingsWindow : Window
                 Width = 12,
                 Height = 12,
                 Fill = SolidColorBrush.Parse("#1e1e1e"),
-                Stroke = SolidColorBrush.Parse("#0078d4"),
+                Stroke = accentBrush,
                 StrokeThickness = 2,
                 Cursor = new Cursor(StandardCursorType.SizeNorthSouth),
                 Tag = i
