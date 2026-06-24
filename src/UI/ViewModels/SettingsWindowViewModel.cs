@@ -803,6 +803,9 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
             _selectedSection = value;
             OnChanged();
+
+            CollapseAllMonitorRows();
+
             if (value == SettingsSection.Auto)
                 AutoBrightnessCurveChanged?.Invoke(this, EventArgs.Empty);
         }
@@ -875,6 +878,14 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         {
             if (!ReferenceEquals(monitor, expandedMonitor))
                 monitor.IsExpanded = false;
+        }
+    }
+
+    public void CollapseAllMonitorRows()
+    {
+        foreach (var monitor in Monitors)
+        {
+            monitor.IsExpanded = false;
         }
     }
 

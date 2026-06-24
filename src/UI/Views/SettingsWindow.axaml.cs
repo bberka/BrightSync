@@ -58,6 +58,14 @@ public partial class SettingsWindow : Window
         _vm.AutoBrightnessCurveChanged += OnAutoBrightnessCurveChanged;
         _vm.PropertyChanged += OnViewModelPropertyChanged;
 
+        PropertyChanged += (s, e) =>
+        {
+            if (e.Property == IsVisibleProperty && IsVisible)
+            {
+                _vm?.CollapseAllMonitorRows();
+            }
+        };
+
         _platformSettings = Avalonia.VisualTree.VisualExtensions.GetPlatformSettings(this);
         if (_platformSettings != null)
         {
