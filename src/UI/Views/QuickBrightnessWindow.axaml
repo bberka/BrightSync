@@ -4,7 +4,7 @@
         x:Class="BrightSync.UI.Views.QuickBrightnessWindow"
         x:DataType="vm:QuickBrightnessViewModel"
         x:CompileBindings="True"
-        Width="360"
+        Width="300"
         SizeToContent="Height"
         WindowStartupLocation="Manual"
         CanResize="False"

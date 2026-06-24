@@ -282,6 +282,7 @@
                         <!-- General Section -->
                         <StackPanel x:Name="GeneralPanel" Spacing="10" Margin="16,12">
                             <TextBlock Text="General" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+                            <!-- Startup -->
                             <Border Background="#252525" BorderBrush="#353535" BorderThickness="1" CornerRadius="8"
                                     Padding="12,10">
                                 <StackPanel Spacing="8">
@@ -298,9 +299,13 @@
                                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding StartWithWindows}"
                                                       OnContent="" OffContent="" VerticalAlignment="Center" />
                                     </Grid>
+                                </StackPanel>
+                            </Border>
 
-                                    <Border Height="1" Background="#353535" />
-
+                            <!-- Monitor Compatibility -->
+                            <Border Background="#252525" BorderBrush="#353535" BorderThickness="1" CornerRadius="8"
+                                    Padding="12,10">
+                                <StackPanel Spacing="8">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
@@ -332,9 +337,13 @@
                                                       IsChecked="{Binding DisableMonitorAccessWhileLocked}"
                                                       OnContent="" OffContent="" VerticalAlignment="Center" />
                                     </Grid>
+                                </StackPanel>
+                            </Border>
 
-                                    <Border Height="1" Background="#353535" />
-
+                            <!-- Updates -->
+                            <Border Background="#252525" BorderBrush="#353535" BorderThickness="1" CornerRadius="8"
+                                    Padding="12,10">
+                                <StackPanel Spacing="8">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
