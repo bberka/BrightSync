@@ -11,6 +11,13 @@ BrightSync provides its own master brightness control (available in the tray pop
 
 It also includes optional automatic brightness, idle dimming, per-monitor limits, and recovery features for monitors that forget their brightness after sleep or power changes.
 
+## Design Philosophy
+
+BrightSync is built around the philosophy of **"Configure once, and never think about monitor brightness again."**
+- **Set and Forget**: Brightness rules, limits (min/max), multipliers, and curves are configured per-monitor once. The app handles the rest dynamically.
+- **No Micromanagement**: Avoid unnecessary per-monitor brightness controls in the daily quick menus.
+- **Extensible Integration**: Leverage a robust CLI engine rather than building bloated internal systems (e.g., custom hotkey managers).
+
 ## Screenshots
 
 ### Quick menu
