@@ -59,7 +59,10 @@ It also includes optional automatic brightness, idle dimming, per-monitor limits
 - Per-monitor detection diagnostics in Settings
 - Optional legacy DDC/CI detection mode for compatibility
 - Refresh monitors from the tray or Settings window
+- Configurable periodic monitor refresh to automatically recover lost DDC/CI connections
 - CLI command routing for brightness and resident app actions
+- Dynamic Windows system theme syncing (style changes apply automatically without restarting)
+- Compiled with Native AOT for single-file, zero-dependency execution with low memory footprint and instant startup
 - Start with Windows
 - GitHub release update checks
 
