@@ -1157,6 +1157,9 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     private void DismissUpdate()
     {
+        if (IsUpdateDownloading)
+            return;
+
         IsUpdateDialogVisible = false;
     }
 

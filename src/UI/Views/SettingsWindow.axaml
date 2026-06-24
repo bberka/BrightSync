@@ -1124,6 +1124,7 @@
                             </Grid.ColumnDefinitions>
                             <Button Grid.Column="1" Content="Later"
                                     Click="UpdateOverlay_Later_Click"
+                                    IsVisible="{Binding !IsUpdateDownloading}"
                                     Margin="0,0,8,0" />
                             <Button Grid.Column="2" Content="Install Now"
                                     Click="UpdateOverlay_Install_Click"
