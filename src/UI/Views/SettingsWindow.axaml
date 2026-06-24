@@ -1072,7 +1072,63 @@
                                         FontSize="15" FontWeight="SemiBold" Foreground="White" />
                                     <TextBlock Text="Monitor brightness synchronization for Windows"
                                                FontSize="12" Foreground="#a0a0a0" TextWrapping="Wrap" />
+
                                     <Border Height="1" Background="#353535" Margin="0,4" />
+
+                                    <StackPanel Spacing="8" Margin="0,4">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                                <TextBlock Text="GitHub Repository" FontSize="13" Foreground="White" />
+                                                <TextBlock Text="View the source code and contribute to the project"
+                                                           FontSize="11" Foreground="#a0a0a0" />
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Content="Open"
+                                                    Command="{Binding OpenGitHubCommand}"
+                                                    VerticalAlignment="Center" />
+                                        </Grid>
+
+                                        <Border Height="1" Background="#353535" Margin="0,4" />
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                                <TextBlock Text="Report an Issue" FontSize="13" Foreground="White" />
+                                                <TextBlock Text="Submit bugs or suggest new features"
+                                                           FontSize="11" Foreground="#a0a0a0" />
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Content="Report"
+                                                    Command="{Binding OpenReportIssueCommand}"
+                                                    VerticalAlignment="Center" />
+                                        </Grid>
+
+                                        <Border Height="1" Background="#353535" Margin="0,4" />
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                                <TextBlock Text="Releases &amp; Versions" FontSize="13"
+                                                           Foreground="White" />
+                                                <TextBlock Text="View update history and download older builds"
+                                                           FontSize="11" Foreground="#a0a0a0" />
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Content="View"
+                                                    Command="{Binding OpenReleasesCommand}"
+                                                    VerticalAlignment="Center" />
+                                        </Grid>
+                                    </StackPanel>
+
+                                    <Border Height="1" Background="#353535" Margin="0,4" />
+
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />

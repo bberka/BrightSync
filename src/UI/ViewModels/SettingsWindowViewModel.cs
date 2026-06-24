@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using Avalonia.Threading;
@@ -146,6 +147,9 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         CheckForUpdatesCommand = new RelayCommand(CheckForUpdates, () => !_isCheckingForUpdates);
         InstallUpdateCommand = new RelayCommand(InstallUpdate);
         DismissUpdateCommand = new RelayCommand(DismissUpdate);
+        OpenGitHubCommand = new RelayCommand(() => OpenBrowser("https://github.com/bberka/BrightSync"));
+        OpenReportIssueCommand = new RelayCommand(() => OpenBrowser("https://github.com/bberka/BrightSync/issues/new"));
+        OpenReleasesCommand = new RelayCommand(() => OpenBrowser("https://github.com/bberka/BrightSync/releases"));
 
         engine.MasterBrightnessChanged += OnInternalBrightnessChanged;
         engine.TargetsChanged += OnTargetsChanged;
@@ -682,6 +686,9 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     public RelayCommand CheckForUpdatesCommand { get; }
     public RelayCommand InstallUpdateCommand { get; }
     public RelayCommand DismissUpdateCommand { get; }
+    public RelayCommand OpenGitHubCommand { get; }
+    public RelayCommand OpenReportIssueCommand { get; }
+    public RelayCommand OpenReleasesCommand { get; }
 
     public bool AutoCheckUpdates
     {
@@ -1270,6 +1277,23 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
                 OnChanged(nameof(HasStatusText));
             });
         }, null, 5_000, Timeout.Infinite);
+    }
+
+    private static void OpenBrowser(string url)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true
+            };
+            Process.Start(psi);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to open URL {Url}", url);
+        }
     }
 
     private void OnChanged([CallerMemberName] string? name = null)
