@@ -26,12 +26,19 @@ BrightSync is built around the philosophy of **"Configure once, and never think 
 
 ### Settings window
 
+````carousel
 ![Settings window - 1](assets/settings-1.png)
+<!-- slide -->
 ![Settings window - 2](assets/settings-2.png)
+<!-- slide -->
 ![Settings window - 3](assets/settings-3.png)
+<!-- slide -->
 ![Settings window - 4](assets/settings-3.png)
+<!-- slide -->
 ![Settings window - 5](assets/settings-3.png)
+<!-- slide -->
 ![Settings window - 6](assets/settings-3.png)
+````
 
 ## What BrightSync Does
 
