@@ -22,23 +22,22 @@ BrightSync is built around the philosophy of **"Configure once, and never think 
 
 ### Quick menu
 
-![Quick menu screenshot](assets/quick-menu.png)
+<img src="assets/quick-menu.png" width="220" alt="Quick menu screenshot">
 
 ### Settings window
 
-````carousel
-![Settings window - 1](assets/settings-1.png)
-<!-- slide -->
-![Settings window - 2](assets/settings-2.png)
-<!-- slide -->
-![Settings window - 3](assets/settings-3.png)
-<!-- slide -->
-![Settings window - 4](assets/settings-3.png)
-<!-- slide -->
-![Settings window - 5](assets/settings-3.png)
-<!-- slide -->
-![Settings window - 6](assets/settings-3.png)
-````
+<table>
+  <tr>
+    <td><img src="assets/settings-1.png" width="260" alt="Settings Page 1"></td>
+    <td><img src="assets/settings-2.png" width="260" alt="Settings Page 2"></td>
+    <td><img src="assets/settings-3.png" width="260" alt="Settings Page 3"></td>
+  </tr>
+  <tr>
+    <td><img src="assets/settings-4.png" width="260" alt="Settings Page 4"></td>
+    <td><img src="assets/settings-5.png" width="260" alt="Settings Page 5"></td>
+    <td><img src="assets/settings-6.png" width="260" alt="Settings Page 6"></td>
+  </tr>
+</table>
 
 ## What BrightSync Does
 
