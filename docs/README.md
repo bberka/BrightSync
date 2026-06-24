@@ -7,7 +7,7 @@
 
 BrightSync is a Windows tray app that keeps the brightness of your monitors aligned to one shared master brightness value.
 
-BrightSync provides its own master brightness control (available in the tray popup or settings menu) to manage all supported displays—including your laptop's built-in integrated screen and external DDC/CI monitors—from one place.
+BrightSync provides its own master brightness control (available in the tray popup or settings menu) to manage all supported displays from one place, including your laptop's built-in integrated screen and external DDC/CI monitors.
 
 It also includes optional automatic brightness, idle dimming, per-monitor limits, and recovery features for monitors that forget their brightness after sleep or power changes.
 
