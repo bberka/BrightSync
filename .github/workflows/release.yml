@@ -25,10 +25,10 @@ jobs:
       matrix:
         include:
           - rid: win-x64
-            suffix: windows-x64
+            suffix: win-x64
             arch: x64
           - rid: win-arm64
-            suffix: windows-arm64
+            suffix: win-arm64
             arch: arm64
 
     env:
@@ -130,7 +130,7 @@ jobs:
             /O"$env:RUNNER_TEMP" `
             installer/installer.iss
 
-          $setupPath = Join-Path $env:RUNNER_TEMP "BrightSync-Setup-v$version-${{ matrix.arch }}.exe"
+          $setupPath = Join-Path $env:RUNNER_TEMP "BrightSync-Setup-v$version-win-${{ matrix.arch }}.exe"
           if (!(Test-Path $setupPath)) {
             throw "Setup executable was not created."
           }

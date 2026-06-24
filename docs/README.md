@@ -81,7 +81,7 @@ Important notes:
 3. Extract it anywhere.
 4. Run `BrightSync.exe`.
 
-If you are unsure which package to pick, start with `windows-x64-self-contained`.
+If you are unsure which package to pick, start with the installer (e.g. `BrightSync-Setup-v0.16.0-win-x64.exe`).
 
 ## Daily Use
 
@@ -234,9 +234,7 @@ This repository uses GitHub Actions to build and publish releases.
 - Automatic trigger: update `VERSION` and push to `main` or `master`
 - Manual trigger: run the workflow from the GitHub Actions tab
 - Output packages:
-  - `win-x64` self-contained single-file
-  - `win-x64` framework-dependent
-  - `win-x86` self-contained single-file
-  - `win-x86` framework-dependent
+  - `win-x64` (portable zip and setup installer)
+  - `win-arm64` (portable zip and setup installer)
 
 The workflow reads the version from `VERSION`, publishes the app, creates zip archives, and uploads them to the matching GitHub release.

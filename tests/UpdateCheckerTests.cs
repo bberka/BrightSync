@@ -11,9 +11,9 @@ public sealed class UpdateCheckerTests
     {
         var assets = new[]
         {
-            new GitHubReleaseAsset("BrightSync-0.14.1-windows-x64.zip", "https://example.test/x64.zip"),
-            new GitHubReleaseAsset("BrightSync-Setup-v0.14.1-arm64.exe", "https://example.test/arm64-setup.exe"),
-            new GitHubReleaseAsset("BrightSync-Setup-v0.14.1-x64.exe", "https://example.test/x64-setup.exe")
+            new GitHubReleaseAsset("BrightSync-0.14.1-win-x64.zip", "https://example.test/x64.zip"),
+            new GitHubReleaseAsset("BrightSync-Setup-v0.14.1-win-arm64.exe", "https://example.test/arm64-setup.exe"),
+            new GitHubReleaseAsset("BrightSync-Setup-v0.14.1-win-x64.exe", "https://example.test/x64-setup.exe")
         };
 
         var downloadUrl = UpdateChecker.SelectInstallerDownloadUrl(assets, Architecture.X64);
@@ -26,8 +26,8 @@ public sealed class UpdateCheckerTests
     {
         var assets = new[]
         {
-            new GitHubReleaseAsset("BrightSync-0.14.1-windows-arm64.zip", "https://example.test/arm64.zip"),
-            new GitHubReleaseAsset("BrightSync-Setup-v0.14.1-arm64.exe", "https://example.test/arm64-setup.exe")
+            new GitHubReleaseAsset("BrightSync-0.14.1-win-arm64.zip", "https://example.test/arm64.zip"),
+            new GitHubReleaseAsset("BrightSync-Setup-v0.14.1-win-arm64.exe", "https://example.test/arm64-setup.exe")
         };
 
         var downloadUrl = UpdateChecker.SelectInstallerDownloadUrl(assets, Architecture.X64);

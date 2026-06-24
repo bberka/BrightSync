@@ -38,7 +38,7 @@ ArchitecturesAllowed=x64compatible
 #endif
 ; Output configuration
 OutputDir=.
-OutputBaseFilename={#AppName}-Setup-v{#AppVersion}-{#AppArch}
+OutputBaseFilename={#AppName}-Setup-v{#AppVersion}-win-{#AppArch}
 SetupIconFile=..\src\Resources\app.ico
 Compression=lzma2/max
 SolidCompression=yes
