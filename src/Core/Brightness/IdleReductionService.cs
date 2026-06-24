@@ -73,6 +73,24 @@ public sealed class IdleReductionService : IDisposable
 
         if (_engine.SetIdleReductionActive(shouldReduce))
             RaiseStateChanged();
+
+        if (_config.Config.IdleReductionEnabled)
+        {
+            if (shouldReduce)
+            {
+                // We are currently idle (dimmed). Poll every 1 second (1000ms) for responsive return detection.
+                _timer.Change(TimeSpan.FromMilliseconds(1000), TimeSpan.FromMilliseconds(1000));
+            }
+            else
+            {
+                // We are not idle. Poll less frequently (every 5 seconds).
+                _timer.Change(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+            }
+        }
+        else
+        {
+            _timer.Change(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+        }
     }
 
     public TimeSpan GetIdleDuration()

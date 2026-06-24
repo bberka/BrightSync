@@ -78,6 +78,10 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     private bool _isUpdateDownloading;
     private bool _isUpdatingInternalBrightness;
 
+    private bool _periodicMonitorRefreshEnabled;
+
+    private int _periodicMonitorRefreshIntervalMinutes;
+
     private SettingsSection _selectedSection = SettingsSection.General;
 
     private bool _startWithWindows;
@@ -132,6 +136,9 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _autoCheckUpdates = config.Config.AutoCheckUpdates;
         _autoInstallUpdates = config.Config.AutoInstallUpdates;
         _autoInstallMode = config.Config.AutoInstallMode;
+        _periodicMonitorRefreshEnabled = config.Config.PeriodicMonitorRefreshEnabled;
+        _periodicMonitorRefreshIntervalMinutes =
+            Math.Clamp(config.Config.PeriodicMonitorRefreshIntervalMinutes, 5, 180);
 
         RefreshCommand = new RelayCommand(Refresh);
         ResetAllCommand = new RelayCommand(ResetAll);
@@ -273,6 +280,39 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
             _config.Config.EnforcementIntervalSeconds = _enforcementInterval;
             OnChanged();
+            RequestAutoSave(debounce: true);
+        }
+    }
+
+    public bool PeriodicMonitorRefreshEnabled
+    {
+        get => _periodicMonitorRefreshEnabled;
+        set
+        {
+            if (_periodicMonitorRefreshEnabled == value)
+                return;
+
+            _periodicMonitorRefreshEnabled = value;
+            _config.Config.PeriodicMonitorRefreshEnabled = value;
+            OnChanged();
+            _engine.UpdatePeriodicRefreshTimer();
+            RequestAutoSave();
+        }
+    }
+
+    public int PeriodicMonitorRefreshIntervalMinutes
+    {
+        get => _periodicMonitorRefreshIntervalMinutes;
+        set
+        {
+            var clamped = Math.Clamp(value, 5, 180);
+            if (_periodicMonitorRefreshIntervalMinutes == clamped)
+                return;
+
+            _periodicMonitorRefreshIntervalMinutes = clamped;
+            _config.Config.PeriodicMonitorRefreshIntervalMinutes = clamped;
+            OnChanged();
+            _engine.UpdatePeriodicRefreshTimer();
             RequestAutoSave(debounce: true);
         }
     }
@@ -654,6 +694,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             _autoCheckUpdates = value;
             _config.Config.AutoCheckUpdates = value;
             OnChanged();
+            OnChanged(nameof(IsAutoInstallModeVisible));
             RequestAutoSave();
         }
     }
@@ -674,7 +715,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         }
     }
 
-    public bool IsAutoInstallModeVisible => _autoInstallUpdates;
+    public bool IsAutoInstallModeVisible => _autoCheckUpdates && _autoInstallUpdates;
 
     public AutoInstallMode AutoInstallMode
     {
@@ -921,6 +962,8 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             _config.Config.MasterBrightness = 50;
             EnforcementIntervalSeconds = new AppConfig().EnforcementIntervalSeconds;
             EnforcementEnabled = true;
+            PeriodicMonitorRefreshEnabled = false;
+            PeriodicMonitorRefreshIntervalMinutes = new AppConfig().PeriodicMonitorRefreshIntervalMinutes;
             DisableMonitorAccessWhileLocked = false;
             IdleReductionEnabled = false;
             IdleTimeoutMinutes = new AppConfig().IdleTimeoutMinutes;
@@ -1170,6 +1213,11 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
         UpdateStatusText = $"BrightSync v{result.LatestVersion} is available (current: v{result.CurrentVersion}).";
         IsUpdateDialogVisible = true;
+
+        if (AutoCheckUpdates && AutoInstallUpdates && AutoInstallMode == AutoInstallMode.Instantly)
+        {
+            InstallUpdate();
+        }
     }
 
     private static string BuildUpdateStatusText(UpdateCheckResult result)

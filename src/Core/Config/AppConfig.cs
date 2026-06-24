@@ -82,6 +82,12 @@ public sealed class AppConfig
 
     /// <summary>When auto-install should trigger the setup executable.</summary>
     public AutoInstallMode AutoInstallMode { get; set; } = AutoInstallMode.WhenIdle;
+
+    /// <summary>Whether to periodically refresh/reload monitors to recover from lost connections.</summary>
+    public bool PeriodicMonitorRefreshEnabled { get; set; } = false;
+
+    /// <summary>How often (minutes) to refresh and reload monitors.</summary>
+    public int PeriodicMonitorRefreshIntervalMinutes { get; set; } = 30;
 }
 
 public enum AutoInstallMode

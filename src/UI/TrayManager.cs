@@ -4,6 +4,7 @@ using Avalonia.Platform;
 using Avalonia.Threading;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
+using BrightSync.Core.Interop;
 using BrightSync.Core.Monitors;
 using BrightSync.Core.Updates;
 using BrightSync.UI.ViewModels;
@@ -61,6 +62,7 @@ public sealed class TrayManager(
         updateChecker.UpdateAvailable += OnUpdateAvailable;
         _trayIcon = new WindowsTrayIcon();
         _trayIcon.Clicked += (_, _) => ToggleQuickPopup();
+        _trayIcon.MiddleClicked += (_, _) => ShowSettings();
         _trayIcon.SettingsRequested += (_, _) => ShowSettings();
         _trayIcon.RefreshRequested += (_, _) => RefreshMonitors();
         _trayIcon.ExitRequested += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
@@ -113,12 +115,12 @@ public sealed class TrayManager(
         var mode = autoBrightness.IsEnabled ? "Auto" : "Manual";
 
         if (eyeProtection.IsEnabled)
-            return $"BrightSync - Global brightness: {safeBrightness}% | {mode} | Eye Protection";
+            return $"BrightSync - {safeBrightness}% | {mode} | Eye Protection";
 
         if (brightnessBoost.IsEnabled)
-            return $"BrightSync - Global brightness: {safeBrightness}% | {mode} | Boost";
+            return $"BrightSync - {safeBrightness}% | {mode} | Boost";
 
-        return $"BrightSync - Global brightness: {safeBrightness}% | {mode}";
+        return $"BrightSync - {safeBrightness}% | {mode}";
     }
 
 
@@ -162,7 +164,13 @@ public sealed class TrayManager(
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (_settingsWindow?.IsVisible == true)
+            var isAutoInstallInstant = config.Config.AutoInstallUpdates &&
+                                       config.Config.AutoInstallMode == AutoInstallMode.Instantly;
+            if (isAutoInstallInstant)
+            {
+                ShowSettings();
+            }
+            else if (_settingsWindow?.IsVisible == true)
             {
                 _settingsWindow.ShowUpdateAvailable(result);
             }
@@ -274,12 +282,13 @@ public sealed class TrayManager(
     private void PositionWindowAboveTray(Window window)
     {
         Screen? screen = null;
-        if (BrightSync.Core.Interop.NativeMethods.GetCursorPos(out var p))
+        if (NativeMethods.GetCursorPos(out var p))
         {
             screen = window.Screens.ScreenFromPoint(new PixelPoint(p.x, p.y));
         }
 
-        screen ??= window.Screens.ScreenFromPoint(window.Position) ?? window.Screens.ScreenFromVisual(window) ?? window.Screens.Primary;
+        screen ??= window.Screens.ScreenFromPoint(window.Position) ??
+                   window.Screens.ScreenFromVisual(window) ?? window.Screens.Primary;
         if (screen == null) return;
 
         var workingArea = screen.WorkingArea;

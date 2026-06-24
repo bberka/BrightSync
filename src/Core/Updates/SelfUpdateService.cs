@@ -210,6 +210,12 @@ public sealed class SelfUpdateService : IDisposable
             return;
         }
 
+        if (_config.Config.AutoInstallMode == AutoInstallMode.Instantly)
+        {
+            Log.Information("Auto-install instantly requested. UI will handle progress-based installation.");
+            return;
+        }
+
         Log.Information("Auto-install triggered for update to {Version}", result.LatestVersion);
         _ = DownloadAndScheduleAsync();
     }

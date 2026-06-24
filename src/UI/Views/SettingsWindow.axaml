@@ -351,39 +351,42 @@
                                                       OnContent="" OffContent="" VerticalAlignment="Center" />
                                     </Grid>
 
-                                    <Border Height="1" Background="#353535" />
+                                    <StackPanel IsVisible="{Binding AutoCheckUpdates}"
+                                                IsEnabled="{Binding AutoCheckUpdates}" Spacing="10">
+                                        <Border Height="1" Background="#353535" />
 
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
-                                            <TextBlock Text="Automatically install updates" FontSize="13"
-                                                       Foreground="White" />
-                                            <TextBlock Text="Download and install in the background"
-                                                       FontSize="11" Foreground="#a0a0a0" />
-                                        </StackPanel>
-                                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoInstallUpdates}"
-                                                      OnContent="" OffContent="" VerticalAlignment="Center" />
-                                    </Grid>
-
-                                    <StackPanel Margin="16,4,0,0"
-                                                IsVisible="{Binding IsAutoInstallModeVisible}">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="148" />
+                                                <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="Install mode" FontSize="13"
-                                                       Foreground="White" VerticalAlignment="Center" />
-                                            <ComboBox Grid.Column="1"
-                                                      Classes="settings-combobox"
-                                                      SelectedIndex="{Binding AutoInstallModeIndex}">
-                                                <ComboBoxItem Content="When idle" />
-                                                <ComboBoxItem Content="Instantly" />
-                                            </ComboBox>
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                                <TextBlock Text="Automatically install updates" FontSize="13"
+                                                           Foreground="White" />
+                                                <TextBlock Text="Download and install in the background"
+                                                           FontSize="11" Foreground="#a0a0a0" />
+                                            </StackPanel>
+                                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoInstallUpdates}"
+                                                          OnContent="" OffContent="" VerticalAlignment="Center" />
                                         </Grid>
+
+                                        <StackPanel Margin="16,4,0,0"
+                                                    IsVisible="{Binding IsAutoInstallModeVisible}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="148" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="Install mode" FontSize="13"
+                                                           Foreground="White" VerticalAlignment="Center" />
+                                                <ComboBox Grid.Column="1"
+                                                          Classes="settings-combobox"
+                                                          SelectedIndex="{Binding AutoInstallModeIndex}">
+                                                    <ComboBoxItem Content="When idle" />
+                                                    <ComboBoxItem Content="Instantly" />
+                                                </ComboBox>
+                                            </Grid>
+                                        </StackPanel>
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
@@ -457,6 +460,48 @@
                                             <TextBlock FontSize="13" Foreground="White" VerticalAlignment="Center"
                                                        MinWidth="32"
                                                        Text="{Binding EnforcementIntervalSeconds, StringFormat='{}{0}s'}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Background="#252525" BorderBrush="#353535" BorderThickness="1" CornerRadius="8"
+                                    Padding="12,10">
+                                <StackPanel Spacing="8">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="Periodic monitor refresh" FontSize="13" Foreground="White" />
+                                            <TextBlock
+                                                Text="Regularly re-detects and reloads monitor connections to recover from lost DDC communication"
+                                                FontSize="11"
+                                                TextWrapping="Wrap" Foreground="#a0a0a0" />
+                                        </StackPanel>
+                                        <ToggleSwitch Grid.Column="1"
+                                                      IsChecked="{Binding PeriodicMonitorRefreshEnabled}"
+                                                      OnContent="" OffContent="" VerticalAlignment="Center" />
+                                    </Grid>
+
+                                    <Grid Margin="16,4,0,0" IsVisible="{Binding PeriodicMonitorRefreshEnabled}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="180" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Interval" FontSize="13" Foreground="White"
+                                                   VerticalAlignment="Center" />
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                                    HorizontalAlignment="Right"
+                                                    VerticalAlignment="Center" Spacing="8">
+                                            <Slider Width="110" Minimum="5" Maximum="180"
+                                                    Value="{Binding PeriodicMonitorRefreshIntervalMinutes}"
+                                                    TickFrequency="5"
+                                                    IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                            <TextBlock FontSize="13" Foreground="White" VerticalAlignment="Center"
+                                                       MinWidth="32"
+                                                       Text="{Binding PeriodicMonitorRefreshIntervalMinutes, StringFormat='{}{0}m'}" />
                                         </StackPanel>
                                     </Grid>
                                 </StackPanel>

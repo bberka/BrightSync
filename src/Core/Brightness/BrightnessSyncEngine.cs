@@ -19,6 +19,7 @@ public sealed partial class BrightSyncEngine : IDisposable
 
     private readonly DdcCiService _ddc;
     private readonly Timer _enforcementTimer;
+    private readonly Timer _periodicRefreshTimer;
     private readonly InternalBrightnessWatcher _watcher;
     private BrightnessBoostService? _brightnessBoost;
     private bool _disposed;
@@ -40,6 +41,9 @@ public sealed partial class BrightSyncEngine : IDisposable
         _enforcementTimer = new Timer(
             Math.Max(5, _config.Config.EnforcementIntervalSeconds) * 1000.0);
         _enforcementTimer.Elapsed += (_, _) => Enforce();
+
+        _periodicRefreshTimer = new Timer();
+        _periodicRefreshTimer.Elapsed += (_, _) => PeriodicRefresh();
     }
 
     public int MasterBrightness => _masterBrightness;
@@ -61,6 +65,8 @@ public sealed partial class BrightSyncEngine : IDisposable
         SystemEvents.SessionSwitch -= OnSessionSwitch;
         _enforcementTimer.Stop();
         _enforcementTimer.Dispose();
+        _periodicRefreshTimer.Stop();
+        _periodicRefreshTimer.Dispose();
         _watcher.Dispose();
     }
 
@@ -100,6 +106,8 @@ public sealed partial class BrightSyncEngine : IDisposable
         _enforcementTimer.Start();
         Log.Debug("Enforcement timer started. IntervalSeconds={IntervalSeconds}",
             Math.Max(5, _config.Config.EnforcementIntervalSeconds));
+
+        UpdatePeriodicRefreshTimer();
 
         SystemEvents.PowerModeChanged += OnPowerModeChanged;
         SystemEvents.SessionSwitch += OnSessionSwitch;
@@ -194,5 +202,35 @@ public sealed partial class BrightSyncEngine : IDisposable
                 Task.Delay(1500).ContinueWith(_ => RefreshMonitors());
                 break;
         }
+    }
+
+    public void UpdatePeriodicRefreshTimer()
+    {
+        _periodicRefreshTimer.Stop();
+
+        if (_config.Config.PeriodicMonitorRefreshEnabled)
+        {
+            var intervalMs = Math.Max(1, _config.Config.PeriodicMonitorRefreshIntervalMinutes) * 60 * 1000.0;
+            _periodicRefreshTimer.Interval = intervalMs;
+            _periodicRefreshTimer.Start();
+            Log.Information("Periodic monitor refresh timer started. IntervalMinutes={IntervalMinutes}",
+                _config.Config.PeriodicMonitorRefreshIntervalMinutes);
+        }
+        else
+        {
+            Log.Debug("Periodic monitor refresh timer stopped");
+        }
+    }
+
+    private void PeriodicRefresh()
+    {
+        if (IsMonitorAccessSuspended)
+        {
+            Log.Debug("Periodic monitor refresh skipped because monitor access is paused while the session is locked");
+            return;
+        }
+
+        Log.Information("Triggering periodic monitor refresh");
+        RefreshMonitors();
     }
 }

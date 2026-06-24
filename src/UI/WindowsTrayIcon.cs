@@ -68,6 +68,7 @@ internal sealed class WindowsTrayIcon : IDisposable
     }
 
     public event EventHandler? Clicked;
+    public event EventHandler? MiddleClicked;
     public event EventHandler? SettingsRequested;
     public event EventHandler? RefreshRequested;
     public event EventHandler? ExitRequested;
@@ -184,7 +185,8 @@ internal sealed class WindowsTrayIcon : IDisposable
     private void AddIcon(string toolTip)
     {
         var data = CreateNotifyIconData(toolTip);
-        data.uFlags = NativeMethods.NifMessage | NativeMethods.NifIcon | NativeMethods.NifTip | NativeMethods.NifShowTip;
+        data.uFlags = NativeMethods.NifMessage | NativeMethods.NifIcon | NativeMethods.NifTip |
+                      NativeMethods.NifShowTip;
         data.uCallbackMessage = CallbackMessage;
         data.hIcon = _iconHandle;
 
@@ -279,6 +281,9 @@ internal sealed class WindowsTrayIcon : IDisposable
                 case NativeMethods.NinKeySelect:
                     RaiseClick(eventCode);
                     return IntPtr.Zero;
+                case NativeMethods.WmMButtonUp:
+                    RaiseMiddleClick(eventCode);
+                    return IntPtr.Zero;
                 case NativeMethods.WmRButtonUp:
                 case NativeMethods.WmContextMenu:
                     ShowContextMenu();
@@ -300,6 +305,19 @@ internal sealed class WindowsTrayIcon : IDisposable
         _lastClickRaisedAt = DateTime.UtcNow;
         Log.Debug("Win32 tray icon click received. EventCode={EventCode}", eventCode);
         Clicked?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void RaiseMiddleClick(int eventCode)
+    {
+        if ((DateTime.UtcNow - _lastClickRaisedAt).TotalMilliseconds < 250)
+        {
+            Log.Debug("Duplicate Win32 tray icon middle click ignored. EventCode={EventCode}", eventCode);
+            return;
+        }
+
+        _lastClickRaisedAt = DateTime.UtcNow;
+        Log.Debug("Win32 tray icon middle click received. EventCode={EventCode}", eventCode);
+        MiddleClicked?.Invoke(this, EventArgs.Empty);
     }
 
     private void ShowContextMenu()
@@ -430,6 +448,7 @@ internal sealed class WindowsTrayIcon : IDisposable
         public const int WmApp = 0x8000;
         public const int WmLButtonUp = 0x0202;
         public const int WmRButtonUp = 0x0205;
+        public const int WmMButtonUp = 0x0208;
         public const int WmContextMenu = 0x007B;
         public const int NinSelect = 0x0400;
         public const int NinKeySelect = 0x0401;
