@@ -38,6 +38,15 @@ public sealed class MonitorProfile
     public int? GreenGain { get; set; }
     public int? BlueGain { get; set; }
     public int? InputSource { get; set; }
+    public int? RefreshRate { get; set; }
+    public int? Sharpness { get; set; }
+    public int? Saturation { get; set; }
+    public int? Gamma { get; set; }
+    public string? AssociatedColorProfile { get; set; }
+    public int? PowerState { get; set; }
+    public bool AdvancedFeaturesEnabled { get; set; }
+    public bool ShowCustomVcpConsole { get; set; }
+    public System.Collections.Generic.List<CustomVcpActionProfile> CustomActions { get; set; } = new();
 
     public void Reset()
     {
@@ -52,5 +61,21 @@ public sealed class MonitorProfile
         GreenGain = null;
         BlueGain = null;
         InputSource = null;
+        RefreshRate = null;
+        Sharpness = null;
+        Saturation = null;
+        Gamma = null;
+        AssociatedColorProfile = null;
+        PowerState = null;
+        AdvancedFeaturesEnabled = false;
+        ShowCustomVcpConsole = false;
+        CustomActions.Clear();
     }
+}
+
+public sealed class CustomVcpActionProfile
+{
+    public string Name { get; set; } = string.Empty;
+    public byte VcpCode { get; set; }
+    public uint Value { get; set; }
 }

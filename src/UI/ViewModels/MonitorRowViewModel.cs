@@ -5,9 +5,11 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Windows.Input;
 using BrightSync.Core.Brightness;
+using BrightSync.Core.Colors;
 using BrightSync.Core.Config;
 using BrightSync.Core.Interop;
 using BrightSync.Core.Monitors;
+using BrightSync.UI;
 using Serilog;
 
 namespace BrightSync.UI.ViewModels;
@@ -23,18 +25,31 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     private readonly Action? _onReset;
     private readonly Action<bool>? _onSettingsChanged;
     private readonly Action<MonitorRowViewModel>? _onExpanded;
+    private readonly List<int> _supportedRefreshRates;
+    private readonly List<string> _installedColorProfiles;
 
     private Timer? _contrastDebounce;
     private Timer? _volumeDebounce;
     private Timer? _redGainDebounce;
     private Timer? _greenGainDebounce;
     private Timer? _blueGainDebounce;
+    private Timer? _sharpnessDebounce;
+    private Timer? _saturationDebounce;
 
     private int? _tempContrast;
     private int? _tempVolume;
     private int? _tempRedGain;
     private int? _tempGreenGain;
     private int? _tempBlueGain;
+    private int? _tempSharpness;
+    private int? _tempSaturation;
+
+    // Custom VCP Console state
+    private string _customVcpCodeHex = "E2";
+    private string _customVcpValue = "0";
+    private string _customVcpLastResult = string.Empty;
+    private string _customVcpActionName = string.Empty;
+    private readonly System.Collections.ObjectModel.ObservableCollection<CustomVcpActionViewModel> _customActions = new();
 
     private void DebounceVcpWrite(ref Timer? timer, byte vcpCode, int value)
     {
@@ -278,7 +293,21 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         _min = profile.MinBrightness;
         _max = profile.MaxBrightness;
         _multiplier = profile.Multiplier;
+
+        _supportedRefreshRates = DisplaySettingsService.GetSupportedRefreshRates(DeviceName);
+        if (_supportedRefreshRates.Count == 0 && monitor.RefreshRateHz > 0)
+        {
+            _supportedRefreshRates.Add(monitor.RefreshRateHz);
+        }
+        _installedColorProfiles = ColorProfileManager.GetInstalledColorProfiles();
+
+        ReloadCustomActions();
+
         ResetCommand = new RelayCommand(Reset);
+        QueryCustomVcpCommand = new RelayCommand(QueryCustomVcp);
+        WriteCustomVcpCommand = new RelayCommand(WriteCustomVcp);
+        SaveCustomActionCommand = new RelayCommand(SaveCustomAction);
+        OpenHdrSettingsCommand = new RelayCommand(OpenHdrSettings);
     }
 
     public void RefreshTargetText() => OnChanged(nameof(TargetText));
@@ -291,18 +320,25 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         _tempRedGain = null;
         _tempGreenGain = null;
         _tempBlueGain = null;
+        _tempSharpness = null;
+        _tempSaturation = null;
  
         _contrastDebounce?.Dispose(); _contrastDebounce = null;
         _volumeDebounce?.Dispose(); _volumeDebounce = null;
         _redGainDebounce?.Dispose(); _redGainDebounce = null;
         _greenGainDebounce?.Dispose(); _greenGainDebounce = null;
         _blueGainDebounce?.Dispose(); _blueGainDebounce = null;
+        _sharpnessDebounce?.Dispose(); _sharpnessDebounce = null;
+        _saturationDebounce?.Dispose(); _saturationDebounce = null;
  
         _enabled = UsesWindowsBrightnessControl || (SupportsDdcCi && _profile.Enabled);
         _min = _profile.MinBrightness;
         _max = _profile.MaxBrightness;
         _multiplier = _profile.Multiplier;
         _isExpanded = false;
+
+        ReloadCustomActions();
+
         OnChanged(nameof(IsExpanded));
         OnChanged(nameof(Enabled));
         OnChanged(nameof(MinBrightness));
@@ -317,6 +353,24 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         OnChanged(nameof(BlueGain));
         OnChanged(nameof(SelectedColorPreset));
         OnChanged(nameof(SelectedInputSource));
+
+        OnChanged(nameof(Sharpness));
+        OnChanged(nameof(Saturation));
+        OnChanged(nameof(Gamma));
+        OnChanged(nameof(PowerState));
+        OnChanged(nameof(SelectedPowerState));
+        OnChanged(nameof(SelectedRefreshRate));
+        OnChanged(nameof(SelectedColorProfile));
+        OnChanged(nameof(CustomVcpCodeHex));
+        OnChanged(nameof(CustomVcpValue));
+        OnChanged(nameof(CustomVcpLastResult));
+        OnChanged(nameof(CustomVcpActionName));
+
+        _selectedVcpCodeItem = null;
+        OnChanged(nameof(AdvancedFeaturesEnabled));
+        OnChanged(nameof(ShowCustomVcpConsole));
+        OnChanged(nameof(SelectedVcpCodeItem));
+ 
         _onReset?.Invoke();
     }
 
@@ -384,7 +438,9 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         }
     }
  
-    public bool ShowsAdvancedSettings => SupportsContrast || SupportsVolume || SupportsRgbGains || SupportsColorPreset || SupportsInputSource;
+    public bool HasAdvancedFeatures => SupportsDdcCi || SupportedRefreshRates.Count > 1 || InstalledColorProfiles.Count > 0;
+
+    public bool ShowsAdvancedSettings => AdvancedFeaturesEnabled && HasAdvancedFeatures;
  
     public bool SupportsContrast => _monitor.SupportsContrast;
     public int MaxContrast => _monitor.MaxContrast;
@@ -560,5 +616,523 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
     }
 
     private void OnChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        => PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
+
+    public ICommand QueryCustomVcpCommand { get; }
+    public ICommand WriteCustomVcpCommand { get; }
+    public ICommand SaveCustomActionCommand { get; }
+    public ICommand OpenHdrSettingsCommand { get; }
+
+    public List<int> SupportedRefreshRates => _supportedRefreshRates;
+
+    public int? SelectedRefreshRate
+    {
+        get => _profile.RefreshRate ?? (_monitor.RefreshRateHz > 0 ? _monitor.RefreshRateHz : null);
+        set
+        {
+            if (value == null) return;
+            if (_profile.RefreshRate == value) return;
+            _profile.RefreshRate = value;
+            DisplaySettingsService.SetRefreshRate(DeviceName, value.Value);
+            OnChanged();
+            _onSettingsChanged?.Invoke(false);
+        }
+    }
+
+    public List<string> InstalledColorProfiles => _installedColorProfiles;
+
+    public string? SelectedColorProfile
+    {
+        get => _profile.AssociatedColorProfile ?? ColorProfileManager.GetActiveColorProfile(DeviceName);
+        set
+        {
+            if (string.IsNullOrWhiteSpace(value)) return;
+            if (_profile.AssociatedColorProfile == value) return;
+            _profile.AssociatedColorProfile = value;
+            ColorProfileManager.SetActiveColorProfile(DeviceName, value);
+            OnChanged();
+            _onSettingsChanged?.Invoke(false);
+        }
+    }
+
+    public bool SupportsSharpness => _monitor.SupportsSharpness;
+    public int MaxSharpness => _monitor.MaxSharpness;
+
+    public int Sharpness
+    {
+        get => _profile.Sharpness ?? _tempSharpness ?? _monitor.CurrentSharpness;
+        set
+        {
+            var val = Math.Clamp(value, 0, _monitor.MaxSharpness);
+            if (Sharpness == val) return;
+            _tempSharpness = val;
+            _profile.Sharpness = val;
+            OnChanged();
+            DebounceVcpWrite(ref _sharpnessDebounce, NativeMethods.VCP_SHARPNESS, val);
+            _onSettingsChanged?.Invoke(true);
+        }
+    }
+
+    public bool SupportsSaturation => _monitor.SupportsSaturation;
+    public int MaxSaturation => _monitor.MaxSaturation;
+
+    public int Saturation
+    {
+        get => _profile.Saturation ?? _tempSaturation ?? _monitor.CurrentSaturation;
+        set
+        {
+            var val = Math.Clamp(value, 0, _monitor.MaxSaturation);
+            if (Saturation == val) return;
+            _tempSaturation = val;
+            _profile.Saturation = val;
+            OnChanged();
+            DebounceVcpWrite(ref _saturationDebounce, NativeMethods.VCP_SATURATION, val);
+            _onSettingsChanged?.Invoke(true);
+        }
+    }
+
+    public bool SupportsGamma => _monitor.SupportsGamma;
+
+    public int Gamma
+    {
+        get => _profile.Gamma ?? _monitor.CurrentGamma;
+        set
+        {
+            if (Gamma == value) return;
+            _profile.Gamma = value;
+            _engine.Ddc.SetVcpFeature(_monitor, NativeMethods.VCP_GAMMA, (uint)value);
+            OnChanged();
+            _onSettingsChanged?.Invoke(false);
+        }
+    }
+
+    public bool SupportsPowerControl => _monitor.SupportsPowerControl;
+
+    public int PowerState
+    {
+        get => _profile.PowerState ?? _monitor.CurrentPowerState;
+        set
+        {
+            if (PowerState == value) return;
+            _profile.PowerState = value;
+            _engine.Ddc.SetVcpFeature(_monitor, NativeMethods.VCP_POWER_CONTROL, (uint)value);
+            OnChanged();
+            _onSettingsChanged?.Invoke(false);
+        }
+    }
+
+    public record PowerStateItem(string Name, int Value);
+    
+    private static readonly List<PowerStateItem> PowerStates = new()
+    {
+        new PowerStateItem("On", 1),
+        new PowerStateItem("Standby", 4),
+        new PowerStateItem("Deep Sleep", 5)
+    };
+
+    public List<PowerStateItem> PowerStatesList => PowerStates;
+
+    public PowerStateItem? SelectedPowerState
+    {
+        get => PowerStatesList.FirstOrDefault(p => p.Value == PowerState) ?? new PowerStateItem($"Unknown (0x{PowerState:X})", PowerState);
+        set
+        {
+            if (value != null)
+            {
+                PowerState = value.Value;
+                OnChanged();
+            }
+        }
+    }
+
+    public string CustomVcpCodeHex
+    {
+        get => _customVcpCodeHex;
+        set
+        {
+            _customVcpCodeHex = value;
+            OnChanged();
+        }
+    }
+
+    public string CustomVcpValue
+    {
+        get => _customVcpValue;
+        set
+        {
+            _customVcpValue = value;
+            OnChanged();
+        }
+    }
+
+    public string CustomVcpLastResult
+    {
+        get => _customVcpLastResult;
+        set
+        {
+            _customVcpLastResult = value;
+            OnChanged();
+        }
+    }
+
+    public string CustomVcpActionName
+    {
+        get => _customVcpActionName;
+        set
+        {
+            _customVcpActionName = value;
+            OnChanged();
+        }
+    }
+
+    public System.Collections.ObjectModel.ObservableCollection<CustomVcpActionViewModel> CustomActions => _customActions;
+
+    public List<string> ParsedCapabilities
+    {
+        get
+        {
+            var list = new List<string>();
+            if (string.IsNullOrWhiteSpace(_monitor.RawCapabilitiesString))
+                return list;
+
+            try
+            {
+                var cap = _monitor.RawCapabilitiesString;
+                int vcpIdx = cap.IndexOf("vcp", StringComparison.OrdinalIgnoreCase);
+                if (vcpIdx >= 0)
+                {
+                    int openParen = cap.IndexOf('(', vcpIdx);
+                    if (openParen >= 0)
+                    {
+                        int closeParen = cap.IndexOf(')', openParen);
+                        if (closeParen > openParen)
+                        {
+                            var vcpSection = cap.Substring(openParen + 1, closeParen - openParen - 1);
+                            var parts = vcpSection.Split(new[] { ' ', '\r', '\n', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                            foreach (var part in parts)
+                            {
+                                if (byte.TryParse(part, System.Globalization.NumberStyles.HexNumber, null, out byte code))
+                                {
+                                    list.Add($"0x{code:X2}");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to parse monitor capabilities string");
+            }
+            return list;
+        }
+    }
+
+    private void QueryCustomVcp()
+    {
+        if (string.IsNullOrWhiteSpace(CustomVcpCodeHex))
+        {
+            CustomVcpLastResult = "Error: Enter a VCP code in Hex.";
+            return;
+        }
+
+        if (!byte.TryParse(CustomVcpCodeHex, System.Globalization.NumberStyles.HexNumber, null, out byte code))
+        {
+            CustomVcpLastResult = $"Error: Invalid Hex VCP code '{CustomVcpCodeHex}'.";
+            return;
+        }
+
+        if (_engine.Ddc.GetVcpFeature(_monitor, code, out uint currentValue, out uint maxValue))
+        {
+            CustomVcpLastResult = $"VCP 0x{code:X2}: Current = {currentValue}, Max = {maxValue}";
+            CustomVcpValue = currentValue.ToString();
+        }
+        else
+        {
+            CustomVcpLastResult = $"Failed to read VCP 0x{code:X2}.";
+        }
+    }
+
+    private void WriteCustomVcp()
+    {
+        if (string.IsNullOrWhiteSpace(CustomVcpCodeHex))
+        {
+            CustomVcpLastResult = "Error: Enter a VCP code in Hex.";
+            return;
+        }
+
+        if (!byte.TryParse(CustomVcpCodeHex, System.Globalization.NumberStyles.HexNumber, null, out byte code))
+        {
+            CustomVcpLastResult = $"Error: Invalid Hex VCP code '{CustomVcpCodeHex}'.";
+            return;
+        }
+
+        uint value;
+        bool parseSuccess = false;
+        var valStr = CustomVcpValue?.Trim() ?? string.Empty;
+        if (valStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            parseSuccess = uint.TryParse(valStr.Substring(2), System.Globalization.NumberStyles.HexNumber, null, out value);
+        }
+        else
+        {
+            parseSuccess = uint.TryParse(valStr, out value);
+        }
+
+        if (!parseSuccess)
+        {
+            CustomVcpLastResult = $"Error: Invalid Value '{CustomVcpValue}'.";
+            return;
+        }
+
+        if (_engine.Ddc.SetVcpFeature(_monitor, code, value))
+        {
+            CustomVcpLastResult = $"Successfully wrote {value} (0x{value:X}) to VCP 0x{code:X2}";
+        }
+        else
+        {
+            CustomVcpLastResult = $"Failed to write to VCP 0x{code:X2}.";
+        }
+    }
+
+    private void SaveCustomAction()
+    {
+        if (string.IsNullOrWhiteSpace(CustomVcpActionName))
+        {
+            CustomVcpLastResult = "Error: Enter an Action Name.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(CustomVcpCodeHex) ||
+            !byte.TryParse(CustomVcpCodeHex, System.Globalization.NumberStyles.HexNumber, null, out byte code))
+        {
+            CustomVcpLastResult = "Error: Enter a valid Hex VCP code.";
+            return;
+        }
+
+        uint value;
+        bool parseSuccess = false;
+        var valStr = CustomVcpValue?.Trim() ?? string.Empty;
+        if (valStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            parseSuccess = uint.TryParse(valStr.Substring(2), System.Globalization.NumberStyles.HexNumber, null, out value);
+        }
+        else
+        {
+            parseSuccess = uint.TryParse(valStr, out value);
+        }
+
+        if (!parseSuccess)
+        {
+            CustomVcpLastResult = "Error: Enter a valid Value.";
+            return;
+        }
+
+        var existing = _profile.CustomActions.FirstOrDefault(a => a.Name.Equals(CustomVcpActionName, StringComparison.OrdinalIgnoreCase));
+        if (existing != null)
+        {
+            existing.VcpCode = code;
+            existing.Value = value;
+        }
+        else
+        {
+            _profile.CustomActions.Add(new CustomVcpActionProfile
+            {
+                Name = CustomVcpActionName,
+                VcpCode = code,
+                Value = value
+            });
+        }
+
+        _onSettingsChanged?.Invoke(true); // Save config
+
+        ReloadCustomActions();
+        CustomVcpLastResult = $"Saved shortcut '{CustomVcpActionName}'";
+        CustomVcpActionName = string.Empty;
+    }
+
+    private void ReloadCustomActions()
+    {
+        _customActions.Clear();
+        foreach (var action in _profile.CustomActions)
+        {
+            var a = action;
+            _customActions.Add(new CustomVcpActionViewModel(
+                a.Name,
+                a.VcpCode,
+                a.Value,
+                () => ExecuteVcpAction(a),
+                () => DeleteVcpAction(a)
+            ));
+        }
+    }
+
+    private void ExecuteVcpAction(CustomVcpActionProfile action)
+    {
+        if (_engine.Ddc.SetVcpFeature(_monitor, action.VcpCode, action.Value))
+        {
+            CustomVcpLastResult = $"Executed: wrote {action.Value} to 0x{action.VcpCode:X2}";
+        }
+        else
+        {
+            CustomVcpLastResult = $"Failed to execute: write to 0x{action.VcpCode:X2} failed";
+        }
+    }
+
+    private void DeleteVcpAction(CustomVcpActionProfile action)
+    {
+        _profile.CustomActions.Remove(action);
+        _onSettingsChanged?.Invoke(true); // Save config
+        ReloadCustomActions();
+        CustomVcpLastResult = $"Deleted shortcut '{action.Name}'";
+    }
+
+    private void OpenHdrSettings()
+    {
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "ms-settings:display",
+                UseShellExecute = true
+            };
+            System.Diagnostics.Process.Start(psi);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to open Windows Display settings");
+        }
+    }
+
+    public bool AdvancedFeaturesEnabled
+    {
+        get => _profile.AdvancedFeaturesEnabled;
+        set
+        {
+            if (_profile.AdvancedFeaturesEnabled == value) return;
+            _profile.AdvancedFeaturesEnabled = value;
+            OnChanged();
+            OnChanged(nameof(ShowsAdvancedSettings));
+            _onSettingsChanged?.Invoke(true);
+            if (value)
+            {
+                _engine.ApplyPersistedSettings(_monitor);
+            }
+        }
+    }
+
+    public bool ShowCustomVcpConsole
+    {
+        get => _profile.ShowCustomVcpConsole;
+        set
+        {
+            if (_profile.ShowCustomVcpConsole == value) return;
+            _profile.ShowCustomVcpConsole = value;
+            OnChanged();
+            _onSettingsChanged?.Invoke(true);
+        }
+    }
+
+    public record VcpCodeItem(string Name, string HexCode)
+    {
+        public override string ToString() => Name;
+    }
+
+    private static readonly Dictionary<byte, string> KnownVcpNames = new()
+    {
+        { 0x02, "New Control Value" },
+        { 0x04, "Revert to Factory Defaults" },
+        { 0x06, "De-magnetize" },
+        { 0x08, "Revert to Color Defaults" },
+        { 0x0A, "Revert to Position Defaults" },
+        { 0x0C, "Revert to Size Defaults" },
+        { 0x10, "Brightness" },
+        { 0x12, "Contrast" },
+        { 0x14, "Color Preset" },
+        { 0x16, "Red Gain" },
+        { 0x18, "Green Gain" },
+        { 0x1A, "Blue Gain" },
+        { 0x52, "Active Control" },
+        { 0x60, "Input Source" },
+        { 0x62, "Volume" },
+        { 0x6C, "Red Black Level" },
+        { 0x6E, "Green Black Level" },
+        { 0x70, "Blue Black Level" },
+        { 0x72, "Gamma" },
+        { 0x87, "Sharpness" },
+        { 0x8A, "Saturation" },
+        { 0xD6, "Power Control" },
+        { 0xDF, "VCP Version" },
+        { 0xE2, "Samsung Eye Saver Mode" },
+        { 0xF2, "Samsung Black Equalizer" }
+    };
+
+    public List<VcpCodeItem> SupportedVcpCodesList
+    {
+        get
+        {
+            var list = new List<VcpCodeItem>();
+            var parsed = ParsedCapabilities;
+            
+            if (parsed.Count > 0)
+            {
+                foreach (var hex in parsed)
+                {
+                    if (byte.TryParse(hex.Replace("0x", ""), System.Globalization.NumberStyles.HexNumber, null, out byte code))
+                    {
+                        if (KnownVcpNames.TryGetValue(code, out var name))
+                        {
+                            list.Add(new VcpCodeItem($"{name} ({hex})", hex.Replace("0x", "")));
+                        }
+                        else
+                        {
+                            list.Add(new VcpCodeItem($"VCP {hex}", hex.Replace("0x", "")));
+                        }
+                    }
+                }
+            }
+            else
+            {
+                foreach (var kvp in KnownVcpNames.OrderBy(k => k.Key))
+                {
+                    list.Add(new VcpCodeItem($"{kvp.Value} (0x{kvp.Key:X2})", $"{kvp.Key:X2}"));
+                }
+            }
+            return list;
+        }
+    }
+
+    private VcpCodeItem? _selectedVcpCodeItem;
+    public VcpCodeItem? SelectedVcpCodeItem
+    {
+        get => _selectedVcpCodeItem ?? SupportedVcpCodesList.FirstOrDefault(item => item.HexCode.Equals(CustomVcpCodeHex, StringComparison.OrdinalIgnoreCase));
+        set
+        {
+            if (value != null)
+            {
+                _selectedVcpCodeItem = value;
+                CustomVcpCodeHex = value.HexCode;
+                OnChanged();
+            }
+        }
+    }
+}
+
+public sealed class CustomVcpActionViewModel
+{
+    public string Name { get; }
+    public byte VcpCode { get; }
+    public uint Value { get; }
+    public string DisplayText => $"{Name} (0x{VcpCode:X2} = {Value})";
+    public ICommand ExecuteCommand { get; }
+    public ICommand DeleteCommand { get; }
+
+    public CustomVcpActionViewModel(string name, byte vcpCode, uint value, Action execute, Action delete)
+    {
+        Name = name;
+        VcpCode = vcpCode;
+        Value = value;
+        ExecuteCommand = new RelayCommand(execute);
+        DeleteCommand = new RelayCommand(delete);
+    }
 }

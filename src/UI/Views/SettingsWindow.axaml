@@ -68,6 +68,24 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="6" />
         </Style>
+        <Style Selector="TextBox.settings-textbox">
+            <Setter Property="Background" Value="#252525" />
+            <Setter Property="BorderBrush" Value="#353535" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="MinHeight" Value="30" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBox.settings-textbox:pointerover">
+            <Setter Property="BorderBrush" Value="#4a4a4a" />
+        </Style>
+        <Style Selector="TextBox.settings-textbox:focus">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Background" Value="#252525" />
+        </Style>
     </Window.Styles>
 
     <Border CornerRadius="8"
@@ -1023,172 +1041,438 @@
                                                                        VerticalAlignment="Center"
                                                                        TextAlignment="Right" />
                                                         </Grid>
-
                                                         <TextBlock Text="{Binding TargetText}" FontSize="11"
                                                                    Foreground="{DynamicResource AccentBrush}" Margin="0,2,0,0" />
 
-                                                         <!-- Advanced Hardware Settings -->
-                                                         <StackPanel Spacing="6" IsVisible="{Binding ShowsAdvancedSettings}" Margin="0,4,0,0">
-                                                             <Border Height="1" Background="#353535" Margin="0,4" />
-                                                             
-                                                             <TextBlock Text="Hardware Controls" FontSize="12" FontWeight="SemiBold" Foreground="White" Margin="0,2,0,2" />
-
-                                                             <!-- Contrast -->
-                                                             <Grid IsVisible="{Binding SupportsContrast}">
-                                                                 <Grid.ColumnDefinitions>
-                                                                     <ColumnDefinition Width="80" />
-                                                                     <ColumnDefinition Width="*" />
-                                                                     <ColumnDefinition Width="42" />
-                                                                 </Grid.ColumnDefinitions>
-                                                                 <TextBlock Grid.Column="0" Text="Contrast"
-                                                                            FontSize="13"
-                                                                            Foreground="#a0a0a0"
-                                                                            VerticalAlignment="Center" />
-                                                                 <Slider Grid.Column="1"
-                                                                         Minimum="0" Maximum="{Binding MaxContrast}"
-                                                                         Value="{Binding Contrast}"
-                                                                         VerticalAlignment="Center" />
-                                                                 <TextBlock Grid.Column="2"
-                                                                            Text="{Binding Contrast, StringFormat='{}{0}%'}"
-                                                                            FontSize="13" Foreground="White"
-                                                                            VerticalAlignment="Center"
-                                                                            TextAlignment="Right" />
-                                                             </Grid>
-
-                                                             <!-- Volume -->
-                                                             <Grid IsVisible="{Binding SupportsVolume}">
-                                                                 <Grid.ColumnDefinitions>
-                                                                     <ColumnDefinition Width="80" />
-                                                                     <ColumnDefinition Width="*" />
-                                                                     <ColumnDefinition Width="42" />
-                                                                 </Grid.ColumnDefinitions>
-                                                                 <TextBlock Grid.Column="0" Text="Volume"
-                                                                            FontSize="13"
-                                                                            Foreground="#a0a0a0"
-                                                                            VerticalAlignment="Center" />
-                                                                 <Slider Grid.Column="1"
-                                                                         Minimum="0" Maximum="{Binding MaxVolume}"
-                                                                         Value="{Binding Volume}"
-                                                                         VerticalAlignment="Center" />
-                                                                 <TextBlock Grid.Column="2"
-                                                                            Text="{Binding Volume, StringFormat='{}{0}%'}"
-                                                                            FontSize="13" Foreground="White"
-                                                                            VerticalAlignment="Center"
-                                                                            TextAlignment="Right" />
-                                                             </Grid>
-
-                                                             <!-- RGB Gains -->
-                                                             <StackPanel Spacing="4" IsVisible="{Binding SupportsRgbGains}">
-                                                                 <TextBlock Text="RGB Gains (Color Warmth)" FontSize="12" Foreground="#a0a0a0" Margin="0,2,0,2" />
-                                                                 <Grid>
-                                                                     <Grid.ColumnDefinitions>
-                                                                         <ColumnDefinition Width="80" />
-                                                                         <ColumnDefinition Width="*" />
-                                                                         <ColumnDefinition Width="42" />
-                                                                     </Grid.ColumnDefinitions>
-                                                                     <TextBlock Grid.Column="0" Text="Red"
-                                                                                FontSize="13"
-                                                                                Foreground="#a0a0a0"
-                                                                                VerticalAlignment="Center" />
-                                                                     <Slider Grid.Column="1"
-                                                                             Minimum="0" Maximum="{Binding MaxRgbGain}"
-                                                                             Value="{Binding RedGain}"
-                                                                             VerticalAlignment="Center" />
-                                                                     <TextBlock Grid.Column="2"
-                                                                                Text="{Binding RedGain}"
-                                                                                FontSize="13" Foreground="White"
-                                                                                VerticalAlignment="Center"
-                                                                                TextAlignment="Right" />
-                                                                 </Grid>
-                                                                 <Grid>
-                                                                     <Grid.ColumnDefinitions>
-                                                                         <ColumnDefinition Width="80" />
-                                                                         <ColumnDefinition Width="*" />
-                                                                         <ColumnDefinition Width="42" />
-                                                                     </Grid.ColumnDefinitions>
-                                                                     <TextBlock Grid.Column="0" Text="Green"
-                                                                                FontSize="13"
-                                                                                Foreground="#a0a0a0"
-                                                                                VerticalAlignment="Center" />
-                                                                     <Slider Grid.Column="1"
-                                                                             Minimum="0" Maximum="{Binding MaxRgbGain}"
-                                                                             Value="{Binding GreenGain}"
-                                                                             VerticalAlignment="Center" />
-                                                                     <TextBlock Grid.Column="2"
-                                                                                Text="{Binding GreenGain}"
-                                                                                FontSize="13" Foreground="White"
-                                                                                VerticalAlignment="Center"
-                                                                                TextAlignment="Right" />
-                                                                 </Grid>
-                                                                 <Grid>
-                                                                     <Grid.ColumnDefinitions>
-                                                                         <ColumnDefinition Width="80" />
-                                                                         <ColumnDefinition Width="*" />
-                                                                         <ColumnDefinition Width="42" />
-                                                                     </Grid.ColumnDefinitions>
-                                                                     <TextBlock Grid.Column="0" Text="Blue"
-                                                                                FontSize="13"
-                                                                                Foreground="#a0a0a0"
-                                                                                VerticalAlignment="Center" />
-                                                                     <Slider Grid.Column="1"
-                                                                             Minimum="0" Maximum="{Binding MaxRgbGain}"
-                                                                             Value="{Binding BlueGain}"
-                                                                             VerticalAlignment="Center" />
-                                                                     <TextBlock Grid.Column="2"
-                                                                                Text="{Binding BlueGain}"
-                                                                                FontSize="13" Foreground="White"
-                                                                                VerticalAlignment="Center"
-                                                                                TextAlignment="Right" />
-                                                                 </Grid>
+                                                         <!-- Enable Advanced Controls Switch -->
+                                                         <Grid Margin="0,6,0,4" IsVisible="{Binding HasAdvancedFeatures}">
+                                                             <Grid.ColumnDefinitions>
+                                                                 <ColumnDefinition Width="*" />
+                                                                 <ColumnDefinition Width="Auto" />
+                                                             </Grid.ColumnDefinitions>
+                                                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                                 <TextBlock Text="Advanced OSD &amp; Display Controls" FontSize="13" Foreground="White" />
+                                                                 <TextBlock Text="Enable refresh rate, color profile, picture sliders, and power controls" FontSize="11" Foreground="#a0a0a0" />
                                                              </StackPanel>
+                                                             <ToggleSwitch Grid.Column="1" IsChecked="{Binding AdvancedFeaturesEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
+                                                         </Grid>
 
-                                                             <!-- Color Preset -->
-                                                             <Grid IsVisible="{Binding SupportsColorPreset}" Margin="0,2,0,2">
-                                                                 <Grid.ColumnDefinitions>
-                                                                     <ColumnDefinition Width="120" />
-                                                                     <ColumnDefinition Width="*" />
-                                                                 </Grid.ColumnDefinitions>
-                                                                 <TextBlock Grid.Column="0" Text="Color Preset"
-                                                                            FontSize="13"
-                                                                            Foreground="#a0a0a0"
-                                                                            VerticalAlignment="Center" />
-                                                                 <ComboBox Grid.Column="1"
-                                                                           Classes="settings-combobox"
-                                                                           HorizontalAlignment="Stretch"
-                                                                           ItemsSource="{Binding ColorPresetsList}"
-                                                                           SelectedItem="{Binding SelectedColorPreset}">
-                                                                     <ComboBox.ItemTemplate>
-                                                                         <DataTemplate>
-                                                                             <TextBlock Text="{Binding Name}" FontSize="12" />
-                                                                         </DataTemplate>
-                                                                     </ComboBox.ItemTemplate>
-                                                                 </ComboBox>
-                                                             </Grid>
+                                                          <!-- Advanced Hardware Settings -->
+                                                          <StackPanel Spacing="10" IsVisible="{Binding ShowsAdvancedSettings}" Margin="0,4,0,0">
+                                                              <Border Height="1" Background="#353535" Margin="0,4" />
+                                                              
+                                                              <!-- OS Display Settings -->
+                                                              <StackPanel Spacing="6" Margin="0,0,0,4">
+                                                                  <TextBlock Text="OS Display Settings" FontSize="12" FontWeight="SemiBold" Foreground="White" Margin="0,2,0,2" />
+                                                                  
+                                                                  <!-- Refresh Rate Dropdown -->
+                                                                  <Grid IsVisible="{Binding SupportedRefreshRates.Count}">
+                                                                      <Grid.ColumnDefinitions>
+                                                                          <ColumnDefinition Width="120" />
+                                                                          <ColumnDefinition Width="*" />
+                                                                      </Grid.ColumnDefinitions>
+                                                                      <TextBlock Grid.Column="0" Text="Refresh Rate"
+                                                                                 FontSize="13"
+                                                                                 Foreground="#a0a0a0"
+                                                                                 VerticalAlignment="Center" />
+                                                                      <ComboBox Grid.Column="1"
+                                                                                Classes="settings-combobox"
+                                                                                HorizontalAlignment="Stretch"
+                                                                                ItemsSource="{Binding SupportedRefreshRates}"
+                                                                                SelectedItem="{Binding SelectedRefreshRate}">
+                                                                          <ComboBox.ItemTemplate>
+                                                                              <DataTemplate>
+                                                                                  <TextBlock Text="{Binding StringFormat='{}{0} Hz'}" FontSize="12" />
+                                                                              </DataTemplate>
+                                                                          </ComboBox.ItemTemplate>
+                                                                      </ComboBox>
+                                                                  </Grid>
 
-                                                             <!-- Input Source -->
-                                                             <Grid IsVisible="{Binding SupportsInputSource}" Margin="0,2,0,2">
-                                                                 <Grid.ColumnDefinitions>
-                                                                     <ColumnDefinition Width="120" />
-                                                                     <ColumnDefinition Width="*" />
-                                                                 </Grid.ColumnDefinitions>
-                                                                 <TextBlock Grid.Column="0" Text="Input Source"
-                                                                            FontSize="13"
-                                                                            Foreground="#a0a0a0"
-                                                                            VerticalAlignment="Center" />
-                                                                 <ComboBox Grid.Column="1"
-                                                                           Classes="settings-combobox"
-                                                                           HorizontalAlignment="Stretch"
-                                                                           ItemsSource="{Binding InputSourcesList}"
-                                                                           SelectedItem="{Binding SelectedInputSource}">
-                                                                     <ComboBox.ItemTemplate>
-                                                                         <DataTemplate>
-                                                                             <TextBlock Text="{Binding Name}" FontSize="12" />
-                                                                         </DataTemplate>
-                                                                     </ComboBox.ItemTemplate>
-                                                                 </ComboBox>
-                                                             </Grid>
-                                                         </StackPanel>
-                                                    </StackPanel>
+                                                                  <!-- HDR Settings -->
+                                                                  <Grid Margin="0,2,0,2">
+                                                                      <Grid.ColumnDefinitions>
+                                                                          <ColumnDefinition Width="*" />
+                                                                          <ColumnDefinition Width="Auto" />
+                                                                      </Grid.ColumnDefinitions>
+                                                                      <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                                          <TextBlock Text="HDR Control" FontSize="13" Foreground="White" />
+                                                                          <TextBlock Text="Manage Windows High Dynamic Range settings" FontSize="11" Foreground="#a0a0a0" />
+                                                                      </StackPanel>
+                                                                      <Button Grid.Column="1" Content="HDR Settings"
+                                                                              Command="{Binding OpenHdrSettingsCommand}"
+                                                                              VerticalAlignment="Center" />
+                                                                  </Grid>
+                                                              </StackPanel>
+
+                                                              <!-- Picture Settings -->
+                                                              <StackPanel Spacing="6" Margin="0,4,0,4">
+                                                                  <Border Height="1" Background="#353535" Margin="0,4" />
+                                                                  <TextBlock Text="Picture Settings" FontSize="12" FontWeight="SemiBold" Foreground="White" Margin="0,2,0,2" />
+                                                                  
+                                                                  <!-- Contrast Slider -->
+                                                                  <Grid IsVisible="{Binding SupportsContrast}">
+                                                                      <Grid.ColumnDefinitions>
+                                                                          <ColumnDefinition Width="120" />
+                                                                          <ColumnDefinition Width="*" />
+                                                                          <ColumnDefinition Width="42" />
+                                                                      </Grid.ColumnDefinitions>
+                                                                      <TextBlock Grid.Column="0" Text="Contrast"
+                                                                                 FontSize="13"
+                                                                                 Foreground="#a0a0a0"
+                                                                                 VerticalAlignment="Center" />
+                                                                      <Slider Grid.Column="1"
+                                                                              Minimum="0" Maximum="{Binding MaxContrast}"
+                                                                              Value="{Binding Contrast}"
+                                                                              VerticalAlignment="Center" />
+                                                                      <TextBlock Grid.Column="2"
+                                                                                 Text="{Binding Contrast, StringFormat='{}{0}%'}"
+                                                                                 FontSize="13" Foreground="White"
+                                                                                 VerticalAlignment="Center"
+                                                                                 TextAlignment="Right" />
+                                                                  </Grid>
+
+                                                                  <!-- Sharpness Slider -->
+                                                                  <Grid IsVisible="{Binding SupportsSharpness}">
+                                                                      <Grid.ColumnDefinitions>
+                                                                          <ColumnDefinition Width="120" />
+                                                                          <ColumnDefinition Width="*" />
+                                                                          <ColumnDefinition Width="42" />
+                                                                      </Grid.ColumnDefinitions>
+                                                                      <TextBlock Grid.Column="0" Text="Sharpness"
+                                                                                 FontSize="13"
+                                                                                 Foreground="#a0a0a0"
+                                                                                 VerticalAlignment="Center" />
+                                                                      <Slider Grid.Column="1"
+                                                                              Minimum="0" Maximum="{Binding MaxSharpness}"
+                                                                              Value="{Binding Sharpness}"
+                                                                              VerticalAlignment="Center" />
+                                                                      <TextBlock Grid.Column="2"
+                                                                                 Text="{Binding Sharpness}"
+                                                                                 FontSize="13" Foreground="White"
+                                                                                 VerticalAlignment="Center"
+                                                                                 TextAlignment="Right" />
+                                                                  </Grid>
+
+                                                                  <!-- Saturation Slider -->
+                                                                  <Grid IsVisible="{Binding SupportsSaturation}">
+                                                                      <Grid.ColumnDefinitions>
+                                                                          <ColumnDefinition Width="120" />
+                                                                          <ColumnDefinition Width="*" />
+                                                                          <ColumnDefinition Width="42" />
+                                                                      </Grid.ColumnDefinitions>
+                                                                      <TextBlock Grid.Column="0" Text="Saturation"
+                                                                                 FontSize="13"
+                                                                                 Foreground="#a0a0a0"
+                                                                                 VerticalAlignment="Center" />
+                                                                      <Slider Grid.Column="1"
+                                                                              Minimum="0" Maximum="{Binding MaxSaturation}"
+                                                                              Value="{Binding Saturation}"
+                                                                              VerticalAlignment="Center" />
+                                                                      <TextBlock Grid.Column="2"
+                                                                                 Text="{Binding Saturation}"
+                                                                                 FontSize="13" Foreground="White"
+                                                                                 VerticalAlignment="Center"
+                                                                                 TextAlignment="Right" />
+                                                                  </Grid>
+
+                                                                  <!-- Gamma Slider -->
+                                                                  <Grid IsVisible="{Binding SupportsGamma}">
+                                                                      <Grid.ColumnDefinitions>
+                                                                          <ColumnDefinition Width="120" />
+                                                                          <ColumnDefinition Width="*" />
+                                                                          <ColumnDefinition Width="42" />
+                                                                      </Grid.ColumnDefinitions>
+                                                                      <TextBlock Grid.Column="0" Text="Gamma"
+                                                                                 FontSize="13"
+                                                                                 Foreground="#a0a0a0"
+                                                                                 VerticalAlignment="Center" />
+                                                                      <Slider Grid.Column="1"
+                                                                              Minimum="0" Maximum="10"
+                                                                              Value="{Binding Gamma}"
+                                                                              VerticalAlignment="Center" />
+                                                                      <TextBlock Grid.Column="2"
+                                                                                 Text="{Binding Gamma}"
+                                                                                 FontSize="13" Foreground="White"
+                                                                                 VerticalAlignment="Center"
+                                                                                 TextAlignment="Right" />
+                                                                  </Grid>
+
+                                                                  <!-- Color Preset Dropdown -->
+                                                                  <Grid IsVisible="{Binding SupportsColorPreset}" Margin="0,2,0,2">
+                                                                      <Grid.ColumnDefinitions>
+                                                                          <ColumnDefinition Width="120" />
+                                                                          <ColumnDefinition Width="*" />
+                                                                      </Grid.ColumnDefinitions>
+                                                                      <TextBlock Grid.Column="0" Text="Color Preset"
+                                                                                 FontSize="13"
+                                                                                 Foreground="#a0a0a0"
+                                                                                 VerticalAlignment="Center" />
+                                                                      <ComboBox Grid.Column="1"
+                                                                                Classes="settings-combobox"
+                                                                                HorizontalAlignment="Stretch"
+                                                                                ItemsSource="{Binding ColorPresetsList}"
+                                                                                SelectedItem="{Binding SelectedColorPreset}">
+                                                                          <ComboBox.ItemTemplate>
+                                                                              <DataTemplate>
+                                                                                  <TextBlock Text="{Binding Name}" FontSize="12" />
+                                                                              </DataTemplate>
+                                                                          </ComboBox.ItemTemplate>
+                                                                      </ComboBox>
+                                                                  </Grid>
+
+                                                                  <!-- Color Profile Switcher -->
+                                                                  <Grid IsVisible="{Binding InstalledColorProfiles.Count}" Margin="0,2,0,2">
+                                                                      <Grid.ColumnDefinitions>
+                                                                          <ColumnDefinition Width="120" />
+                                                                          <ColumnDefinition Width="*" />
+                                                                      </Grid.ColumnDefinitions>
+                                                                      <TextBlock Grid.Column="0" Text="Color Profile"
+                                                                                 FontSize="13"
+                                                                                 Foreground="#a0a0a0"
+                                                                                 VerticalAlignment="Center" />
+                                                                      <ComboBox Grid.Column="1"
+                                                                                Classes="settings-combobox"
+                                                                                HorizontalAlignment="Stretch"
+                                                                                ItemsSource="{Binding InstalledColorProfiles}"
+                                                                                SelectedItem="{Binding SelectedColorProfile}">
+                                                                          <ComboBox.ItemTemplate>
+                                                                              <DataTemplate>
+                                                                                  <TextBlock Text="{Binding}" FontSize="12" />
+                                                                              </DataTemplate>
+                                                                          </ComboBox.ItemTemplate>
+                                                                      </ComboBox>
+                                                                  </Grid>
+
+                                                                  <!-- Input Source -->
+                                                                  <Grid IsVisible="{Binding SupportsInputSource}" Margin="0,2,0,2">
+                                                                      <Grid.ColumnDefinitions>
+                                                                          <ColumnDefinition Width="120" />
+                                                                          <ColumnDefinition Width="*" />
+                                                                      </Grid.ColumnDefinitions>
+                                                                      <TextBlock Grid.Column="0" Text="Input Source"
+                                                                                 FontSize="13"
+                                                                                 Foreground="#a0a0a0"
+                                                                                 VerticalAlignment="Center" />
+                                                                      <ComboBox Grid.Column="1"
+                                                                                Classes="settings-combobox"
+                                                                                HorizontalAlignment="Stretch"
+                                                                                ItemsSource="{Binding InputSourcesList}"
+                                                                                SelectedItem="{Binding SelectedInputSource}">
+                                                                          <ComboBox.ItemTemplate>
+                                                                              <DataTemplate>
+                                                                                  <TextBlock Text="{Binding Name}" FontSize="12" />
+                                                                              </DataTemplate>
+                                                                          </ComboBox.ItemTemplate>
+                                                                      </ComboBox>
+                                                                  </Grid>
+
+                                                                  <!-- RGB Gains -->
+                                                                  <StackPanel Spacing="4" IsVisible="{Binding SupportsRgbGains}">
+                                                                      <TextBlock Text="RGB Gains (Color Warmth)" FontSize="12" Foreground="#a0a0a0" Margin="0,2,0,2" />
+                                                                      <Grid>
+                                                                          <Grid.ColumnDefinitions>
+                                                                              <ColumnDefinition Width="120" />
+                                                                              <ColumnDefinition Width="*" />
+                                                                              <ColumnDefinition Width="42" />
+                                                                          </Grid.ColumnDefinitions>
+                                                                          <TextBlock Grid.Column="0" Text="Red"
+                                                                                     FontSize="13"
+                                                                                     Foreground="#a0a0a0"
+                                                                                     VerticalAlignment="Center" />
+                                                                          <Slider Grid.Column="1"
+                                                                                  Minimum="0" Maximum="{Binding MaxRgbGain}"
+                                                                                  Value="{Binding RedGain}"
+                                                                                  VerticalAlignment="Center" />
+                                                                          <TextBlock Grid.Column="2"
+                                                                                     Text="{Binding RedGain}"
+                                                                                     FontSize="13" Foreground="White"
+                                                                                     VerticalAlignment="Center"
+                                                                                     TextAlignment="Right" />
+                                                                      </Grid>
+                                                                      <Grid>
+                                                                          <Grid.ColumnDefinitions>
+                                                                              <ColumnDefinition Width="120" />
+                                                                              <ColumnDefinition Width="*" />
+                                                                              <ColumnDefinition Width="42" />
+                                                                          </Grid.ColumnDefinitions>
+                                                                          <TextBlock Grid.Column="0" Text="Green"
+                                                                                     FontSize="13"
+                                                                                     Foreground="#a0a0a0"
+                                                                                     VerticalAlignment="Center" />
+                                                                          <Slider Grid.Column="1"
+                                                                                  Minimum="0" Maximum="{Binding MaxRgbGain}"
+                                                                                  Value="{Binding GreenGain}"
+                                                                                  VerticalAlignment="Center" />
+                                                                          <TextBlock Grid.Column="2"
+                                                                                     Text="{Binding GreenGain}"
+                                                                                     FontSize="13" Foreground="White"
+                                                                                     VerticalAlignment="Center"
+                                                                                     TextAlignment="Right" />
+                                                                      </Grid>
+                                                                      <Grid>
+                                                                          <Grid.ColumnDefinitions>
+                                                                              <ColumnDefinition Width="120" />
+                                                                              <ColumnDefinition Width="*" />
+                                                                              <ColumnDefinition Width="42" />
+                                                                          </Grid.ColumnDefinitions>
+                                                                          <TextBlock Grid.Column="0" Text="Blue"
+                                                                                     FontSize="13"
+                                                                                     Foreground="#a0a0a0"
+                                                                                     VerticalAlignment="Center" />
+                                                                          <Slider Grid.Column="1"
+                                                                                  Minimum="0" Maximum="{Binding MaxRgbGain}"
+                                                                                  Value="{Binding BlueGain}"
+                                                                                  VerticalAlignment="Center" />
+                                                                          <TextBlock Grid.Column="2"
+                                                                                     Text="{Binding BlueGain}"
+                                                                                     FontSize="13" Foreground="White"
+                                                                                     VerticalAlignment="Center"
+                                                                                     TextAlignment="Right" />
+                                                                      </Grid>
+                                                                  </StackPanel>
+                                                              </StackPanel>
+
+                                                              <!-- Power Control -->
+                                                              <StackPanel Spacing="6" Margin="0,4,0,4" IsVisible="{Binding SupportsPowerControl}">
+                                                                  <Border Height="1" Background="#353535" Margin="0,4" />
+                                                                  <TextBlock Text="Power Control" FontSize="12" FontWeight="SemiBold" Foreground="White" Margin="0,2,0,2" />
+
+                                                                  <Grid Margin="0,2,0,2">
+                                                                      <Grid.ColumnDefinitions>
+                                                                          <ColumnDefinition Width="120" />
+                                                                          <ColumnDefinition Width="*" />
+                                                                      </Grid.ColumnDefinitions>
+                                                                      <TextBlock Grid.Column="0" Text="Monitor Power"
+                                                                                 FontSize="13"
+                                                                                 Foreground="#a0a0a0"
+                                                                                 VerticalAlignment="Center" />
+                                                                      <ComboBox Grid.Column="1"
+                                                                                Classes="settings-combobox"
+                                                                                HorizontalAlignment="Stretch"
+                                                                                ItemsSource="{Binding PowerStatesList}"
+                                                                                SelectedItem="{Binding SelectedPowerState}">
+                                                                          <ComboBox.ItemTemplate>
+                                                                              <DataTemplate>
+                                                                                  <TextBlock Text="{Binding Name}" FontSize="12" />
+                                                                              </DataTemplate>
+                                                                          </ComboBox.ItemTemplate>
+                                                                      </ComboBox>
+                                                                  </Grid>
+                                                              </StackPanel>
+
+                                                              <!-- VCP Control Console -->
+                                                              <StackPanel Spacing="6" Margin="0,4,0,4">
+                                                                  <Border Height="1" Background="#353535" Margin="0,4" />
+                                                                  <TextBlock Text="VCP Control Console" FontSize="12" FontWeight="SemiBold" Foreground="White" Margin="0,2,0,2" />
+                                                                  <Grid Margin="0,2,0,2">
+                                                                      <Grid.ColumnDefinitions>
+                                                                          <ColumnDefinition Width="*" />
+                                                                          <ColumnDefinition Width="Auto" />
+                                                                      </Grid.ColumnDefinitions>
+                                                                      <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                                          <TextBlock Text="VCP Control Console" FontSize="13" Foreground="White" />
+                                                                          <TextBlock Text="Expose VCP dropdown selector and custom shortcuts" FontSize="11" Foreground="#a0a0a0" />
+                                                                      </StackPanel>
+                                                                      <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowCustomVcpConsole}" OnContent="" OffContent="" VerticalAlignment="Center" />
+                                                                  </Grid>
+                                                              </StackPanel>
+
+                                                              <!-- Custom VCP Console Section -->
+                                                              <StackPanel Spacing="6" Margin="0,4,0,4" IsVisible="{Binding ShowCustomVcpConsole}">
+                                                                  <TextBlock Text="Console Commands" FontSize="12" FontWeight="SemiBold" Foreground="White" Margin="0,2,0,2" />
+
+                                                                  <!-- Code Dropdown & Value Inputs -->
+                                                                  <Grid Margin="0,2">
+                                                                      <Grid.ColumnDefinitions>
+                                                                          <ColumnDefinition Width="*" />
+                                                                          <ColumnDefinition Width="8" />
+                                                                          <ColumnDefinition Width="*" />
+                                                                      </Grid.ColumnDefinitions>
+                                                                      <StackPanel Grid.Column="0" Spacing="2">
+                                                                          <TextBlock Text="VCP Code" FontSize="11" Foreground="#a0a0a0" />
+                                                                          <ComboBox Classes="settings-combobox"
+                                                                                    HorizontalAlignment="Stretch"
+                                                                                    ItemsSource="{Binding SupportedVcpCodesList}"
+                                                                                    SelectedItem="{Binding SelectedVcpCodeItem}">
+                                                                              <ComboBox.ItemTemplate>
+                                                                                  <DataTemplate>
+                                                                                      <TextBlock Text="{Binding Name}" FontSize="12" />
+                                                                                  </DataTemplate>
+                                                                              </ComboBox.ItemTemplate>
+                                                                          </ComboBox>
+                                                                      </StackPanel>
+                                                                      <StackPanel Grid.Column="2" Spacing="2">
+                                                                          <TextBlock Text="Value (Dec/Hex)" FontSize="11" Foreground="#a0a0a0" />
+                                                                          <TextBox Classes="settings-textbox" Text="{Binding CustomVcpValue, Mode=TwoWay}" />
+                                                                      </StackPanel>
+                                                                  </Grid>
+
+                                                                  <!-- Get/Set Buttons -->
+                                                                  <Grid Margin="0,4">
+                                                                      <Grid.ColumnDefinitions>
+                                                                          <ColumnDefinition Width="*" />
+                                                                          <ColumnDefinition Width="8" />
+                                                                          <ColumnDefinition Width="*" />
+                                                                      </Grid.ColumnDefinitions>
+                                                                      <Button Grid.Column="0" Content="Query (Get)" Command="{Binding QueryCustomVcpCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+                                                                      <Button Grid.Column="2" Content="Write (Set)" Command="{Binding WriteCustomVcpCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+                                                                  </Grid>
+
+                                                                  <!-- Result Message -->
+                                                                  <TextBlock Text="{Binding CustomVcpLastResult}" FontSize="12" Foreground="{DynamicResource AccentBrush}" FontStyle="Italic" TextWrapping="Wrap" Margin="0,2" IsVisible="{Binding CustomVcpLastResult.Length}" />
+
+                                                                  <!-- Save Shortcut Section -->
+                                                                  <Grid Margin="0,4">
+                                                                      <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition Width="*" />
+                                                                            <ColumnDefinition Width="8" />
+                                                                            <ColumnDefinition Width="Auto" />
+                                                                        </Grid.ColumnDefinitions>
+                                                                      <TextBox Grid.Column="0" Classes="settings-textbox" PlaceholderText="Shortcut Name (e.g. Eye Saver)" Text="{Binding CustomVcpActionName, Mode=TwoWay}" />
+                                                                      <Button Grid.Column="2" Content="Save Shortcut" Command="{Binding SaveCustomActionCommand}" VerticalAlignment="Center" />
+                                                                  </Grid>
+
+                                                                  <!-- Supported VCP Codes -->
+                                                                  <StackPanel Spacing="4" Margin="0,4" IsVisible="{Binding ParsedCapabilities.Count}">
+                                                                      <TextBlock Text="Supported VCP Codes (Parsed)" FontSize="11" Foreground="#a0a0a0" />
+                                                                      <ItemsControl ItemsSource="{Binding ParsedCapabilities}">
+                                                                          <ItemsControl.ItemsPanel>
+                                                                              <ItemsPanelTemplate>
+                                                                                  <WrapPanel Orientation="Horizontal" />
+                                                                              </ItemsPanelTemplate>
+                                                                          </ItemsControl.ItemsPanel>
+                                                                          <ItemsControl.ItemTemplate>
+                                                                              <DataTemplate>
+                                                                                  <Border Background="#2b2b2b" CornerRadius="4" Padding="6,2" Margin="0,0,4,4" BorderBrush="#353535" BorderThickness="1">
+                                                                                      <TextBlock Text="{Binding}" FontSize="10" Foreground="White" />
+                                                                                  </Border>
+                                                                              </DataTemplate>
+                                                                          </ItemsControl.ItemTemplate>
+                                                                      </ItemsControl>
+                                                                  </StackPanel>
+
+                                                                  <!-- Saved Shortcuts -->
+                                                                  <StackPanel Spacing="4" Margin="0,4" IsVisible="{Binding CustomActions.Count}">
+                                                                      <TextBlock Text="Saved Shortcuts" FontSize="11" Foreground="#a0a0a0" />
+                                                                      <ItemsControl ItemsSource="{Binding CustomActions}">
+                                                                          <ItemsControl.ItemTemplate>
+                                                                              <DataTemplate>
+                                                                                  <Grid Margin="0,2">
+                                                                                      <Grid.ColumnDefinitions>
+                                                                                          <ColumnDefinition Width="*" />
+                                                                                          <ColumnDefinition Width="8" />
+                                                                                          <ColumnDefinition Width="Auto" />
+                                                                                      </Grid.ColumnDefinitions>
+                                                                                      <Button Grid.Column="0" Content="{Binding DisplayText}" Command="{Binding ExecuteCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" />
+                                                                                      <Button Grid.Column="2" Content="&#xE74D;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11" Command="{Binding DeleteCommand}" Foreground="#ff5555" Background="Transparent" BorderThickness="0" Margin="4,0,0,0" ToolTip.Tip="Delete Shortcut" VerticalAlignment="Center" />
+                                                                                  </Grid>
+                                                                              </DataTemplate>
+                                                                          </ItemsControl.ItemTemplate>
+                                                                      </ItemsControl>
+                                                                  </StackPanel>
+                                                              </StackPanel>
+                                                          </StackPanel>
+                                                     </StackPanel>
 
                                                     <TextBlock Text="{Binding CapabilityNoticeText}"
                                                                FontSize="11" Foreground="#a0a0a0"

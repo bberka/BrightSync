@@ -45,6 +45,8 @@ public sealed partial class BrightSyncEngine
         var profile = _config.GetOrCreateProfile(monitor.DeviceName);
         if (!profile.Enabled) return;
 
+        if (!profile.AdvancedFeaturesEnabled) return;
+
         if (profile.Contrast.HasValue && monitor.SupportsContrast)
         {
             _ddc.SetVcpFeature(monitor, NativeMethods.VCP_CONTRAST, (uint)profile.Contrast.Value);
@@ -66,6 +68,30 @@ public sealed partial class BrightSyncEngine
             _ddc.SetVcpFeature(monitor, NativeMethods.VCP_RED_GAIN, (uint)profile.RedGain.Value);
             _ddc.SetVcpFeature(monitor, NativeMethods.VCP_GREEN_GAIN, (uint)profile.GreenGain.Value);
             _ddc.SetVcpFeature(monitor, NativeMethods.VCP_BLUE_GAIN, (uint)profile.BlueGain.Value);
+        }
+        if (profile.Sharpness.HasValue && monitor.SupportsSharpness)
+        {
+            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_SHARPNESS, (uint)profile.Sharpness.Value);
+        }
+        if (profile.Saturation.HasValue && monitor.SupportsSaturation)
+        {
+            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_SATURATION, (uint)profile.Saturation.Value);
+        }
+        if (profile.Gamma.HasValue && monitor.SupportsGamma)
+        {
+            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_GAMMA, (uint)profile.Gamma.Value);
+        }
+        if (profile.PowerState.HasValue && monitor.SupportsPowerControl)
+        {
+            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_POWER_CONTROL, (uint)profile.PowerState.Value);
+        }
+        if (profile.RefreshRate.HasValue)
+        {
+            DisplaySettingsService.SetRefreshRate(monitor.DeviceName, profile.RefreshRate.Value);
+        }
+        if (!string.IsNullOrWhiteSpace(profile.AssociatedColorProfile))
+        {
+            Colors.ColorProfileManager.SetActiveColorProfile(monitor.DeviceName, profile.AssociatedColorProfile);
         }
     }
 

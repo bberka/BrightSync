@@ -12,7 +12,14 @@ internal static class NativeMethods
     public const byte VCP_BLUE_GAIN = 0x1A;
     public const byte VCP_VOLUME = 0x62;
     public const byte VCP_INPUT_SOURCE = 0x60;
+    public const byte VCP_SHARPNESS = 0x87;
+    public const byte VCP_SATURATION = 0x8A;
+    public const byte VCP_GAMMA = 0x72;
+    public const byte VCP_POWER_CONTROL = 0xD6;
     public const int ENUM_CURRENT_SETTINGS = -1;
+    public const uint DM_DISPLAYFREQUENCY = 0x00400000;
+    public const uint CDS_UPDATEREGISTRY = 0x00000001;
+    public const int DISP_CHANGE_SUCCESSFUL = 0;
     public const uint QDC_ONLY_ACTIVE_PATHS = 0x00000002;
     public const uint DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME = 1;
     public const uint DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME = 2;
@@ -109,6 +116,14 @@ internal static class NativeMethods
         int iModeNum,
         ref DEVMODE lpDevMode);
 
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int ChangeDisplaySettingsEx(
+        string? lpszDeviceName,
+        ref DEVMODE lpDevMode,
+        IntPtr hwnd,
+        uint dwflags,
+        IntPtr lParam);
+
     [DllImport("user32.dll")]
     public static extern int GetDisplayConfigBufferSizes(
         uint flags,
@@ -148,6 +163,45 @@ internal static class NativeMethods
         IntPtr hdcMonitor,
         ref RECT lprcMonitor,
         IntPtr dwData);
+
+    // --- Color Management (mscms.dll) ---
+
+    [DllImport("mscms.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern bool GetColorProfileDirectory(
+        string? pMachineName,
+        System.Text.StringBuilder pBuffer,
+        ref uint pdwSize);
+
+    [DllImport("mscms.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern bool AssociateColorProfileWithDevice(
+        string? pMachineName,
+        string pProfileName,
+        string pDeviceName);
+
+    [DllImport("mscms.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern bool DisassociateColorProfileFromDevice(
+        string? pMachineName,
+        string pProfileName,
+        string pDeviceName);
+
+    [DllImport("mscms.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern bool WcsSetDefaultColorProfile(
+        int scope,
+        string pDeviceName,
+        int cptColorProfileType,
+        int cpstColorProfileSubType,
+        uint dwProfileID,
+        string pProfileName);
+
+    [DllImport("mscms.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern bool WcsGetDefaultColorProfile(
+        int scope,
+        string pDeviceName,
+        int cptColorProfileType,
+        int cpstColorProfileSubType,
+        uint dwProfileID,
+        uint cbProfileName,
+        [Out] byte[] pProfileName);
 
     // --- Structs ---
 

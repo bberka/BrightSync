@@ -97,7 +97,7 @@ Important notes:
 3. Extract it anywhere.
 4. Run `BrightSync.exe`.
 
-If you are unsure which package to pick, start with the installer (e.g. `BrightSync-Setup-v0.16.1-win-x64.exe`).
+If you are unsure which package to pick, start with the installer (e.g. `BrightSync-Setup-v0.16.2-win-x64.exe`).
 
 ## Daily Use
 

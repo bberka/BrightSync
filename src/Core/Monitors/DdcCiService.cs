@@ -509,6 +509,34 @@ public sealed class DdcCiService : IDisposable
             monitor.SupportsInputSource = true;
             monitor.CurrentInputSource = (int)inputVal;
         }
+
+        monitor.RawCapabilitiesString = capStr ?? string.Empty;
+
+        if (GetVcpFeature(monitor, NativeMethods.VCP_SHARPNESS, out var sharpnessVal, out var sharpnessMax))
+        {
+            monitor.SupportsSharpness = true;
+            monitor.CurrentSharpness = (int)sharpnessVal;
+            monitor.MaxSharpness = (int)sharpnessMax;
+        }
+
+        if (GetVcpFeature(monitor, NativeMethods.VCP_SATURATION, out var saturationVal, out var saturationMax))
+        {
+            monitor.SupportsSaturation = true;
+            monitor.CurrentSaturation = (int)saturationVal;
+            monitor.MaxSaturation = (int)saturationMax;
+        }
+
+        if (GetVcpFeature(monitor, NativeMethods.VCP_GAMMA, out var gammaVal, out _))
+        {
+            monitor.SupportsGamma = true;
+            monitor.CurrentGamma = (int)gammaVal;
+        }
+
+        if (GetVcpFeature(monitor, NativeMethods.VCP_POWER_CONTROL, out var powerVal, out _))
+        {
+            monitor.SupportsPowerControl = true;
+            monitor.CurrentPowerState = (int)powerVal;
+        }
     }
 
     private static bool TrySetVcpBrightness(DdcMonitor monitor, int brightnessPercent, int retryCount)

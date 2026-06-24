@@ -102,6 +102,22 @@ public sealed class DdcMonitor
     public bool SupportsInputSource { get; set; }
     public int CurrentInputSource { get; set; }
 
+    public bool SupportsSharpness { get; set; }
+    public int MaxSharpness { get; set; } = 100;
+    public int CurrentSharpness { get; set; }
+
+    public bool SupportsSaturation { get; set; }
+    public int MaxSaturation { get; set; } = 100;
+    public int CurrentSaturation { get; set; }
+
+    public bool SupportsGamma { get; set; }
+    public int CurrentGamma { get; set; }
+
+    public bool SupportsPowerControl { get; set; }
+    public int CurrentPowerState { get; set; }
+
+    public string RawCapabilitiesString { get; set; } = string.Empty;
+
     internal IntPtr Handle { get; init; }
 
     // Owning group — needed for DestroyPhysicalMonitors cleanup
