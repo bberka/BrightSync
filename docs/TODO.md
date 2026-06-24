@@ -1,48 +1,55 @@
-# Possible Features
+# Roadmap & Feature Backlog
 
-This document collects feature ideas that could be added to BrightSync in future releases.
+This document tracks completed milestones, planned features, and design decisions for BrightSync.
 
-## 1. UI & UX Improvements
+## Design Philosophy
 
-- **Global Hotkeys**: Add support for configurable global keyboard shortcuts to increase/decrease brightness, toggle Automatic Brightness, Eye Protection, or Brightness Boost modes.
-- **Per-Monitor Quick Control**: Add individual brightness sliders for each enabled monitor in the tray's quick popup menu.
-- **Tray Icon Customization**:
-    - Show the current master brightness percentage on the tray icon or in a more detailed tooltip.
-    - Dynamically update the tray icon's sun appearance (e.g., more/fewer rays) based on the current brightness level.
-- **Compact Quick Menu**: Provide a compact mode for the tray popup, especially useful for users with many monitors.
-- **Animation & Transitions**: Implement smooth, gradual transitions when brightness changes (e.g., when entering/exiting idle dimming or during automatic curve adjustments).
-- **Localization**: (Planned) Add support for multiple UI languages using a resource-based system.
-- **System Theme Sync**: (Bug) Ensure the app updates its theme automatically when Windows system theme changes without requiring a restart.
+BrightSync is built around the philosophy of **"Configure once, and never think about monitor brightness again."**
+- **Set and Forget**: Brightness rules, limits (min/max), and curves are configured per-monitor once. The app handles the rest dynamically.
+- **No Micromanagement**: Avoid unnecessary per-monitor brightness controls in the daily quick menus.
+- **Extensible Integration**: Leverage a robust CLI engine rather than building bloated internal systems (e.g., custom hotkey managers).
 
-## 2. Core Engine & Features
+---
 
-- **Advanced Media Detection for Idle Dimming**: Replace the current placeholder with a robust implementation using `GlobalSystemMediaTransportControlsSessionManager` (WinRT) to reliably suppress dimming during video/audio playback.
-- **Color Temperature / Blue Light Control**:
-    - Sync monitor color temperature with Windows Night Light via DDC/CI VCP features.
-    - Provide a manual "Warmth" slider for external monitors.
-- **Monitor Grouping**: Allow users to group multiple monitors together to synchronize their settings (enable/disable, multipliers, limits) as a single unit.
-- **Brightness Presets**: Create quick-switch profiles for different activities (e.g., "Gaming" with high brightness, "Reading" with low brightness and blue light filter).
+## 1. Completed Features
 
-## 3. Automatic Brightness Enhancements
+- [x] **Native AOT Compilation**: Fully supported for single-file, zero-dependency publishing with low memory footprint and instant startup.
+- [x] **DDC/CI Advanced Hardware Controls**: Native programmatic support for Contrast, Volume, RGB Gains, Color Presets, and active Input Source switching.
+- [x] **CLI Command Routing**: Full resident-forwarded command-line engine for scripting brightness, presets, and app state triggers.
+- [x] **System Theme Syncing**: Application theme automatically aligns with Windows settings dynamically without restarts.
+- [x] **Compact Quick Menu**: A streamlined, lightweight tray popup interface.
+- [x] **Auto-Update Flow & Installation**: Seamless background version checking and user-triggered automated setup.
+- [x] **Periodic Monitor Refresh**: Auto-reconnects and recovers lost DDC/CI connections on a customizable interval.
 
-- **Location-Based Sunrise/Sunset**: Allow users to provide their location (latitude/longitude or region) to calculate real-world sunrise and sunset times, automatically adjusting the default curve.
-- **Customizable Curve Points**:
-    - Allow users to add or remove points from the 24-hour brightness curve.
-    - Support irregular time intervals between points.
-- **Multiple Auto-Brightness Profiles**: Support different curves for different days of the week (e.g., Weekday vs. Weekend).
+---
 
-## 4. Monitor Support & Compatibility
+## 2. Planned / Future Features
 
-- **Improved Detection Support**:
-    - Wider Apple Studio Display validation on real hardware and alternate Windows connection paths.
-    - More transport-specific handling for docks, USB-C alt-mode chains, and MST topologies.
-    - Optional user-facing HDR policy controls to manage how BrightSync behaves when HDR is toggled.
-- **Advanced Diagnostics**:
-    - Export detailed DDC/CI capability reports for troubleshooting.
-    - Provide a "Debug View" showing real-time DDC/CI communication logs.
-- **DDC/CI Feature Support**: Explore adding support for other VCP features like Contrast, Volume (for monitors with speakers), or Input Source switching.
+### Core Engine & Automation
+- **Advanced Media Detection for Idle Dimming**: Prevent idle dimming when media is active using the Windows Media Transport Controls (`GlobalSystemMediaTransportControlsSessionManager`).
+- **Location-Based Sunrise/Sunset**: Auto-adjust the 24-hour brightness curve based on local sunrise/sunset coordinates.
+- **Customizable Curve Points**: Allow adding, deleting, or adjusting curve coordinates at irregular time intervals.
+- **Brightness & Color Presets**: Add quick-switch presets (e.g., "Reading", "Gaming", "Standard") for master configurations.
 
-## 5. Maintenance & Stability
+### Advanced Color Control
+- **Color Warmth / Blue Light Control**:
+  - Add native warmth/temp control or sync DDC/CI presets automatically with Windows Night Light.
+  - Further refine RGB Gain manual sliders.
 
-- **Native AOT Build Support**: Add configuration and validation to support compiling the application to native code using Ahead-of-Time (AOT) compilation for faster startup times and smaller memory footprint.
-- **Automatic Crash Reporting**: (Optional) Add an opt-in mechanism to collect anonymous crash logs to improve app stability.
+### Monitor Support & Compatibility
+- **Advanced Diagnostics**: Export raw DDC/CI capabilities and communication logs to help troubleshoot unsupported monitors.
+- **HDR Policies**: Configurable behavior and brightness scaling when a monitor has HDR enabled.
+- **Wider Connection Topology Support**: Improve handling of complex MST hubs, daisy chains, and USB-C docks.
+
+### UI / UX
+- **Tray Icon Tooltip Details**: Display master brightness percentage or active monitor states when hovering over the tray icon.
+- **Localization**: Resource-based UI translation capabilities for multi-language support (Lower Priority).
+
+---
+
+## 3. Out-of-Scope / Rejected Features
+
+- **Global Hotkey Daemon**: *Rejected*. Instead of writing an internal hotkey binder, users can bind triggers using their preferred system tools (e.g., AutoHotkey, PowerToys Keyboard Manager) mapped to the BrightSync CLI command engine (`BrightSync.exe brightness up/down`).
+- **Per-Monitor Quick Sliders**: *Rejected*. Contradicts the "set-and-forget" philosophy. Per-monitor brightness adjustments should be calibrated once in Settings via multipliers and limits.
+- **Grouping Monitors**: *Rejected*. Simple per-monitor profile calibration eliminates the need for separate synchronization groups.
+- **UI Animations**: *Rejected*. The UI is designed to be high-performance, responsive, and lightweight without heavy transitions.
