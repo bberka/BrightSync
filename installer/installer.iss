@@ -71,7 +71,6 @@ function SendMessageTimeout(hWnd: Integer; Msg: Integer; wParam: Integer; lParam
   external 'SendMessageTimeoutW@user32.dll stdcall';
 
 const
-  HWND_BROADCAST = $FFFF;
   WM_SETTINGCHANGE = $001A;
   SMTO_ABORTIFHUNG = $0002;
 
