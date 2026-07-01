@@ -7,7 +7,6 @@ This document tracks planned features and design decisions for BrightSync.
 ## 1. Planned / Future Features
 
 ### Core Engine & Automation
-- **Advanced Media Detection for Idle Dimming**: Prevent idle dimming when media is active using the Windows Media Transport Controls (`GlobalSystemMediaTransportControlsSessionManager`).
 - **Location-Based Sunrise/Sunset**: Auto-adjust the 24-hour brightness curve based on local sunrise/sunset coordinates.
 - **Customizable Curve Points**: Allow adding, deleting, or adjusting curve coordinates at irregular time intervals.
 - **Brightness & Color Presets**: Add quick-switch presets (e.g., "Reading", "Gaming", "Standard") for master configurations.
