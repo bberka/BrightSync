@@ -46,17 +46,44 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Read version
+      - name: Read and compute version
         id: version
         shell: pwsh
         run: |
-          $version = (Get-Content VERSION -Raw).Trim()
-          if ([string]::IsNullOrWhiteSpace($version)) {
+          $baseVersion = (Get-Content VERSION -Raw).Trim()
+          if ([string]::IsNullOrWhiteSpace($baseVersion)) {
             throw "VERSION file is empty."
           }
 
-          "version=$version" >> $env:GITHUB_OUTPUT
-          "tag=v$version" >> $env:GITHUB_OUTPUT
+          # Ensure all tags are fetched from remote to calculate the correct patch version
+          git fetch --tags --force
+
+          # Match tags that start with "v" followed by $baseVersion, a dot, and digits
+          $escapedBase = [regex]::Escape($baseVersion)
+          $pattern = "^v$escapedBase\.(\d+)$"
+
+          $maxPatch = -1
+          $tags = git tag -l
+          foreach ($tag in $tags) {
+            if ($tag -match $pattern) {
+              $patch = [int]$Matches[1]
+              if ($patch -gt $maxPatch) {
+                $maxPatch = $patch
+              }
+            }
+          }
+
+          $nextPatch = $maxPatch + 1
+          $fullVersion = "$baseVersion.$nextPatch"
+          $tag = "v$fullVersion"
+
+          Write-Host "Base version from file: $baseVersion"
+          Write-Host "Highest patch version found: $maxPatch"
+          Write-Host "Computed next version: $fullVersion"
+          Write-Host "Computed next tag: $tag"
+
+          "version=$fullVersion" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
 
       - name: Restore
         run: dotnet restore ${{ env.PROJECT_PATH }}
