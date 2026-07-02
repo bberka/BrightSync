@@ -194,7 +194,7 @@ public sealed class TrayManager(
         {
             if (_quickPopup?.IsVisible == true)
             {
-                if ((DateTime.UtcNow - _quickPopupShownAt).TotalMilliseconds < 750)
+                if ((DateTime.UtcNow - _quickPopupShownAt).TotalMilliseconds < 150)
                 {
                     Log.Debug("Ignoring tray toggle because quick brightness popup just opened");
                     return;
@@ -269,7 +269,7 @@ public sealed class TrayManager(
         if (_quickPopup?.IsVisible != true)
             return;
 
-        if ((DateTime.UtcNow - _quickPopupShownAt).TotalMilliseconds < 500)
+        if ((DateTime.UtcNow - _quickPopupShownAt).TotalMilliseconds < 150)
         {
             Log.Debug("Quick brightness popup initial deactivation ignored");
             return;
