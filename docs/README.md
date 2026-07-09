@@ -2,9 +2,6 @@
 
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/bberka/BrightSync) ![GitHub top language](https://img.shields.io/github/languages/top/bberka/BrightSync) ![GitHub License](https://img.shields.io/github/license/bberka/BrightSync)
 
-> [!WARNING]
-> **Pre-v1.0.0 Release**: This project is in active development and has not reached v1.0.0. Each version may introduce breaking changes to configurations, defaults, or features.
-
 BrightSync is a Windows tray app that keeps the brightness of your monitors aligned to one shared master brightness value.
 
 BrightSync provides its own master brightness control (available in the tray popup or settings menu) to manage all supported displays from one place, including your laptop's built-in integrated screen and external DDC/CI monitors.
