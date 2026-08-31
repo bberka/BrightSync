@@ -33,8 +33,13 @@ internal sealed class WindowsTrayIcon : IDisposable
     private IntPtr _moduleHandle;
     private bool _ownsIconHandle;
     private bool _registered;
+    private bool _disposed;
+    private string _toolTip = string.Empty;
 
     private IntPtr _windowHandle;
+
+    private static readonly uint TaskbarCreatedMessage =
+        NativeMethods.RegisterWindowMessage("TaskbarCreated");
 
     public WindowsTrayIcon()
     {
@@ -43,6 +48,10 @@ internal sealed class WindowsTrayIcon : IDisposable
 
     public void Dispose()
     {
+        if (_disposed)
+            return;
+
+        _disposed = true;
         if (_registered)
         {
             var data = CreateNotifyIconData(string.Empty);
@@ -79,6 +88,7 @@ internal sealed class WindowsTrayIcon : IDisposable
 
     public void Initialize(string toolTip, bool eyeProtectionEnabled, bool brightnessBoostEnabled)
     {
+        _toolTip = toolTip;
         _eyeProtectionEnabled = eyeProtectionEnabled;
         _brightnessBoostEnabled = brightnessBoostEnabled;
 
@@ -111,6 +121,7 @@ internal sealed class WindowsTrayIcon : IDisposable
 
     public void SetToolTip(string toolTip)
     {
+        _toolTip = toolTip;
         if (_windowHandle == IntPtr.Zero || !_registered)
             return;
 
@@ -182,8 +193,9 @@ internal sealed class WindowsTrayIcon : IDisposable
         return NativeMethods.LoadIcon(IntPtr.Zero, new IntPtr(NativeMethods.IdiApplication));
     }
 
-    private void AddIcon(string toolTip)
+    private void AddIcon(string toolTip, bool promote = true)
     {
+        _toolTip = toolTip;
         var data = CreateNotifyIconData(toolTip);
         data.uFlags = NativeMethods.NifMessage | NativeMethods.NifIcon | NativeMethods.NifTip |
                       NativeMethods.NifShowTip;
@@ -194,7 +206,7 @@ internal sealed class WindowsTrayIcon : IDisposable
             ThrowLastWin32Error("Shell_NotifyIcon(NIM_ADD) failed");
 
         _registered = true;
-        if (PromoteCurrentExecutableNotificationIcon())
+        if (promote && PromoteCurrentExecutableNotificationIcon())
         {
             NativeMethods.Shell_NotifyIcon(NativeMethods.NimDelete, ref data);
             _registered = false;
@@ -209,6 +221,26 @@ internal sealed class WindowsTrayIcon : IDisposable
         if (!NativeMethods.Shell_NotifyIcon(NativeMethods.NimSetVersion, ref data))
             Log.Warning("Shell_NotifyIcon(NIM_SETVERSION) failed. LastWin32Error={LastWin32Error}",
                 Marshal.GetLastWin32Error());
+    }
+
+    private void ReRegisterIconAfterTaskbarCreated()
+    {
+        if (_disposed || _windowHandle == IntPtr.Zero || _iconHandle == IntPtr.Zero)
+            return;
+
+        _registered = false;
+        try
+        {
+            // Explorer has discarded the previous notification-area registration.
+            // Do not repeat the registry-promotion retry loop from the UI window proc.
+            AddIcon(_toolTip, promote: false);
+            Log.Information("Win32 tray icon re-registered after taskbar recreation. WindowHandle={WindowHandle}",
+                _windowHandle);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to re-register Win32 tray icon after taskbar recreation");
+        }
     }
 
     private NativeMethods.NotifyIconData CreateNotifyIconData(string toolTip)
@@ -271,6 +303,12 @@ internal sealed class WindowsTrayIcon : IDisposable
 
     private IntPtr WindowProc(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam)
     {
+        if (message == TaskbarCreatedMessage)
+        {
+            ReRegisterIconAfterTaskbarCreated();
+            return IntPtr.Zero;
+        }
+
         if (message == CallbackMessage)
         {
             var eventCode = unchecked((int)((long)lParam & 0xffff));
@@ -452,6 +490,9 @@ internal sealed class WindowsTrayIcon : IDisposable
         public const int WmContextMenu = 0x007B;
         public const int NinSelect = 0x0400;
         public const int NinKeySelect = 0x0401;
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        public static extern uint RegisterWindowMessage(string lpString);
 
         public const uint NifMessage = 0x00000001;
         public const uint NifIcon = 0x00000002;

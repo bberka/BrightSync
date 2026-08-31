@@ -17,6 +17,7 @@ public sealed class DdcCiService : IDisposable
     private readonly object _lock = new();
     private List<DdcMonitor> _monitors = new();
     private List<PhysicalMonitorGroup> _groups = new();
+    private MonitorDisplaySnapshot[] _monitorDisplaySnapshots = [];
     private bool _disposed;
 
     public DdcCiService(ConfigManager config)
@@ -41,6 +42,18 @@ public sealed class DdcCiService : IDisposable
                 useLegacyDetection ? "Legacy" : "Modern",
                 _monitors.Count,
                 _monitors.Count(m => m.SupportsDdcCi));
+
+            // Publish only immutable display metadata. The quick UI can read this
+            // while a later hardware refresh is holding _lock without waiting on DDC.
+            Volatile.Write(ref _monitorDisplaySnapshots, _monitors
+                .Select(m => new MonitorDisplaySnapshot(
+                    m.DeviceName,
+                    m.ManufacturerName,
+                    m.ModelName,
+                    m.FriendlyName,
+                    m.Description,
+                    m.SupportsDdcCi))
+                .ToArray());
         }
     }
 
@@ -50,6 +63,13 @@ public sealed class DdcCiService : IDisposable
         lock (_lock)
             return _monitors.ToList();
     }
+
+    /// <summary>
+    /// Returns display metadata without waiting for monitor hardware operations.
+    /// The snapshot is replaced atomically after a monitor refresh completes.
+    /// </summary>
+    public IReadOnlyList<MonitorDisplaySnapshot> GetMonitorDisplaySnapshot()
+        => Volatile.Read(ref _monitorDisplaySnapshots);
 
     /// <summary>
     /// Sets brightness on a specific monitor. brightness is a percentage 0–100.
@@ -659,3 +679,12 @@ public sealed class DdcCiService : IDisposable
             DisposeGroups();
     }
 }
+
+/// <summary>Immutable monitor metadata used by UI surfaces that do not need native handles.</summary>
+public sealed record MonitorDisplaySnapshot(
+    string DeviceName,
+    string ManufacturerName,
+    string ModelName,
+    string FriendlyName,
+    string Description,
+    bool SupportsDdcCi);

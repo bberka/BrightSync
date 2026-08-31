@@ -201,7 +201,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
     private void RefreshMonitorTargets()
     {
         MonitorTargets.Clear();
-        foreach (var monitor in _ddc.GetMonitors())
+        foreach (var monitor in _ddc.GetMonitorDisplaySnapshot())
         {
             if (!monitor.SupportsDdcCi) continue;
             var profile = _config.GetOrCreateProfile(monitor.DeviceName);
@@ -239,7 +239,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
         });
     }
 
-    private static string BuildDisplayName(DdcMonitor monitor)
+    private static string BuildDisplayName(MonitorDisplaySnapshot monitor)
     {
         if (!string.IsNullOrWhiteSpace(monitor.ManufacturerName) &&
             !string.IsNullOrWhiteSpace(monitor.ModelName))
