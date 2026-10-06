@@ -27,6 +27,11 @@ internal static class NativeMethods
     public const uint DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL = 11;
     public const uint DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO_2 = 15;
     public const uint MC_CAPS_BRIGHTNESS = 0x00000002;
+    public const uint ABM_GETTASKBARPOS = 0x00000005;
+    public const uint ABE_LEFT = 0;
+    public const uint ABE_TOP = 1;
+    public const uint ABE_RIGHT = 2;
+    public const uint ABE_BOTTOM = 3;
 
     // --- DDC/CI (dxva2.dll) ---
 
@@ -158,6 +163,9 @@ internal static class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool GetCursorPos(out POINTL lpPoint);
 
+    [DllImport("shell32.dll", SetLastError = true)]
+    public static extern UIntPtr SHAppBarMessage(uint dwMessage, ref APPBARDATA pData);
+
     public delegate bool MonitorEnumProc(
         IntPtr hMonitor,
         IntPtr hdcMonitor,
@@ -218,6 +226,17 @@ internal static class NativeMethods
     public struct RECT
     {
         public int Left, Top, Right, Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct APPBARDATA
+    {
+        public uint cbSize;
+        public IntPtr hWnd;
+        public uint uCallbackMessage;
+        public uint uEdge;
+        public RECT rc;
+        public IntPtr lParam;
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]

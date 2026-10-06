@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Platform;
@@ -234,13 +235,13 @@ public sealed class TrayManager(
             _quickPopup.SizeChanged += (_, _) =>
             {
                 if (_quickPopup.IsVisible)
-                    PositionWindowAboveTray(_quickPopup);
+                    PositionQuickPopup(_quickPopup);
             };
 
             _quickPopup.ScalingChanged += (_, _) =>
             {
                 if (_quickPopup.IsVisible)
-                    PositionWindowAboveTray(_quickPopup);
+                    PositionQuickPopup(_quickPopup);
             };
 
             _quickPopup.PropertyChanged += (s, e) =>
@@ -258,7 +259,7 @@ public sealed class TrayManager(
         _quickPopupShownAt = DateTime.UtcNow;
         _quickPopup.Show();
         _quickPopup.UpdateLayout();
-        PositionWindowAboveTray(_quickPopup);
+        PositionQuickPopup(_quickPopup);
         _quickPopup.Opacity = 1;
         _quickPopup.Activate();
         Log.Debug("Quick brightness popup shown");
@@ -279,7 +280,7 @@ public sealed class TrayManager(
         _quickPopup.Hide();
     }
 
-    private void PositionWindowAboveTray(Window window)
+    private void PositionQuickPopup(Window window)
     {
         Screen? screen = null;
         if (NativeMethods.GetCursorPos(out var p))
@@ -300,13 +301,33 @@ public sealed class TrayManager(
         if (double.IsNaN(width) || width <= 0) width = 360;
         if (double.IsNaN(height) || height <= 0) height = 150;
 
-        var windowPhysicalWidth = (int)(width * scaling);
-        var windowPhysicalHeight = (int)(height * scaling);
+        var taskbarEdge = GetTaskbarEdge();
+        window.Position = QuickPopupPositionCalculator.Calculate(
+            workingArea,
+            scaling,
+            width,
+            height,
+            taskbarEdge);
+    }
 
-        var x = workingArea.Right - windowPhysicalWidth - (int)(12 * scaling);
-        var y = workingArea.Bottom - windowPhysicalHeight - (int)(12 * scaling);
+    private static TaskbarEdge GetTaskbarEdge()
+    {
+        var appBarData = new NativeMethods.APPBARDATA
+        {
+            cbSize = (uint)Marshal.SizeOf<NativeMethods.APPBARDATA>()
+        };
 
-        window.Position = new PixelPoint(x, y);
+        if (NativeMethods.SHAppBarMessage(NativeMethods.ABM_GETTASKBARPOS, ref appBarData) == UIntPtr.Zero)
+            return TaskbarEdge.Bottom;
+
+        return appBarData.uEdge switch
+        {
+            NativeMethods.ABE_LEFT => TaskbarEdge.Left,
+            NativeMethods.ABE_TOP => TaskbarEdge.Top,
+            NativeMethods.ABE_RIGHT => TaskbarEdge.Right,
+            NativeMethods.ABE_BOTTOM => TaskbarEdge.Bottom,
+            _ => TaskbarEdge.Bottom
+        };
     }
 
     private void RefreshMonitors()
