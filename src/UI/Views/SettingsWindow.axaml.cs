@@ -101,7 +101,7 @@ public partial class SettingsWindow : Window
 
         Opened += (_, _) =>
         {
-            PositionBottomRight(useCursorScreen: true);
+            PositionBottomRight(useCursorScreen: false, preferPrimaryScreen: true);
             RenderAutoBrightnessCurve();
         };
 
@@ -120,10 +120,10 @@ public partial class SettingsWindow : Window
 
     public event EventHandler? ExitRequested;
 
-    public void PositionBottomRight(bool useCursorScreen = true)
+    public void PositionBottomRight(bool useCursorScreen = true, bool preferPrimaryScreen = false)
     {
-        Screen? screen = null;
-        if (useCursorScreen && BrightSync.Core.Interop.NativeMethods.GetCursorPos(out var p))
+        Screen? screen = preferPrimaryScreen ? Screens.Primary : null;
+        if (screen == null && useCursorScreen && BrightSync.Core.Interop.NativeMethods.GetCursorPos(out var p))
         {
             screen = Screens.ScreenFromPoint(new PixelPoint(p.x, p.y));
         }
