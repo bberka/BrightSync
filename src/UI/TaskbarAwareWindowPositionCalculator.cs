@@ -1,4 +1,6 @@
+using System.Runtime.InteropServices;
 using Avalonia;
+using BrightSync.Core.Interop;
 
 namespace BrightSync.UI;
 
@@ -10,7 +12,30 @@ internal enum TaskbarEdge
     Bottom
 }
 
-internal static class QuickPopupPositionCalculator
+internal static class TaskbarPosition
+{
+    public static TaskbarEdge GetEdge()
+    {
+        var appBarData = new NativeMethods.APPBARDATA
+        {
+            cbSize = (uint)Marshal.SizeOf<NativeMethods.APPBARDATA>()
+        };
+
+        if (NativeMethods.SHAppBarMessage(NativeMethods.ABM_GETTASKBARPOS, ref appBarData) == UIntPtr.Zero)
+            return TaskbarEdge.Bottom;
+
+        return appBarData.uEdge switch
+        {
+            NativeMethods.ABE_LEFT => TaskbarEdge.Left,
+            NativeMethods.ABE_TOP => TaskbarEdge.Top,
+            NativeMethods.ABE_RIGHT => TaskbarEdge.Right,
+            NativeMethods.ABE_BOTTOM => TaskbarEdge.Bottom,
+            _ => TaskbarEdge.Bottom
+        };
+    }
+}
+
+internal static class TaskbarAwareWindowPositionCalculator
 {
     private const double EdgeMargin = 12;
 

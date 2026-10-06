@@ -13,6 +13,7 @@ using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;
 using BrightSync.Core.Updates;
+using BrightSync.UI;
 using BrightSync.UI.ViewModels;
 
 namespace BrightSync.UI.Views;
@@ -143,14 +144,12 @@ public partial class SettingsWindow : Window
         if (double.IsNaN(width) || width <= 0) width = 560;
         if (double.IsNaN(height) || height <= 0) height = 770;
 
-        var windowPhysicalWidth = (int)(width * scaling);
-        var windowPhysicalHeight = (int)(height * scaling);
-
-        var margin = (int)(ScreenEdgeMargin * scaling);
-        var x = workingArea.Right - windowPhysicalWidth - margin;
-        var y = workingArea.Bottom - windowPhysicalHeight - margin;
-
-        Position = new PixelPoint(x, y);
+        Position = TaskbarAwareWindowPositionCalculator.Calculate(
+            workingArea,
+            scaling,
+            width,
+            height,
+            TaskbarPosition.GetEdge());
     }
 
     private void FitHeightToWorkingArea(Screen screen)

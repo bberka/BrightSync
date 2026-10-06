@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Platform;
@@ -301,33 +300,13 @@ public sealed class TrayManager(
         if (double.IsNaN(width) || width <= 0) width = 360;
         if (double.IsNaN(height) || height <= 0) height = 150;
 
-        var taskbarEdge = GetTaskbarEdge();
-        window.Position = QuickPopupPositionCalculator.Calculate(
+        var taskbarEdge = TaskbarPosition.GetEdge();
+        window.Position = TaskbarAwareWindowPositionCalculator.Calculate(
             workingArea,
             scaling,
             width,
             height,
             taskbarEdge);
-    }
-
-    private static TaskbarEdge GetTaskbarEdge()
-    {
-        var appBarData = new NativeMethods.APPBARDATA
-        {
-            cbSize = (uint)Marshal.SizeOf<NativeMethods.APPBARDATA>()
-        };
-
-        if (NativeMethods.SHAppBarMessage(NativeMethods.ABM_GETTASKBARPOS, ref appBarData) == UIntPtr.Zero)
-            return TaskbarEdge.Bottom;
-
-        return appBarData.uEdge switch
-        {
-            NativeMethods.ABE_LEFT => TaskbarEdge.Left,
-            NativeMethods.ABE_TOP => TaskbarEdge.Top,
-            NativeMethods.ABE_RIGHT => TaskbarEdge.Right,
-            NativeMethods.ABE_BOTTOM => TaskbarEdge.Bottom,
-            _ => TaskbarEdge.Bottom
-        };
     }
 
     private void RefreshMonitors()
