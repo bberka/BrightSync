@@ -136,7 +136,8 @@ public sealed class UpdateChecker : IDisposable
 
         var architectureToken = GetArchitectureToken(processArchitecture);
         var installers = assets
-            .Where(static asset => asset.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            .Where(static asset => UpdateArtifactSecurity.IsSafeInstallerAssetName(asset.Name))
+            .Where(static asset => asset.Name.StartsWith("BrightSync-Setup-", StringComparison.OrdinalIgnoreCase))
             .Where(static asset => !string.IsNullOrWhiteSpace(asset.DownloadUrl))
             .ToArray();
 
@@ -145,18 +146,11 @@ public sealed class UpdateChecker : IDisposable
             return null;
         }
 
-        static bool IsSetupInstaller(GitHubReleaseAsset asset)
-            => asset.Name.Contains("setup", StringComparison.OrdinalIgnoreCase);
-
         static bool MatchesArchitecture(GitHubReleaseAsset asset, string architectureToken)
             => !string.IsNullOrWhiteSpace(architectureToken)
-               && asset.Name.Contains(architectureToken, StringComparison.OrdinalIgnoreCase);
+               && asset.Name.Contains($"-win-{architectureToken}.", StringComparison.OrdinalIgnoreCase);
 
-        return installers.FirstOrDefault(asset =>
-                       IsSetupInstaller(asset) && MatchesArchitecture(asset, architectureToken))
-               ?? installers.FirstOrDefault(asset => MatchesArchitecture(asset, architectureToken))
-               ?? installers.FirstOrDefault(IsSetupInstaller)
-               ?? installers[0];
+        return installers.FirstOrDefault(asset => MatchesArchitecture(asset, architectureToken));
     }
 
     private static string GetArchitectureToken(Architecture processArchitecture)

@@ -22,17 +22,27 @@ internal static class UpdateArtifactSecurity
             return false;
         }
 
-        if (IsGitHubApiReleaseAssetUrl(uri))
-        {
-            return true;
-        }
-
         if (!IsGitHubReleaseDownloadUrl(uri, out var assetName))
         {
             return false;
         }
 
         return assetName.Equals(ChecksumManifestAssetName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static bool TryGetReleaseDownloadTag(string? value, out string tagName)
+    {
+        tagName = string.Empty;
+        if (!TryParseHttpsUri(value, out var uri)
+            || !IsGitHubReleaseDownloadUrl(uri, out _)
+            || !TryGetPathSegments(uri, out var segments)
+            || segments.Count != 6)
+        {
+            return false;
+        }
+
+        tagName = segments[4];
+        return true;
     }
 
     internal static bool IsAllowedRedirectUrl(Uri uri)
@@ -43,7 +53,7 @@ internal static class UpdateArtifactSecurity
             return false;
         }
 
-        if (IsReleaseAssetUrl(uri, requireInstallerAsset: false))
+        if (IsGitHubReleaseDownloadUrl(uri, out _))
         {
             return true;
         }
@@ -64,22 +74,36 @@ internal static class UpdateArtifactSecurity
         string downloadUrl,
         out string installerAssetName)
     {
-        if (IsSafeInstallerAssetName(suppliedName))
-        {
-            installerAssetName = suppliedName!;
-            return true;
-        }
-
-        if (!TryParseHttpsUri(downloadUrl, out var uri)
-            || !IsGitHubReleaseDownloadUrl(uri, out var urlAssetName)
-            || !IsSafeInstallerAssetName(urlAssetName))
+        if (!TryParseHttpsUri(downloadUrl, out var uri))
         {
             installerAssetName = string.Empty;
             return false;
         }
 
-        installerAssetName = urlAssetName;
-        return true;
+        if (IsGitHubReleaseDownloadUrl(uri, out var urlAssetName))
+        {
+            if (!IsSafeInstallerAssetName(urlAssetName)
+                || (IsSafeInstallerAssetName(suppliedName)
+                    && !suppliedName!.Equals(urlAssetName, StringComparison.Ordinal)))
+            {
+                installerAssetName = string.Empty;
+                return false;
+            }
+
+            installerAssetName = urlAssetName;
+            return true;
+        }
+
+        // The API asset endpoint does not contain the asset name. Only accept it
+        // when the release metadata supplied a safe name to bind the checksum to.
+        if (IsGitHubApiReleaseAssetUrl(uri) && IsSafeInstallerAssetName(suppliedName))
+        {
+            installerAssetName = suppliedName!;
+            return true;
+        }
+
+        installerAssetName = string.Empty;
+        return false;
     }
 
     internal static bool IsValidSha256(string? value)
@@ -160,11 +184,10 @@ internal static class UpdateArtifactSecurity
 
         while (true)
         {
-            var requested = (int)Math.Min(buffer.Length, maximumBytes - totalRead + 1);
-            if (requested <= 0)
-            {
-                throw new InvalidDataException($"Response exceeded the {maximumBytes}-byte limit.");
-            }
+            var remainingBytes = maximumBytes - totalRead;
+            var requested = remainingBytes >= buffer.Length
+                ? buffer.Length
+                : (int)remainingBytes + 1;
 
             var bytesRead = await source.ReadAsync(buffer.AsMemory(0, requested), cancellationToken);
             if (bytesRead == 0)
@@ -188,9 +211,13 @@ internal static class UpdateArtifactSecurity
     {
         var fullPath = Path.GetFullPath(path);
         var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
-        var rootWithSeparator = fullRoot + Path.DirectorySeparatorChar;
+        var relativePath = Path.GetRelativePath(fullRoot, fullPath);
 
-        return fullPath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase);
+        return relativePath != "."
+               && !Path.IsPathRooted(relativePath)
+               && relativePath != ".."
+               && !relativePath.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+               && !relativePath.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal);
     }
 
     internal static bool IsSafeInstallerAssetName(string? value)
@@ -316,6 +343,7 @@ internal static class UpdateArtifactSecurity
                && !value.Contains('/')
                && !value.Contains('\\')
                && !value.Contains(':')
+               && !value.Contains('%')
                && value.All(character => !char.IsControl(character));
     }
 }

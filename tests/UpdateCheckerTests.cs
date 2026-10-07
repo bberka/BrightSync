@@ -41,19 +41,62 @@ public sealed class UpdateCheckerTests
     [InlineData("https://example.test/bberka/BrightSync/releases/download/v1.2.3/BrightSync-Setup.exe", false)]
     [InlineData("https://github.com/bberka/Other/releases/download/v1.2.3/BrightSync-Setup.exe", false)]
     [InlineData("https://github.com/bberka/BrightSync/releases/latest/BrightSync-Setup.exe", false)]
+    [InlineData("https://github.com/bberka/BrightSync/releases/download/v1.2.3/BrightSync-Setup-v1.2.3-win-x64%252f..exe", false)]
     public void IsAllowedInstallerUrl_enforces_https_host_and_release_path(string url, bool expected)
     {
         Assert.Equal(expected, UpdateArtifactSecurity.IsAllowedInstallerUrl(url));
     }
 
     [Theory]
+    [InlineData("https://github.com/bberka/BrightSync/releases/download/v1.2.3/BrightSync-SHA256SUMS.txt", true)]
+    [InlineData("https://api.github.com/repos/bberka/BrightSync/releases/assets/123", false)]
+    [InlineData("https://github.com/bberka/BrightSync/releases/download/v1.2.3/BrightSync-other.txt", false)]
+    public void IsAllowedChecksumManifestUrl_requires_the_published_manifest_asset(string url, bool expected)
+    {
+        Assert.Equal(expected, UpdateArtifactSecurity.IsAllowedChecksumManifestUrl(url));
+    }
+
+    [Theory]
     [InlineData("https://release-assets.githubusercontent.com/github-production-release-asset/123/abc?sig=1", true)]
     [InlineData("https://release-assets.githubusercontent.com/not-a-release/123", false)]
     [InlineData("https://evil.example/github-production-release-asset/123/abc", false)]
+    [InlineData("https://api.github.com/repos/bberka/BrightSync/releases/assets/123", false)]
     public void IsAllowedRedirectUrl_allows_only_github_release_cdn_paths(string url, bool expected)
     {
         Assert.True(Uri.TryCreate(url, UriKind.Absolute, out var uri));
         Assert.Equal(expected, UpdateArtifactSecurity.IsAllowedRedirectUrl(uri));
+    }
+
+    [Fact]
+    public void TryGetInstallerAssetName_rejects_a_name_that_does_not_match_the_download_url()
+    {
+        Assert.False(UpdateArtifactSecurity.TryGetInstallerAssetName(
+            "BrightSync-Setup-v1.2.3-win-arm64.exe",
+            "https://github.com/bberka/BrightSync/releases/download/v1.2.3/BrightSync-Setup-v1.2.3-win-x64.exe",
+            out _));
+    }
+
+    [Fact]
+    public void TryGetReleaseDownloadTag_reads_the_release_segment_without_accepting_api_urls()
+    {
+        Assert.True(UpdateArtifactSecurity.TryGetReleaseDownloadTag(
+            "https://github.com/bberka/BrightSync/releases/download/v1.2.3/BrightSync-Setup-v1.2.3-win-x64.exe",
+            out var tag));
+        Assert.Equal("v1.2.3", tag);
+        Assert.False(UpdateArtifactSecurity.TryGetReleaseDownloadTag(
+            "https://api.github.com/repos/bberka/BrightSync/releases/assets/123",
+            out _));
+    }
+
+    [Fact]
+    public void IsPathUnderRoot_rejects_the_root_parent_and_sibling_prefix()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "BrightSync-update-root");
+
+        Assert.True(UpdateArtifactSecurity.IsPathUnderRoot(Path.Combine(root, "child"), root));
+        Assert.False(UpdateArtifactSecurity.IsPathUnderRoot(root, root));
+        Assert.False(UpdateArtifactSecurity.IsPathUnderRoot(Path.Combine(root, "..", "outside"), root));
+        Assert.False(UpdateArtifactSecurity.IsPathUnderRoot(root + "-sibling", root));
     }
 
     [Fact]
@@ -89,6 +132,16 @@ public sealed class UpdateCheckerTests
     }
 
     [Fact]
+    public async Task ReadAtMostAsync_handles_the_largest_supported_limit_without_overflow()
+    {
+        await using var source = new MemoryStream(new byte[] { 1, 2, 3 });
+
+        var result = await UpdateArtifactSecurity.ReadAtMostAsync(source, long.MaxValue, CancellationToken.None);
+
+        Assert.Equal(new byte[] { 1, 2, 3 }, result);
+    }
+
+    [Fact]
     public void SelectInstallerDownloadUrl_prefers_matching_setup_for_process_architecture()
     {
         var assets = new[]
@@ -104,7 +157,7 @@ public sealed class UpdateCheckerTests
     }
 
     [Fact]
-    public void SelectInstallerDownloadUrl_falls_back_to_any_setup_when_architecture_specific_asset_is_missing()
+    public void SelectInstallerDownloadUrl_rejects_a_wrong_architecture_instead_of_falling_back()
     {
         var assets = new[]
         {
@@ -114,7 +167,20 @@ public sealed class UpdateCheckerTests
 
         var downloadUrl = UpdateChecker.SelectInstallerDownloadUrl(assets, Architecture.X64);
 
-        Assert.Equal("https://example.test/arm64-setup.exe", downloadUrl);
+        Assert.Equal(string.Empty, downloadUrl);
+    }
+
+    [Fact]
+    public void SelectInstallerDownloadUrl_rejects_a_non_setup_executable()
+    {
+        var assets = new[]
+        {
+            new GitHubReleaseAsset("BrightSync-helper-win-x64.exe", "https://example.test/helper.exe")
+        };
+
+        var downloadUrl = UpdateChecker.SelectInstallerDownloadUrl(assets, Architecture.X64);
+
+        Assert.Equal(string.Empty, downloadUrl);
     }
 
     [Fact]
@@ -125,7 +191,7 @@ public sealed class UpdateCheckerTests
             {
               "assets": [
                 {
-                  "name": "BrightSync-Setup-v0.14.1-x64.exe",
+                  "name": "BrightSync-Setup-v0.14.1-win-x64.exe",
                   "url": "https://api.github.com/repos/bberka/BrightSync/releases/assets/123"
                 }
               ]

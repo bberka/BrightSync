@@ -8,6 +8,12 @@ on:
     paths:
       - VERSION
   workflow_dispatch:
+    inputs:
+      run_hardware_tests:
+        description: Run the physical-monitor and integration tests on this manually started release
+        required: false
+        default: false
+        type: boolean
 
 permissions: {}
 
@@ -23,6 +29,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
+      commit: ${{ steps.version.outputs.commit }}
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -58,6 +65,7 @@ jobs:
 
           "version=$fullVersion" >> $env:GITHUB_OUTPUT
           "tag=$tag" >> $env:GITHUB_OUTPUT
+          "commit=$env:GITHUB_SHA" >> $env:GITHUB_OUTPUT
 
   validate:
     runs-on: windows-latest
@@ -82,7 +90,13 @@ jobs:
       - name: Build
         run: dotnet build ${{ env.SOLUTION_PATH }} -c ${{ env.CONFIGURATION }} --no-restore
 
-      - name: Test
+      - name: Test hardware-safe suite
+        if: ${{ inputs.run_hardware_tests != true }}
+        # Keep release validation aligned with the repository's verified hosted-runner filter.
+        run: dotnet test ${{ env.TEST_PROJECT_PATH }} -c ${{ env.CONFIGURATION }} --no-build --no-restore --filter "Category!=Hardware&Category!=Integration"
+
+      - name: Test full suite (manual hardware opt-in)
+        if: ${{ inputs.run_hardware_tests == true }}
         run: dotnet test ${{ env.TEST_PROJECT_PATH }} -c ${{ env.CONFIGURATION }} --no-build --no-restore
 
   package:
@@ -119,6 +133,18 @@ jobs:
       - name: Restore
         run: dotnet restore ${{ env.PROJECT_PATH }} -r ${{ matrix.rid }}
 
+      - name: Validate Authenticode signing configuration
+        shell: pwsh
+        run: |
+          $hasCertificate = -not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERTIFICATE_BASE64)
+          $hasPassword = -not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERTIFICATE_PASSWORD)
+          $hasTimestampUrl = -not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_TIMESTAMP_URL)
+          $hasAnySigningSecret = $hasCertificate -or $hasPassword -or $hasTimestampUrl
+          $hasAllSigningSecrets = $hasCertificate -and $hasPassword -and $hasTimestampUrl
+          if ($hasAnySigningSecret -and -not $hasAllSigningSecrets) {
+            throw "Authenticode signing requires WINDOWS_SIGNING_CERTIFICATE_BASE64, WINDOWS_SIGNING_CERTIFICATE_PASSWORD, and WINDOWS_SIGNING_TIMESTAMP_URL together."
+          }
+
       - name: Publish
         shell: pwsh
         run: |
@@ -147,21 +173,23 @@ jobs:
         run: |
           $publishDir = Join-Path $env:RUNNER_TEMP "${{ matrix.suffix }}"
           $certificatePath = Join-Path $env:RUNNER_TEMP "BrightSync-signing-${{ matrix.suffix }}.pfx"
+          $executablePath = Join-Path $publishDir 'BrightSync.exe'
           try {
-            if ([string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERTIFICATE_PASSWORD) -or
-                [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_TIMESTAMP_URL)) {
-              throw "Authenticode signing requires WINDOWS_SIGNING_CERTIFICATE_PASSWORD and WINDOWS_SIGNING_TIMESTAMP_URL secrets."
+            if (!(Test-Path -LiteralPath $executablePath -PathType Leaf)) {
+              throw "Published executable was not found at $executablePath."
             }
 
             [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_SIGNING_CERTIFICATE_BASE64))
             $signtool = Get-Command signtool.exe -ErrorAction Stop
-            & $signtool.Source sign /fd SHA256 /f $certificatePath /p $env:WINDOWS_SIGNING_CERTIFICATE_PASSWORD /tr $env:WINDOWS_SIGNING_TIMESTAMP_URL /td SHA256 (Join-Path $publishDir 'BrightSync.exe')
+            & $signtool.Source sign /fd SHA256 /f $certificatePath /p $env:WINDOWS_SIGNING_CERTIFICATE_PASSWORD /tr $env:WINDOWS_SIGNING_TIMESTAMP_URL /td SHA256 $executablePath
             if ($LASTEXITCODE -ne 0) {
               throw "signtool failed for the published executable with exit code $LASTEXITCODE."
             }
           }
           finally {
-            Remove-Item -LiteralPath $certificatePath -Force -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $certificatePath) {
+              Remove-Item -LiteralPath $certificatePath -Force -ErrorAction Stop
+            }
           }
 
       - name: Archive publish output
@@ -171,10 +199,22 @@ jobs:
           $publishDir = Join-Path $env:RUNNER_TEMP "${{ matrix.suffix }}"
           $packageDir = Join-Path $env:RUNNER_TEMP "package"
           $zipPath = Join-Path $env:RUNNER_TEMP "BrightSync-$version-${{ matrix.suffix }}.zip"
+          if (!(Test-Path -LiteralPath $publishDir -PathType Container)) {
+            throw "Publish directory was not created: $publishDir"
+          }
+
+          $files = @(Get-ChildItem -Path $publishDir -Recurse -File | Where-Object { $_.Extension -ne '.pdb' })
+          $publishedExecutable = Join-Path $publishDir 'BrightSync.exe'
+          if ($files.Count -eq 0 -or !(Test-Path -LiteralPath $publishedExecutable -PathType Leaf)) {
+            throw "Publish output did not contain the expected BrightSync.exe executable."
+          }
+
+          if (Test-Path -LiteralPath $packageDir) {
+            Remove-Item -LiteralPath $packageDir -Recurse -Force
+          }
           New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
 
           Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $files = Get-ChildItem -Path $publishDir -Recurse -File | Where-Object { $_.Extension -ne '.pdb' }
           $archive = [System.IO.Compression.ZipFile]::Open($zipPath, [System.IO.Compression.ZipArchiveMode]::Create)
           try {
             foreach ($file in $files) {
@@ -218,6 +258,10 @@ jobs:
           $setupPath = Join-Path $env:RUNNER_TEMP "BrightSync-Setup-v$version-win-${{ matrix.arch }}.exe"
           $certificatePath = Join-Path $env:RUNNER_TEMP "BrightSync-signing-${{ matrix.suffix }}.pfx"
           try {
+            if (!(Test-Path -LiteralPath $setupPath -PathType Leaf)) {
+              throw "Installer executable was not found at $setupPath."
+            }
+
             [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_SIGNING_CERTIFICATE_BASE64))
             $signtool = Get-Command signtool.exe -ErrorAction Stop
             & $signtool.Source sign /fd SHA256 /f $certificatePath /p $env:WINDOWS_SIGNING_CERTIFICATE_PASSWORD /tr $env:WINDOWS_SIGNING_TIMESTAMP_URL /td SHA256 $setupPath
@@ -226,7 +270,9 @@ jobs:
             }
           }
           finally {
-            Remove-Item -LiteralPath $certificatePath -Force -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $certificatePath) {
+              Remove-Item -LiteralPath $certificatePath -Force -ErrorAction Stop
+            }
           }
 
       - name: Collect package assets
@@ -262,17 +308,36 @@ jobs:
           merge-multiple: true
 
       - name: Generate SHA-256 manifest
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
           cd release-assets
-          sha256sum -- * > BrightSync-SHA256SUMS.txt
+          expected=(
+            "BrightSync-${RELEASE_VERSION}-win-x64.zip"
+            "BrightSync-${RELEASE_VERSION}-win-arm64.zip"
+            "BrightSync-Setup-v${RELEASE_VERSION}-win-x64.exe"
+            "BrightSync-Setup-v${RELEASE_VERSION}-win-arm64.exe"
+          )
+          shopt -s nullglob
+          assets=(*)
+          if (( ${#assets[@]} != ${#expected[@]} )); then
+            printf 'Unexpected release asset count: expected %d, found %d\n' "${#expected[@]}" "${#assets[@]}" >&2
+            exit 1
+          fi
+          for asset in "${expected[@]}"; do
+            test -f "$asset"
+          done
+          sha256sum -- "${expected[@]}" > BrightSync-SHA256SUMS.txt
           test -s BrightSync-SHA256SUMS.txt
+          test "$(wc -l < BrightSync-SHA256SUMS.txt)" -eq "${#expected[@]}"
 
       - name: Ensure release exists
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          RELEASE_TARGET: ${{ needs.prepare.outputs.commit }}
         shell: bash
         run: |
           set -euo pipefail
@@ -280,6 +345,7 @@ jobs:
             gh release create "$RELEASE_TAG" \
               --repo "$GITHUB_REPOSITORY" \
               --title "$RELEASE_TAG" \
+              --target "$RELEASE_TARGET" \
               --notes "Automated release for version $RELEASE_TAG."
           fi
 

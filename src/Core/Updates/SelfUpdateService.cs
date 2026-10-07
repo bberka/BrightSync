@@ -106,7 +106,7 @@ public sealed class SelfUpdateService : IDisposable
         _processStarter = processStarter;
         _exitProcess = exitProcess;
         _sleep = sleep;
-        _stagingRoot = Path.GetFullPath(stagingRoot);
+        _stagingRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(stagingRoot));
         _downloadTimeout = downloadTimeout > TimeSpan.Zero
             ? downloadTimeout
             : throw new ArgumentOutOfRangeException(nameof(downloadTimeout));
@@ -198,11 +198,21 @@ public sealed class SelfUpdateService : IDisposable
         CancellationToken cancellationToken)
     {
         string? stagingDir = null;
+        var downloadSucceeded = false;
         try
         {
             if (!UpdateArtifactSecurity.IsAllowedInstallerUrl(release.InstallerDownloadUrl))
             {
                 Log.Warning("Rejected update download URL for release {TagName}", release.TagName);
+                return null;
+            }
+
+            if (UpdateArtifactSecurity.TryGetReleaseDownloadTag(release.InstallerDownloadUrl, out var installerTag)
+                && !installerTag.Equals(release.TagName, StringComparison.OrdinalIgnoreCase))
+            {
+                Log.Warning("Rejected update {TagName}: installer URL belongs to release {InstallerTag}",
+                    release.TagName,
+                    installerTag);
                 return null;
             }
 
@@ -225,6 +235,15 @@ public sealed class SelfUpdateService : IDisposable
                 if (!UpdateArtifactSecurity.IsAllowedChecksumManifestUrl(release.ChecksumManifestUrl))
                 {
                     Log.Warning("Rejected update {TagName}: no trusted checksum manifest or checksum was supplied", release.TagName);
+                    return null;
+                }
+
+                if (UpdateArtifactSecurity.TryGetReleaseDownloadTag(release.ChecksumManifestUrl, out var manifestTag)
+                    && !manifestTag.Equals(release.TagName, StringComparison.OrdinalIgnoreCase))
+                {
+                    Log.Warning("Rejected update {TagName}: checksum manifest belongs to release {ManifestTag}",
+                        release.TagName,
+                        manifestTag);
                     return null;
                 }
 
@@ -311,13 +330,17 @@ public sealed class SelfUpdateService : IDisposable
                 throw new InvalidDataException("Installer checksum verification failed.");
             }
 
+            operationToken.ThrowIfCancellationRequested();
+
             lock (_verifiedArtifactChecksums)
             {
                 _verifiedArtifactChecksums[installerPath] = actualChecksum;
             }
 
             progress?.Report(100);
+            operationToken.ThrowIfCancellationRequested();
             Log.Information("Verified update downloaded to {Path} ({TotalBytes} bytes)", installerPath, totalRead);
+            downloadSucceeded = true;
             return installerPath;
         }
         catch (OperationCanceledException ex)
@@ -332,8 +355,9 @@ public sealed class SelfUpdateService : IDisposable
         }
         finally
         {
-            if (stagingDir is not null && !IsVerifiedStagingDirectory(stagingDir))
+            if (stagingDir is not null && !downloadSucceeded)
             {
+                RemoveVerifiedArtifacts(stagingDir);
                 CleanupStagingDirectory(stagingDir);
             }
         }
@@ -350,10 +374,9 @@ public sealed class SelfUpdateService : IDisposable
         try
         {
             var fullPath = Path.GetFullPath(installerPath);
-            if (!UpdateArtifactSecurity.IsPathUnderRoot(fullPath, _stagingRoot)
-                || !File.Exists(fullPath))
+            if (!IsSafeInstallerPath(fullPath))
             {
-                FailInstall("Install rejected because the staged artifact path is invalid.");
+                FailInstall("Install rejected because the staged artifact path is invalid.", fullPath);
                 return;
             }
 
@@ -379,8 +402,7 @@ public sealed class SelfUpdateService : IDisposable
         var installerPath = _pendingInstallerPath;
         var expectedChecksum = _pendingInstallerChecksum;
         if (!UpdateArtifactSecurity.IsValidSha256(expectedChecksum)
-            || !UpdateArtifactSecurity.IsPathUnderRoot(installerPath, _stagingRoot)
-            || !File.Exists(installerPath))
+            || !IsSafeInstallerPath(installerPath))
         {
             FailInstall("Install rejected because the staged artifact is no longer valid.", installerPath);
             return;
@@ -456,14 +478,27 @@ public sealed class SelfUpdateService : IDisposable
         var installerPath = await DownloadUpdateAsync(release, progress, cancellationToken);
         if (installerPath is null)
         {
-            InstallFailed?.Invoke(this, "Download failed");
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                InstallFailed?.Invoke(this, "Download failed");
+            }
+            return;
+        }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            var stagingDir = Path.GetDirectoryName(installerPath);
+            if (stagingDir is not null)
+            {
+                RemoveVerifiedArtifacts(stagingDir);
+                CleanupStagingDirectory(stagingDir);
+            }
             return;
         }
 
         ScheduleIdleInstall(installerPath);
 
-        if (_config.Config.AutoInstallMode == AutoInstallMode.Instantly
-            || _config.Config.AutoInstallMode == AutoInstallMode.WhenIdle)
+        if (_config.Config.AutoInstallMode == AutoInstallMode.Instantly)
         {
             InstallNow();
         }
@@ -648,14 +683,26 @@ public sealed class SelfUpdateService : IDisposable
     private string CreateStagingDirectory()
     {
         Directory.CreateDirectory(_stagingRoot);
+        if (HasReparsePoint(_stagingRoot))
+        {
+            throw new IOException("The update staging root cannot be a reparse point.");
+        }
+
         for (var attempt = 0; attempt < 3; attempt++)
         {
             var directory = Path.Combine(_stagingRoot, $"BrightSync-update-{Guid.NewGuid():N}");
-            if (!Directory.Exists(directory))
+            if (Directory.Exists(directory))
             {
-                Directory.CreateDirectory(directory);
-                return directory;
+                continue;
             }
+
+            Directory.CreateDirectory(directory);
+            if (!IsSafeStagingDirectory(directory))
+            {
+                throw new IOException("The update staging directory is not a safe child of the staging root.");
+            }
+
+            return directory;
         }
 
         throw new IOException("Could not create a unique update staging directory.");
@@ -667,13 +714,20 @@ public sealed class SelfUpdateService : IDisposable
         try
         {
             var stagingDir = Path.GetDirectoryName(installerPath);
-            if (stagingDir is null || !UpdateArtifactSecurity.IsPathUnderRoot(stagingDir, _stagingRoot))
+            if (stagingDir is null
+                || !IsSafeStagingDirectory(stagingDir)
+                || !IsSafeInstallerPath(installerPath))
             {
                 return null;
             }
 
             statusPath = Path.Combine(stagingDir, InstallStatusFileName);
             var scriptPath = Path.Combine(stagingDir, InstallScriptFileName);
+            if (HasExistingPathOrReparsePoint(statusPath) || HasExistingPathOrReparsePoint(scriptPath))
+            {
+                return null;
+            }
+
             var script =
                 $$"""
                 param([int]$ProcessId, [string]$InstallerPath, [string]$ExpectedSha256, [string]$StatusPath)
@@ -685,7 +739,16 @@ public sealed class SelfUpdateService : IDisposable
 
                 Write-InstallStatus 'script-started' '' ''
                 try {
-                  try { Wait-Process -Id $ProcessId -Timeout 30 -ErrorAction SilentlyContinue } catch {}
+                  if (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue) {
+                    Wait-Process -Id $ProcessId -Timeout 30 -ErrorAction SilentlyContinue | Out-Null
+                    if (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue) {
+                      throw 'BrightSync did not exit before the installer handoff timeout.'
+                    }
+                  }
+                  $installerItem = Get-Item -LiteralPath $InstallerPath -Force -ErrorAction Stop
+                  if (($installerItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+                    throw 'The staged installer path is a reparse point.'
+                  }
                   $actualSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $InstallerPath).Hash
                   if (-not $actualSha256.Equals($ExpectedSha256, [StringComparison]::OrdinalIgnoreCase)) {
                     throw 'Installer checksum changed after download verification.'
@@ -708,7 +771,17 @@ public sealed class SelfUpdateService : IDisposable
                   Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
                 }
                 """;
-            File.WriteAllText(scriptPath, script, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            using var scriptStream = new FileStream(
+                scriptPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.Read,
+                4096,
+                useAsync: false);
+            using var scriptWriter = new StreamWriter(
+                scriptStream,
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            scriptWriter.Write(script);
             return scriptPath;
         }
         catch (Exception ex)
@@ -720,7 +793,7 @@ public sealed class SelfUpdateService : IDisposable
 
     private void ReportPreviousInstallResult()
     {
-        if (!Directory.Exists(_stagingRoot))
+        if (!Directory.Exists(_stagingRoot) || HasReparsePoint(_stagingRoot))
         {
             return;
         }
@@ -729,6 +802,12 @@ public sealed class SelfUpdateService : IDisposable
         {
             foreach (var stagingDir in Directory.EnumerateDirectories(_stagingRoot, "BrightSync-update-*"))
             {
+                if (!IsSafeStagingDirectory(stagingDir))
+                {
+                    Log.Warning("Ignoring unsafe update staging directory {Path}", stagingDir);
+                    continue;
+                }
+
                 var statusPath = Path.Combine(stagingDir, InstallStatusFileName);
                 if (!File.Exists(statusPath))
                 {
@@ -749,19 +828,24 @@ public sealed class SelfUpdateService : IDisposable
                     exitCode = parsedExitCode;
                 }
 
-                if (state.Equals("installer-completed", StringComparison.OrdinalIgnoreCase))
+                if (state.Equals("installer-completed", StringComparison.OrdinalIgnoreCase) && exitCode == 0)
                 {
                     SetInstallState(InstallState.InstallerCompleted, exitCode);
                     InstallCompleted?.Invoke(this, EventArgs.Empty);
+                    RemoveVerifiedArtifacts(stagingDir);
                     CleanupStagingDirectory(stagingDir);
                 }
-                else if (state is "installer-failed" or "installer-error")
+                else if (state.Equals("installer-completed", StringComparison.OrdinalIgnoreCase)
+                         || state is "installer-failed" or "installer-error")
                 {
-                    var message = string.IsNullOrWhiteSpace(error)
-                        ? "The installer did not complete successfully."
-                        : error;
+                    var message = state.Equals("installer-completed", StringComparison.OrdinalIgnoreCase)
+                        ? "The installer reported completion without a zero exit code."
+                        : string.IsNullOrWhiteSpace(error)
+                            ? "The installer did not complete successfully."
+                            : error;
                     SetInstallState(InstallState.Failed, exitCode, message);
                     InstallFailed?.Invoke(this, message);
+                    RemoveVerifiedArtifacts(stagingDir);
                     CleanupStagingDirectory(stagingDir);
                 }
             }
@@ -774,18 +858,121 @@ public sealed class SelfUpdateService : IDisposable
 
     private bool TryGetVerifiedChecksum(string installerPath, out string checksum)
     {
+        checksum = string.Empty;
+        string fullPath;
+        try
+        {
+            fullPath = Path.GetFullPath(installerPath);
+        }
+        catch
+        {
+            return false;
+        }
+
         lock (_verifiedArtifactChecksums)
         {
-            return _verifiedArtifactChecksums.TryGetValue(installerPath, out checksum!);
+            return _verifiedArtifactChecksums.TryGetValue(fullPath, out checksum!);
         }
     }
 
-    private bool IsVerifiedStagingDirectory(string stagingDir)
+    private void RemoveVerifiedArtifacts(string stagingDir)
     {
+        string fullStagingDir;
+        try
+        {
+            fullStagingDir = Path.GetFullPath(stagingDir);
+        }
+        catch
+        {
+            return;
+        }
+
         lock (_verifiedArtifactChecksums)
         {
-            return _verifiedArtifactChecksums.Keys.Any(path =>
-                string.Equals(Path.GetDirectoryName(path), stagingDir, StringComparison.OrdinalIgnoreCase));
+            foreach (var path in _verifiedArtifactChecksums.Keys
+                         .Where(path => string.Equals(
+                             Path.GetDirectoryName(path),
+                             fullStagingDir,
+                             StringComparison.OrdinalIgnoreCase))
+                         .ToArray())
+            {
+                _verifiedArtifactChecksums.Remove(path);
+            }
+        }
+    }
+
+    private bool IsSafeStagingDirectory(string stagingDir)
+    {
+        try
+        {
+            var fullPath = Path.GetFullPath(stagingDir);
+            var parent = Path.GetDirectoryName(fullPath);
+            var name = Path.GetFileName(fullPath);
+            return string.Equals(parent, _stagingRoot, StringComparison.OrdinalIgnoreCase)
+                   && name.StartsWith("BrightSync-update-", StringComparison.Ordinal)
+                   && UpdateArtifactSecurity.IsPathUnderRoot(fullPath, _stagingRoot)
+                   && Directory.Exists(fullPath)
+                   && !HasReparsePoint(_stagingRoot)
+                   && !HasReparsePoint(fullPath);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private bool IsSafeInstallerPath(string installerPath)
+    {
+        try
+        {
+            var fullPath = Path.GetFullPath(installerPath);
+            var stagingDir = Path.GetDirectoryName(fullPath);
+            return stagingDir is not null
+                   && string.Equals(Path.GetFileName(fullPath), InstallerFileName, StringComparison.Ordinal)
+                   && IsSafeStagingDirectory(stagingDir)
+                   && File.Exists(fullPath)
+                   && !HasReparsePoint(fullPath);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool HasReparsePoint(string path)
+    {
+        try
+        {
+            return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    private static bool HasExistingPathOrReparsePoint(string path)
+    {
+        try
+        {
+            if (File.Exists(path) || Directory.Exists(path))
+            {
+                return true;
+            }
+
+            return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return false;
+        }
+        catch
+        {
+            return true;
         }
     }
 
@@ -799,6 +986,7 @@ public sealed class SelfUpdateService : IDisposable
             var stagingDir = Path.GetDirectoryName(stagingPath);
             if (stagingDir is not null)
             {
+                RemoveVerifiedArtifacts(stagingDir);
                 CleanupStagingDirectory(stagingDir);
             }
         }
@@ -816,8 +1004,7 @@ public sealed class SelfUpdateService : IDisposable
     {
         try
         {
-            if (UpdateArtifactSecurity.IsPathUnderRoot(stagingDir, _stagingRoot)
-                && Directory.Exists(stagingDir))
+            if (IsSafeStagingDirectory(stagingDir))
             {
                 Directory.Delete(stagingDir, recursive: true);
             }
