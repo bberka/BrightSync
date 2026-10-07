@@ -67,7 +67,57 @@ jobs:
           "tag=$tag" >> $env:GITHUB_OUTPUT
           "commit=$env:GITHUB_SHA" >> $env:GITHUB_OUTPUT
 
+  wait-for-ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      actions: read
+    steps:
+      - name: Wait for matching CI run
+        if: ${{ github.event_name == 'push' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          deadline=$((SECONDS + 2700))
+          while (( SECONDS < deadline )); do
+            runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$COMMIT_SHA" --limit 20 --json status,conclusion,event,databaseId)"
+            ci_run="$(jq -c '[.[] | select(.event == "push")] | first // empty' <<< "$runs")"
+
+            if [[ -z "$ci_run" ]]; then
+              echo "Waiting for the CI workflow run for $COMMIT_SHA to appear..."
+              sleep 15
+              continue
+            fi
+
+            status="$(jq -r '.status' <<< "$ci_run")"
+            conclusion="$(jq -r '.conclusion // empty' <<< "$ci_run")"
+            echo "CI run status=$status conclusion=${conclusion:-pending}"
+            if [[ "$status" == "completed" ]]; then
+              if [[ "$conclusion" == "success" ]]; then
+                exit 0
+              fi
+
+              echo "CI did not succeed: $ci_run" >&2
+              exit 1
+            fi
+
+            sleep 15
+          done
+
+          echo "Timed out waiting for CI to complete for $COMMIT_SHA." >&2
+          exit 1
+
+      - name: Skip separate CI wait for manual dispatch
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: echo "Manual dispatch does not have a separate push-triggered CI run; release validation will run below."
+
   validate:
+    needs:
+      - prepare
+      - wait-for-ci
     runs-on: windows-latest
     permissions:
       contents: read
