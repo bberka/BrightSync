@@ -167,7 +167,14 @@ public sealed class MonitorLifecycleTests
         Assert.Equal(2, provider.CallCount);
     }
 
-    private static ConfigManager CreateConfig() => new();
+    private static ConfigManager CreateConfig()
+        => new(
+            Path.Combine(
+                Path.GetTempPath(),
+                "BrightSyncTests",
+                Guid.NewGuid().ToString("N"),
+                "config.json"),
+            _ => { });
 
     private static DdcCiService CreateDdc(FakeMonitorProvider provider)
         => new(CreateConfig(), provider);

@@ -6,6 +6,8 @@ using System;
 
 namespace BrightSync.Tests;
 
+[Trait("Category", "Hardware")]
+[Trait("Category", "Integration")]
 public class MediaDetectionTests
 {
     [Fact]

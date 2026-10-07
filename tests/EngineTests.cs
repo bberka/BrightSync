@@ -47,6 +47,8 @@ public class EngineTests
     }
 
     [Fact]
+    [Trait("Category", "Hardware")]
+    [Trait("Category", "Integration")]
     public void TestCalculateTarget_Normal()
     {
         var configManager = new ConfigManager();
@@ -73,6 +75,8 @@ public class EngineTests
     }
 
     [Fact]
+    [Trait("Category", "Hardware")]
+    [Trait("Category", "Integration")]
     public void TestCalculateTarget_MultiplierAndClamp()
     {
         var configManager = new ConfigManager();
@@ -106,6 +110,8 @@ public class EngineTests
     }
 
     [Fact]
+    [Trait("Category", "Hardware")]
+    [Trait("Category", "Integration")]
     public void TestCalculateTarget_EyeProtectionAndBoost()
     {
         var configManager = new ConfigManager();
@@ -139,6 +145,8 @@ public class EngineTests
     }
 
     [Fact]
+    [Trait("Category", "Hardware")]
+    [Trait("Category", "Integration")]
     public void TestCalculateTarget_IdleReduction()
     {
         var configManager = new ConfigManager();

@@ -5,6 +5,8 @@ using Xunit;
 
 namespace BrightSync.Tests;
 
+[Trait("Category", "Hardware")]
+[Trait("Category", "Integration")]
 public class MonitorSnapshotTests
 {
     [Fact]

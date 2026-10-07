@@ -7,6 +7,8 @@ using System.Collections.Generic;
 
 namespace BrightSync.Tests;
 
+[Trait("Category", "Hardware")]
+[Trait("Category", "Integration")]
 public class AdvancedControlsTests
 {
     [Fact]
