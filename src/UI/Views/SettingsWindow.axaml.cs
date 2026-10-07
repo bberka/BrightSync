@@ -176,11 +176,6 @@ public partial class SettingsWindow : Window
         _vm.ShowUpdateAvailable(result);
     }
 
-    private void TitleBar_PointerPressed(object sender, PointerPressedEventArgs e)
-    {
-        BeginMoveDrag(e);
-    }
-
     private void MinimizeToTray_Click(object sender, RoutedEventArgs e)
     {
         Hide();

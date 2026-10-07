@@ -102,8 +102,7 @@
             </Grid.RowDefinitions>
 
             <!-- Custom title bar -->
-            <Border Grid.Row="0" Background="Transparent" Padding="12,6,6,6"
-                    PointerPressed="TitleBar_PointerPressed">
+            <Border Grid.Row="0" Background="Transparent" Padding="12,6,6,6">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
