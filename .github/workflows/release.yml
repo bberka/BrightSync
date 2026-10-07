@@ -9,42 +9,25 @@ on:
       - VERSION
   workflow_dispatch:
 
-permissions:
-  contents: write
+permissions: {}
 
 concurrency:
   group: release-${{ github.ref }}
-
   cancel-in-progress: false
 
 jobs:
-  build-and-release:
+  prepare:
     runs-on: windows-latest
-
-    strategy:
-      matrix:
-        include:
-          - rid: win-x64
-            suffix: win-x64
-            arch: x64
-          - rid: win-arm64
-            suffix: win-arm64
-            arch: arm64
-
-    env:
-      PROJECT_PATH: src/BrightSync.csproj
-      CONFIGURATION: Release
-
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
-
-      - name: Setup .NET 10
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 10.0.x
 
       - name: Read and compute version
         id: version
@@ -55,16 +38,12 @@ jobs:
             throw "VERSION file is empty."
           }
 
-          # Ensure all tags are fetched from remote to calculate the correct patch version
           git fetch --tags --force
 
-          # Match tags that start with "v" followed by $baseVersion, a dot, and digits
           $escapedBase = [regex]::Escape($baseVersion)
           $pattern = "^v$escapedBase\.(\d+)$"
-
           $maxPatch = -1
-          $tags = git tag -l
-          foreach ($tag in $tags) {
+          foreach ($tag in (git tag -l)) {
             if ($tag -match $pattern) {
               $patch = [int]$Matches[1]
               if ($patch -gt $maxPatch) {
@@ -73,20 +52,72 @@ jobs:
             }
           }
 
-          $nextPatch = $maxPatch + 1
-          $fullVersion = "$baseVersion.$nextPatch"
+          $fullVersion = "$baseVersion.$($maxPatch + 1)"
           $tag = "v$fullVersion"
-
-          Write-Host "Base version from file: $baseVersion"
-          Write-Host "Highest patch version found: $maxPatch"
-          Write-Host "Computed next version: $fullVersion"
-          Write-Host "Computed next tag: $tag"
+          Write-Host "Computed release version: $fullVersion"
 
           "version=$fullVersion" >> $env:GITHUB_OUTPUT
           "tag=$tag" >> $env:GITHUB_OUTPUT
 
+  validate:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    env:
+      SOLUTION_PATH: BrightSync.sln
+      TEST_PROJECT_PATH: tests/BrightSync.Tests.csproj
+      CONFIGURATION: Release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: 10.0.x
+
       - name: Restore
-        run: dotnet restore ${{ env.PROJECT_PATH }}
+        run: dotnet restore ${{ env.SOLUTION_PATH }}
+
+      - name: Build
+        run: dotnet build ${{ env.SOLUTION_PATH }} -c ${{ env.CONFIGURATION }} --no-restore
+
+      - name: Test
+        run: dotnet test ${{ env.TEST_PROJECT_PATH }} -c ${{ env.CONFIGURATION }} --no-build --no-restore
+
+  package:
+    needs:
+      - prepare
+      - validate
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        include:
+          - rid: win-x64
+            suffix: win-x64
+            arch: x64
+          - rid: win-arm64
+            suffix: win-arm64
+            arch: arm64
+    env:
+      PROJECT_PATH: src/BrightSync.csproj
+      CONFIGURATION: Release
+      WINDOWS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_BASE64 }}
+      WINDOWS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_PASSWORD }}
+      WINDOWS_SIGNING_TIMESTAMP_URL: ${{ secrets.WINDOWS_SIGNING_TIMESTAMP_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore ${{ env.PROJECT_PATH }} -r ${{ matrix.rid }}
 
       - name: Publish
         shell: pwsh
@@ -97,35 +128,54 @@ jobs:
             '${{ env.PROJECT_PATH }}',
             '-c', '${{ env.CONFIGURATION }}',
             '-r', '${{ matrix.rid }}',
+            '--no-restore',
             '-p:PublishSingleFile=true',
             '-p:DebugType=None',
             '-p:DebugSymbols=false',
-            '-p:Version=${{ steps.version.outputs.version }}',
-            '-p:AssemblyVersion=${{ steps.version.outputs.version }}',
-            '-p:FileVersion=${{ steps.version.outputs.version }}',
-            '-p:InformationalVersion=${{ steps.version.outputs.version }}',
+            '-p:Version=${{ needs.prepare.outputs.version }}',
+            '-p:AssemblyVersion=${{ needs.prepare.outputs.version }}',
+            '-p:FileVersion=${{ needs.prepare.outputs.version }}',
+            '-p:InformationalVersion=${{ needs.prepare.outputs.version }}',
             '-o', $publishDir
           )
 
           dotnet @publishArgs
 
-      - name: Archive publish output
-        id: archive
+      - name: Optional Authenticode signing hook for published executable
+        if: ${{ env.WINDOWS_SIGNING_CERTIFICATE_BASE64 != '' }}
         shell: pwsh
         run: |
-          $version = "${{ steps.version.outputs.version }}"
-          $zipName = "BrightSync-$version-${{ matrix.suffix }}.zip"
           $publishDir = Join-Path $env:RUNNER_TEMP "${{ matrix.suffix }}"
-          $zipPath = Join-Path $env:RUNNER_TEMP $zipName
+          $certificatePath = Join-Path $env:RUNNER_TEMP "BrightSync-signing-${{ matrix.suffix }}.pfx"
+          try {
+            if ([string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERTIFICATE_PASSWORD) -or
+                [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_TIMESTAMP_URL)) {
+              throw "Authenticode signing requires WINDOWS_SIGNING_CERTIFICATE_PASSWORD and WINDOWS_SIGNING_TIMESTAMP_URL secrets."
+            }
 
-          if (Test-Path $zipPath) {
-            Remove-Item -LiteralPath $zipPath -Force
+            [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_SIGNING_CERTIFICATE_BASE64))
+            $signtool = Get-Command signtool.exe -ErrorAction Stop
+            & $signtool.Source sign /fd SHA256 /f $certificatePath /p $env:WINDOWS_SIGNING_CERTIFICATE_PASSWORD /tr $env:WINDOWS_SIGNING_TIMESTAMP_URL /td SHA256 (Join-Path $publishDir 'BrightSync.exe')
+            if ($LASTEXITCODE -ne 0) {
+              throw "signtool failed for the published executable with exit code $LASTEXITCODE."
+            }
           }
+          finally {
+            Remove-Item -LiteralPath $certificatePath -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Archive publish output
+        shell: pwsh
+        run: |
+          $version = "${{ needs.prepare.outputs.version }}"
+          $publishDir = Join-Path $env:RUNNER_TEMP "${{ matrix.suffix }}"
+          $packageDir = Join-Path $env:RUNNER_TEMP "package"
+          $zipPath = Join-Path $env:RUNNER_TEMP "BrightSync-$version-${{ matrix.suffix }}.zip"
+          New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
 
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           $files = Get-ChildItem -Path $publishDir -Recurse -File | Where-Object { $_.Extension -ne '.pdb' }
           $archive = [System.IO.Compression.ZipFile]::Open($zipPath, [System.IO.Compression.ZipArchiveMode]::Create)
-
           try {
             foreach ($file in $files) {
               $entryPath = [System.IO.Path]::GetRelativePath($publishDir, $file.FullName)
@@ -140,16 +190,14 @@ jobs:
             $archive.Dispose()
           }
 
-          "zip_path=$zipPath" >> $env:GITHUB_OUTPUT
+          Copy-Item -LiteralPath $zipPath -Destination $packageDir -Force
 
       - name: Build Installer (Inno Setup)
-        id: installer
         shell: pwsh
         run: |
-          $version = "${{ steps.version.outputs.version }}"
+          $version = "${{ needs.prepare.outputs.version }}"
           $publishDir = Join-Path $env:RUNNER_TEMP "${{ matrix.suffix }}"
 
-          # Compile the installer using ISCC (pre-installed and in PATH on GitHub windows runners)
           iscc `
             /dAppVersion=$version `
             "/dPublishDir=$publishDir" `
@@ -158,35 +206,88 @@ jobs:
             installer/installer.iss
 
           $setupPath = Join-Path $env:RUNNER_TEMP "BrightSync-Setup-v$version-win-${{ matrix.arch }}.exe"
-          if (!(Test-Path $setupPath)) {
+          if (!(Test-Path -LiteralPath $setupPath)) {
             throw "Setup executable was not created."
           }
 
-          "setup_path=$setupPath" >> $env:GITHUB_OUTPUT
+      - name: Optional Authenticode signing hook for installer
+        if: ${{ env.WINDOWS_SIGNING_CERTIFICATE_BASE64 != '' }}
+        shell: pwsh
+        run: |
+          $version = "${{ needs.prepare.outputs.version }}"
+          $setupPath = Join-Path $env:RUNNER_TEMP "BrightSync-Setup-v$version-win-${{ matrix.arch }}.exe"
+          $certificatePath = Join-Path $env:RUNNER_TEMP "BrightSync-signing-${{ matrix.suffix }}.pfx"
+          try {
+            [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_SIGNING_CERTIFICATE_BASE64))
+            $signtool = Get-Command signtool.exe -ErrorAction Stop
+            & $signtool.Source sign /fd SHA256 /f $certificatePath /p $env:WINDOWS_SIGNING_CERTIFICATE_PASSWORD /tr $env:WINDOWS_SIGNING_TIMESTAMP_URL /td SHA256 $setupPath
+            if ($LASTEXITCODE -ne 0) {
+              throw "signtool failed for the installer with exit code $LASTEXITCODE."
+            }
+          }
+          finally {
+            Remove-Item -LiteralPath $certificatePath -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Collect package assets
+        shell: pwsh
+        run: |
+          $version = "${{ needs.prepare.outputs.version }}"
+          $packageDir = Join-Path $env:RUNNER_TEMP "package"
+          $setupPath = Join-Path $env:RUNNER_TEMP "BrightSync-Setup-v$version-win-${{ matrix.arch }}.exe"
+          Copy-Item -LiteralPath $setupPath -Destination $packageDir -Force
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: BrightSync-package-${{ matrix.suffix }}
+          path: ${{ runner.temp }}/package/*
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    needs:
+      - prepare
+      - package
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Download package artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: BrightSync-package-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate SHA-256 manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-assets
+          sha256sum -- * > BrightSync-SHA256SUMS.txt
+          test -s BrightSync-SHA256SUMS.txt
 
       - name: Ensure release exists
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: pwsh
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        shell: bash
         run: |
-          $tag = "${{ steps.version.outputs.tag }}"
-          $title = "$tag"
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$RELEASE_TAG" \
+              --notes "Automated release for version $RELEASE_TAG."
+          fi
 
-          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
-          if ($LASTEXITCODE -ne 0) {
-            gh release create $tag `
-              --repo $env:GITHUB_REPOSITORY `
-              --title $title `
-              --notes "Automated release for version $tag."
-          }
-
-      - name: Upload assets to release
+      - name: Upload release assets and checksum manifest
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: pwsh
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        shell: bash
         run: |
-          gh release upload "${{ steps.version.outputs.tag }}" `
-            "${{ steps.archive.outputs.zip_path }}" `
-            "${{ steps.installer.outputs.setup_path }}" `
-            --repo $env:GITHUB_REPOSITORY `
-            --clobber
+          set -euo pipefail
+          gh release upload "$RELEASE_TAG" release-assets/* --repo "$GITHUB_REPOSITORY" --clobber
