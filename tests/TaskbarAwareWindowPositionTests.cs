@@ -41,6 +41,36 @@ public sealed class TaskbarAwareWindowPositionTests
     }
 
     [Fact]
+    public void Calculate_uses_current_left_taskbar_bounds_when_working_area_is_stale()
+    {
+        var position = TaskbarAwareWindowPositionCalculator.Calculate(
+            ScreenBounds,
+            new PixelRect(0, 0, 1920, 1032),
+            scaling: 1,
+            width: 300,
+            height: 200,
+            TaskbarEdge.Left,
+            new PixelRect(0, 0, 80, 1080));
+
+        Assert.Equal(new PixelPoint(92, 868), position);
+    }
+
+    [Fact]
+    public void Calculate_uses_current_right_taskbar_bounds_when_working_area_is_stale()
+    {
+        var position = TaskbarAwareWindowPositionCalculator.Calculate(
+            ScreenBounds,
+            new PixelRect(0, 0, 1920, 1032),
+            scaling: 1,
+            width: 300,
+            height: 200,
+            TaskbarEdge.Right,
+            new PixelRect(1840, 0, 80, 1080));
+
+        Assert.Equal(new PixelPoint(1528, 868), position);
+    }
+
+    [Fact]
     public void Calculate_places_popup_above_bottom_taskbar()
     {
         var position = TaskbarAwareWindowPositionCalculator.Calculate(

@@ -12,9 +12,11 @@ internal enum TaskbarEdge
     Bottom
 }
 
+internal readonly record struct TaskbarPositionInfo(TaskbarEdge Edge, PixelRect? Bounds);
+
 internal static class TaskbarPosition
 {
-    public static TaskbarEdge GetEdge(PixelRect screenBounds)
+    public static TaskbarPositionInfo GetPosition(PixelRect screenBounds)
     {
         var appBarData = new NativeMethods.APPBARDATA
         {
@@ -22,23 +24,22 @@ internal static class TaskbarPosition
         };
 
         if (NativeMethods.SHAppBarMessage(NativeMethods.ABM_GETTASKBARPOS, ref appBarData) == UIntPtr.Zero)
-            return TaskbarEdge.Bottom;
+            return new(TaskbarEdge.Bottom, null);
 
-        return GetEdge(
-            screenBounds,
-            new PixelRect(
-                appBarData.rc.Left,
-                appBarData.rc.Top,
-                appBarData.rc.Right - appBarData.rc.Left,
-                appBarData.rc.Bottom - appBarData.rc.Top));
+        var taskbarBounds = new PixelRect(
+            appBarData.rc.Left,
+            appBarData.rc.Top,
+            appBarData.rc.Right - appBarData.rc.Left,
+            appBarData.rc.Bottom - appBarData.rc.Top);
+
+        return new(
+            GetEdge(screenBounds, taskbarBounds),
+            OverlapsScreen(screenBounds, taskbarBounds) ? taskbarBounds : null);
     }
 
     internal static TaskbarEdge GetEdge(PixelRect screenBounds, PixelRect taskbarBounds)
     {
-        var overlapsScreen = taskbarBounds.Right > screenBounds.Position.X &&
-                             taskbarBounds.Position.X < screenBounds.Right &&
-                             taskbarBounds.Bottom > screenBounds.Position.Y &&
-                             taskbarBounds.Position.Y < screenBounds.Bottom;
+        var overlapsScreen = OverlapsScreen(screenBounds, taskbarBounds);
         if (!overlapsScreen)
             return TaskbarEdge.Bottom;
 
@@ -55,6 +56,14 @@ internal static class TaskbarPosition
 
         return TaskbarEdge.Bottom;
     }
+
+    private static bool OverlapsScreen(PixelRect screenBounds, PixelRect taskbarBounds)
+    {
+        return taskbarBounds.Right > screenBounds.Position.X &&
+               taskbarBounds.Position.X < screenBounds.Right &&
+               taskbarBounds.Bottom > screenBounds.Position.Y &&
+               taskbarBounds.Position.Y < screenBounds.Bottom;
+    }
 }
 
 internal static class TaskbarAwareWindowPositionCalculator
@@ -68,6 +77,25 @@ internal static class TaskbarAwareWindowPositionCalculator
         double height,
         TaskbarEdge taskbarEdge)
     {
+        return Calculate(
+            workingArea,
+            workingArea,
+            scaling,
+            width,
+            height,
+            taskbarEdge,
+            taskbarBounds: null);
+    }
+
+    public static PixelPoint Calculate(
+        PixelRect screenBounds,
+        PixelRect workingArea,
+        double scaling,
+        double width,
+        double height,
+        TaskbarEdge taskbarEdge,
+        PixelRect? taskbarBounds)
+    {
         if (double.IsNaN(scaling) || scaling <= 0)
             scaling = 1;
 
@@ -80,12 +108,27 @@ internal static class TaskbarAwareWindowPositionCalculator
         var windowPhysicalHeight = (int)(height * scaling);
         var margin = (int)(EdgeMargin * scaling);
 
-        var x = taskbarEdge == TaskbarEdge.Left
-            ? workingArea.Position.X + margin
-            : workingArea.Right - windowPhysicalWidth - margin;
-        var y = taskbarEdge == TaskbarEdge.Top
-            ? workingArea.Position.Y + margin
-            : workingArea.Bottom - windowPhysicalHeight - margin;
+        var x = taskbarBounds is { } currentTaskbarBounds
+            ? taskbarEdge switch
+            {
+                TaskbarEdge.Left => currentTaskbarBounds.Right + margin,
+                TaskbarEdge.Right => currentTaskbarBounds.Position.X - windowPhysicalWidth - margin,
+                _ => screenBounds.Right - windowPhysicalWidth - margin
+            }
+            : taskbarEdge == TaskbarEdge.Left
+                ? workingArea.Position.X + margin
+                : workingArea.Right - windowPhysicalWidth - margin;
+
+        var y = taskbarBounds is { } currentTaskbarBoundsForY
+            ? taskbarEdge switch
+            {
+                TaskbarEdge.Top => currentTaskbarBoundsForY.Bottom + margin,
+                TaskbarEdge.Bottom => currentTaskbarBoundsForY.Position.Y - windowPhysicalHeight - margin,
+                _ => screenBounds.Bottom - windowPhysicalHeight - margin
+            }
+            : taskbarEdge == TaskbarEdge.Top
+                ? workingArea.Position.Y + margin
+                : workingArea.Bottom - windowPhysicalHeight - margin;
 
         return new PixelPoint(x, y);
     }

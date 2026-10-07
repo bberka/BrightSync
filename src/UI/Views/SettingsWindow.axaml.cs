@@ -144,12 +144,15 @@ public partial class SettingsWindow : Window
         if (double.IsNaN(width) || width <= 0) width = 560;
         if (double.IsNaN(height) || height <= 0) height = 770;
 
+        var taskbarPosition = TaskbarPosition.GetPosition(screen.Bounds);
         Position = TaskbarAwareWindowPositionCalculator.Calculate(
+            screen.Bounds,
             workingArea,
             scaling,
             width,
             height,
-            TaskbarPosition.GetEdge(screen.Bounds));
+            taskbarPosition.Edge,
+            taskbarPosition.Bounds);
     }
 
     private void FitHeightToWorkingArea(Screen screen)

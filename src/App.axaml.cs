@@ -9,6 +9,7 @@ using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;
 using BrightSync.Core.Updates;
 using BrightSync.UI;
+using Microsoft.Win32;
 using Serilog;
 
 namespace BrightSync;
@@ -119,6 +120,8 @@ public partial class App : Application
 
             _trayManager.ExitRequested += (_, _) => ExitApp();
             _trayManager.Initialize();
+            SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+            SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
             Log.Information("Tray manager initialized");
 
             _residentCommandServer = new ResidentCommandServer(
@@ -177,10 +180,33 @@ public partial class App : Application
         }
     }
 
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            _trayManager?.HandleDisplayConfigurationChanged();
+        });
+    }
+
+    private void OnUserPreferenceChanged(object? sender, UserPreferenceChangedEventArgs e)
+    {
+        // Moving/resizing the taskbar updates the work area through
+        // WM_SETTINGCHANGE, which SystemEvents reports as General.
+        if (e.Category != UserPreferenceCategory.General)
+            return;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            _trayManager?.HandleDisplayConfigurationChanged();
+        });
+    }
+
     private void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
     {
         Log.Information("Application exiting with code {ExitCode}", e.ApplicationExitCode);
 
+        SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+        SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
         _autoBrightnessService?.Dispose();
         _idleReductionService?.Dispose();
         _powerSavingService?.Dispose();

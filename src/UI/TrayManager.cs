@@ -300,13 +300,15 @@ public sealed class TrayManager(
         if (double.IsNaN(width) || width <= 0) width = 360;
         if (double.IsNaN(height) || height <= 0) height = 150;
 
-        var taskbarEdge = TaskbarPosition.GetEdge(screen.Bounds);
+        var taskbarPosition = TaskbarPosition.GetPosition(screen.Bounds);
         window.Position = TaskbarAwareWindowPositionCalculator.Calculate(
+            screen.Bounds,
             workingArea,
             scaling,
             width,
             height,
-            taskbarEdge);
+            taskbarPosition.Edge,
+            taskbarPosition.Bounds);
     }
 
     private void RefreshMonitors()
@@ -324,7 +326,17 @@ public sealed class TrayManager(
     public void HandleDisplayConfigurationChanged()
     {
         Log.Information("Refreshing monitor UI after display configuration change");
+        Dispatcher.UIThread.Post(RepositionVisibleWindows);
         RefreshMonitorsCore(showBalloonTip: false, statusText: "Displays changed. Refreshing monitors...");
+    }
+
+    private void RepositionVisibleWindows()
+    {
+        if (_quickPopup?.IsVisible == true)
+            PositionQuickPopup(_quickPopup);
+
+        if (_settingsWindow?.IsVisible == true)
+            _settingsWindow.PositionBottomRight(useCursorScreen: false);
     }
 
     private void RefreshMonitorsCore(bool showBalloonTip, string statusText)
