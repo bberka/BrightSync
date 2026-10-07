@@ -48,6 +48,23 @@ public sealed class CliCommandRouterTests
     }
 
     [Fact]
+    public async Task Route_does_not_start_one_shot_for_status_when_resident_is_not_running()
+    {
+        var oneShotExecutor = new FakeOneShotCommandExecutor(CliExecutionResult.Success("unexpected"));
+        var router = new CliCommandRouter(
+            new FakeResidentCommandClient(ResidentCommandDispatchResult.NotRunning()),
+            oneShotExecutor);
+
+        var result = await router.RouteAsync(
+            new AppCommand(AppCommandType.Status, jsonOutput: true),
+            CancellationToken.None);
+
+        Assert.Equal(CliExitCode.ResidentAppRequired, result.ExitCode);
+        Assert.Equal("BrightSync must already be running for this command.", result.Message);
+        Assert.Equal(0, oneShotExecutor.ExecutionCount);
+    }
+
+    [Fact]
     public async Task Route_surfaces_resident_failure_without_running_one_shot()
     {
         var oneShotExecutor = new FakeOneShotCommandExecutor(CliExecutionResult.Success("unused"));

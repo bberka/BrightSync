@@ -15,6 +15,7 @@ public sealed class ResidentCommandHandler
     private readonly Action _refreshMonitors;
     private readonly Action _requestAppExit;
     private readonly Func<Func<CommandResponse>, CancellationToken, Task<CommandResponse>> _invokeOnUiThread;
+    private readonly Func<CliStatusSnapshot> _getStatusSnapshot;
 
     public ResidentCommandHandler(
         BrightSyncEngine engine,
@@ -32,7 +33,12 @@ public sealed class ResidentCommandHandler
             trayManager.RefreshMonitorsFromCommand,
             requestAppExit,
             static async (handler, cancellationToken) =>
-                await Dispatcher.UIThread.InvokeAsync(handler, DispatcherPriority.Normal, cancellationToken))
+                await Dispatcher.UIThread.InvokeAsync(handler, DispatcherPriority.Normal, cancellationToken),
+            () => CliStatusSnapshotFactory.Create(
+                engine,
+                autoBrightnessService,
+                eyeProtectionService,
+                brightnessBoostService))
     {
     }
 
@@ -44,7 +50,8 @@ public sealed class ResidentCommandHandler
         Action showSettings,
         Action refreshMonitors,
         Action requestAppExit,
-        Func<Func<CommandResponse>, CancellationToken, Task<CommandResponse>> invokeOnUiThread)
+        Func<Func<CommandResponse>, CancellationToken, Task<CommandResponse>> invokeOnUiThread,
+        Func<CliStatusSnapshot>? getStatusSnapshot = null)
     {
         _engine = engine;
         _autoBrightnessService = autoBrightnessService;
@@ -54,6 +61,7 @@ public sealed class ResidentCommandHandler
         _refreshMonitors = refreshMonitors;
         _requestAppExit = requestAppExit;
         _invokeOnUiThread = invokeOnUiThread;
+        _getStatusSnapshot = getStatusSnapshot ?? CreateFallbackStatusSnapshot;
     }
 
     public async Task<CommandResponse> HandleAsync(CommandRequest request, CancellationToken cancellationToken)
@@ -76,6 +84,7 @@ public sealed class ResidentCommandHandler
                 AppCommandType.EyeProtectionOff => ToggleEyeProtection(enabled: false, durationHours: null),
                 AppCommandType.BoostOn => ToggleBrightnessBoost(enabled: true, request.DurationHours),
                 AppCommandType.BoostOff => ToggleBrightnessBoost(enabled: false, durationHours: null),
+                AppCommandType.Status => GetStatus(),
                 AppCommandType.AppExit => ExitApp(),
                 _ => CommandResponse.Error(CliExitCode.InvalidArguments, "Unsupported BrightSync command.")
             };
@@ -146,9 +155,28 @@ public sealed class ResidentCommandHandler
         return CommandResponse.Ok($"Brightness boost {(enabled ? "enabled" : "disabled")}.");
     }
 
+    private CommandResponse GetStatus()
+    {
+        var snapshot = _getStatusSnapshot();
+        return CommandResponse.Ok(snapshot.ToDisplayString(), status: snapshot);
+    }
+
     private CommandResponse ExitApp()
     {
         _requestAppExit();
         return CommandResponse.Ok("BrightSync exit requested.");
     }
+
+    private CliStatusSnapshot CreateFallbackStatusSnapshot()
+        => CliStatusSnapshotFactory.Create(
+            _engine.MasterBrightness,
+            _autoBrightnessService.IsEnabled,
+            _eyeProtectionService.IsEnabled,
+            _eyeProtectionService.EndTimeUtc,
+            _brightnessBoostService.IsEnabled,
+            _brightnessBoostService.EndTimeUtc,
+            monitorCount: 0,
+            controllableMonitorCount: 0,
+            timestampUtc: DateTimeOffset.UtcNow,
+            version: "unknown");
 }

@@ -13,6 +13,7 @@ public sealed class CommandServerInfo
 [JsonSerializable(typeof(CommandServerInfo))]
 [JsonSerializable(typeof(CommandRequest))]
 [JsonSerializable(typeof(CommandResponse))]
+[JsonSerializable(typeof(CliStatusSnapshot))]
 internal sealed partial class CliJsonContext : JsonSerializerContext
 {
 }

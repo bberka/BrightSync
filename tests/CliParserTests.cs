@@ -59,6 +59,31 @@ public sealed class CliParserTests
     }
 
     [Theory]
+    [InlineData(false, "status", null)]
+    [InlineData(true, "status", "--json")]
+    public void Parse_parses_resident_status_command(bool jsonOutput, string command, string? jsonFlag)
+    {
+        string[] args = jsonFlag is null ? [command] : [command, jsonFlag];
+        var result = CliParser.Parse(args);
+
+        Assert.True(result.IsCliInvocation);
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Command);
+        Assert.Equal(AppCommandType.Status, result.Command!.CommandType);
+        Assert.True(result.Command.RequiresResidentApp);
+        Assert.Equal(jsonOutput, result.Command.JsonOutput);
+    }
+
+    [Fact]
+    public void Parse_rejects_status_arguments_other_than_json_flag()
+    {
+        var result = CliParser.Parse(["status", "--hardware"]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("Usage: status [--json].", result.ErrorMessage);
+    }
+
+    [Theory]
     [InlineData("1", 1)]
     [InlineData("24", 24)]
     public void Parse_accepts_timed_mode_duration_product_boundaries(string hoursText, int hours)

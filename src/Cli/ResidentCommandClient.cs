@@ -33,8 +33,12 @@ public sealed class ResidentCommandClient : IResidentCommandClient, IDisposable
         if (pingResponse.Status == ResidentSendStatus.Failed)
             return ResidentCommandDispatchResult.Failed(pingResponse.Result);
 
-        var commandResponse = await SendAsync(serverInfo, "/v1/commands", CommandRequest.FromCommand(command),
-            cancellationToken);
+        var commandResponse = await SendAsync(
+            serverInfo,
+            "/v1/commands",
+            CommandRequest.FromCommand(command),
+            cancellationToken,
+            command.JsonOutput);
         return commandResponse.Status switch
         {
             ResidentSendStatus.Success => ResidentCommandDispatchResult.Success(commandResponse.Result),
@@ -74,8 +78,12 @@ public sealed class ResidentCommandClient : IResidentCommandClient, IDisposable
         }
     }
 
-    private async Task<ResidentSendResult> SendAsync<TPayload>(CommandServerInfo serverInfo, string relativePath,
-        TPayload? payload, CancellationToken cancellationToken)
+    private async Task<ResidentSendResult> SendAsync<TPayload>(
+        CommandServerInfo serverInfo,
+        string relativePath,
+        TPayload? payload,
+        CancellationToken cancellationToken,
+        bool jsonOutput = false)
     {
         try
         {
@@ -106,8 +114,8 @@ public sealed class ResidentCommandClient : IResidentCommandClient, IDisposable
             }
 
             return response.IsSuccessStatusCode
-                ? ResidentSendResult.Success(commandResponse.ToExecutionResult())
-                : ResidentSendResult.Failed(commandResponse.ToExecutionResult());
+                ? ResidentSendResult.Success(commandResponse.ToExecutionResult(jsonOutput))
+                : ResidentSendResult.Failed(commandResponse.ToExecutionResult(jsonOutput));
         }
         catch (HttpRequestException ex) when (ex.InnerException is WebException ||
                                               ex.Message.Contains("connection", StringComparison.OrdinalIgnoreCase))

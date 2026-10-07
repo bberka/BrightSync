@@ -133,6 +133,8 @@ BrightSync.exe brightness down 10
 Resident-only commands:
 
 ```powershell
+BrightSync.exe status
+BrightSync.exe status --json
 BrightSync.exe settings show
 BrightSync.exe monitors refresh
 BrightSync.exe auto on
@@ -145,6 +147,13 @@ BrightSync.exe boost on --hours 2
 BrightSync.exe boost off
 BrightSync.exe app exit
 ```
+
+`status` is read-only and reports the resident app's current master brightness,
+automatic-brightness state, timed eye-protection/boost state and expiry,
+monitor counts, and a UTC timestamp/version. It requires BrightSync to already
+be running; it never starts a resident app or touches monitor hardware when no
+resident instance is available. Use `status --json` for the stable,
+source-generated machine-readable form.
 
 Startup behavior:
 

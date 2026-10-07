@@ -9,6 +9,8 @@ namespace BrightSync.Cli;
 public sealed class ResidentCommandServer : IDisposable
 {
     private const string BaseUrl = "http://127.0.0.1:45137/";
+    internal const int MaxRequestBodyBytes = 16 * 1024;
+    private const int MaxResponseBodyBytes = 64 * 1024;
 
     private readonly ResidentCommandHandler _handler;
     private readonly HttpListener _listener = new();
@@ -111,8 +113,26 @@ public sealed class ResidentCommandServer : IDisposable
                 return;
             }
 
-            using var streamReader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
-            var body = await streamReader.ReadToEndAsync(cancellationToken);
+            if (context.Request.ContentLength64 > MaxRequestBodyBytes)
+            {
+                await WriteResponseAsync(context.Response,
+                    CommandResponse.Error(CliExitCode.InvalidArguments, "BrightSync command payload is too large."),
+                    HttpStatusCode.RequestEntityTooLarge,
+                    cancellationToken);
+                return;
+            }
+
+            var bodyBytes = await ReadBoundedBodyAsync(context.Request.InputStream, cancellationToken);
+            if (bodyBytes == null)
+            {
+                await WriteResponseAsync(context.Response,
+                    CommandResponse.Error(CliExitCode.InvalidArguments, "BrightSync command payload is too large."),
+                    HttpStatusCode.RequestEntityTooLarge,
+                    cancellationToken);
+                return;
+            }
+
+            var body = context.Request.ContentEncoding.GetString(bodyBytes);
             var request = JsonSerializer.Deserialize(body, CliJsonContext.Default.CommandRequest);
             if (request == null)
             {
@@ -167,12 +187,40 @@ public sealed class ResidentCommandServer : IDisposable
     {
         var json = JsonSerializer.Serialize(payload, CliJsonContext.Default.CommandResponse);
         var bytes = Encoding.UTF8.GetBytes(json);
+        if (bytes.Length > MaxResponseBodyBytes)
+        {
+            json = JsonSerializer.Serialize(
+                CommandResponse.Error(CliExitCode.ResidentCommandFailed, "BrightSync response was too large."),
+                CliJsonContext.Default.CommandResponse);
+            bytes = Encoding.UTF8.GetBytes(json);
+            statusCode = HttpStatusCode.InternalServerError;
+        }
+
         response.StatusCode = (int)statusCode;
         response.ContentType = "application/json";
         response.ContentEncoding = Encoding.UTF8;
         response.ContentLength64 = bytes.Length;
         await response.OutputStream.WriteAsync(bytes, cancellationToken);
         response.Close();
+    }
+
+    internal static async Task<byte[]?> ReadBoundedBodyAsync(
+        Stream stream,
+        CancellationToken cancellationToken)
+    {
+        var buffer = new byte[4096];
+        using var body = new MemoryStream();
+        while (true)
+        {
+            var read = await stream.ReadAsync(buffer.AsMemory(), cancellationToken);
+            if (read == 0)
+                return body.ToArray();
+
+            if (body.Length + read > MaxRequestBodyBytes)
+                return null;
+
+            body.Write(buffer, 0, read);
+        }
     }
 
     private void CleanupMetadata()

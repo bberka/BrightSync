@@ -22,6 +22,7 @@ public static class CliParser
             "eye-protection" => ParseTimedToggle(args, AppCommandType.EyeProtectionOn,
                 AppCommandType.EyeProtectionOff, "eye-protection"),
             "boost" => ParseTimedToggle(args, AppCommandType.BoostOn, AppCommandType.BoostOff, "boost"),
+            "status" => ParseStatus(args),
             "app" => ParseApp(args),
             _ => CliParseResult.Invalid($"Unknown command '{args[0]}'.")
         };
@@ -101,6 +102,15 @@ public static class CliParser
         => args.Length == 2 && IsMatch(args[1], "exit")
             ? CliParseResult.Success(new AppCommand(AppCommandType.AppExit))
             : CliParseResult.Invalid("Usage: app exit.");
+
+    private static CliParseResult ParseStatus(string[] args)
+        => args.Length switch
+        {
+            1 => CliParseResult.Success(new AppCommand(AppCommandType.Status)),
+            2 when IsMatch(args[1], "--json")
+                => CliParseResult.Success(new AppCommand(AppCommandType.Status, jsonOutput: true)),
+            _ => CliParseResult.Invalid("Usage: status [--json].")
+        };
 
     private static bool TryParseInt(string value, out int parsed)
         => int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out parsed);

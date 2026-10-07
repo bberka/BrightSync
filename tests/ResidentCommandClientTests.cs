@@ -50,6 +50,71 @@ public sealed class ResidentCommandClientTests : IDisposable
     }
 
     [Fact]
+    public async Task TryDispatchAsync_forwards_status_json_flag_and_returns_redacted_source_generated_json()
+    {
+        Directory.CreateDirectory(_tempDirectory);
+        var metadataPath = Path.Combine(_tempDirectory, "command-server.json");
+        await File.WriteAllTextAsync(
+            metadataPath,
+            JsonSerializer.Serialize(
+                new CommandServerInfo
+                {
+                    BaseUrl = "http://127.0.0.1:45137/",
+                    BearerToken = "secret",
+                    Pid = Environment.ProcessId,
+                    StartedUtc = DateTime.UtcNow
+                },
+                CliJsonContext.Default.CommandServerInfo));
+
+        string? commandPayload = null;
+        using var client = new ResidentCommandClient(
+            new HttpClient(new FakeHttpMessageHandler(async request =>
+            {
+                if (request.RequestUri!.AbsolutePath == "/v1/ping")
+                    return CreateJsonResponse(HttpStatusCode.OK, CommandResponse.Ok("pong"));
+
+                commandPayload = await request.Content!.ReadAsStringAsync();
+                return CreateJsonResponse(
+                    HttpStatusCode.OK,
+                    CommandResponse.Ok(
+                        "status",
+                        status: new CliStatusSnapshot
+                        {
+                            SchemaVersion = 1,
+                            Version = "0.17",
+                            TimestampUtc = new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero),
+                            MasterBrightness = 62,
+                            AutomaticBrightnessEnabled = true,
+                            EyeProtectionActive = false,
+                            BrightnessBoostActive = true,
+                            BrightnessBoostRemainingSeconds = 120,
+                            MonitorCount = 2,
+                            ControllableMonitorCount = 2
+                        }));
+            })),
+            metadataPath);
+
+        var result = await client.TryDispatchAsync(
+            new AppCommand(AppCommandType.Status, jsonOutput: true),
+            CancellationToken.None);
+
+        Assert.Equal(ResidentCommandDispatchStatus.Success, result.Status);
+        Assert.NotNull(commandPayload);
+        var requestPayload = JsonSerializer.Deserialize(commandPayload!, CliJsonContext.Default.CommandRequest);
+        Assert.NotNull(requestPayload);
+        Assert.Equal(AppCommandType.Status, requestPayload!.CommandType);
+        Assert.True(requestPayload.JsonOutput);
+
+        using var json = JsonDocument.Parse(result.Result!.Message);
+        Assert.Equal(1, json.RootElement.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal(62, json.RootElement.GetProperty("masterBrightness").GetInt32());
+        Assert.Equal(120, json.RootElement.GetProperty("brightnessBoostRemainingSeconds").GetInt32());
+        Assert.Equal(2, json.RootElement.GetProperty("controllableMonitorCount").GetInt32());
+        Assert.DoesNotContain("secret", result.Result.Message);
+        Assert.DoesNotContain("BearerToken", result.Result.Message);
+    }
+
+    [Fact]
     public async Task TryDispatchAsync_returns_failed_when_server_rejects_token()
     {
         Directory.CreateDirectory(_tempDirectory);

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace BrightSync.Cli;
 
 public sealed class CommandRequest
@@ -7,6 +9,8 @@ public sealed class CommandRequest
     public int? StepValue { get; init; }
     public bool? Enabled { get; init; }
     public int? DurationHours { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool JsonOutput { get; init; }
 
     public static CommandRequest FromCommand(AppCommand command)
     {
@@ -23,7 +27,8 @@ public sealed class CommandRequest
             BrightnessValue = command.BrightnessValue,
             StepValue = command.StepValue,
             Enabled = enabled,
-            DurationHours = command.DurationHours
+            DurationHours = command.DurationHours,
+            JsonOutput = command.JsonOutput
         };
     }
 }
