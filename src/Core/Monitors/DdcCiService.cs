@@ -15,53 +15,75 @@ public sealed class DdcCiService : IDisposable
 
     private readonly ConfigManager _config;
     private readonly object _lock = new();
+    private readonly object _refreshLock = new();
+    private readonly IDdcMonitorProvider? _monitorProvider;
+    private readonly CancellationTokenSource _lifetimeCts = new();
     private List<DdcMonitor> _monitors = new();
     private List<PhysicalMonitorGroup> _groups = new();
     private MonitorDisplaySnapshot[] _monitorDisplaySnapshots = [];
-    private bool _disposed;
+    private TaskCompletionSource? _refreshCompletion;
+    private int _disposed;
+    private int _disposing;
+    private bool _refreshInProgress;
+    private bool _refreshRequested;
 
     public DdcCiService(ConfigManager config)
+        : this(config, monitorProvider: null)
+    {
+    }
+
+    internal DdcCiService(ConfigManager config, IDdcMonitorProvider? monitorProvider)
     {
         _config = config;
+        _monitorProvider = monitorProvider;
         Refresh();
     }
+
+    private bool IsDisposed => Volatile.Read(ref _disposed) != 0;
+    private bool IsStopping => Volatile.Read(ref _disposing) != 0;
 
     /// <summary>Re-enumerates all connected monitors. Call after display topology changes.</summary>
     public void Refresh()
     {
-        MonitorNameResolver.InvalidateCache();
-        lock (_lock)
-        {
-            var useLegacyDetection = _config.Config.UseLegacyDdcCiDetection;
-            DisposeGroups();
-            _groups = new List<PhysicalMonitorGroup>();
-            _monitors = new List<DdcMonitor>();
-            EnumerateMonitors(useLegacyDetection);
-            Log.Information(
-                "DDC/CI refresh finished. DetectionMode={DetectionMode}, TotalMonitors={TotalMonitors}, ControllableMonitors={ControllableMonitors}",
-                useLegacyDetection ? "Legacy" : "Modern",
-                _monitors.Count,
-                _monitors.Count(m => m.SupportsDdcCi));
+        TaskCompletionSource completion;
+        var execute = false;
 
-            // Publish only immutable display metadata. The quick UI can read this
-            // while a later hardware refresh is holding _lock without waiting on DDC.
-            Volatile.Write(ref _monitorDisplaySnapshots, _monitors
-                .Select(m => new MonitorDisplaySnapshot(
-                    m.DeviceName,
-                    m.ManufacturerName,
-                    m.ModelName,
-                    m.FriendlyName,
-                    m.Description,
-                    m.SupportsDdcCi))
-                .ToArray());
+        lock (_refreshLock)
+        {
+            if (IsDisposed || IsStopping)
+                return;
+
+            _refreshRequested = true;
+            if (_refreshInProgress)
+            {
+                completion = _refreshCompletion!;
+            }
+            else
+            {
+                _refreshInProgress = true;
+                _refreshRequested = false;
+                completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                _refreshCompletion = completion;
+                execute = true;
+            }
         }
+
+        if (execute)
+        {
+            ExecuteRefreshLoop(completion);
+            return;
+        }
+
+        // A concurrent caller waits for the active pass and any coalesced
+        // follow-up pass, preserving the synchronous behavior of Refresh().
+        completion.Task.GetAwaiter().GetResult();
     }
 
     /// <summary>Returns a snapshot of currently known DDC/CI monitors.</summary>
     public IReadOnlyList<DdcMonitor> GetMonitors()
     {
         lock (_lock)
-            return _monitors.ToList();
+            return IsDisposed || IsStopping ? [] : _monitors.ToList();
     }
 
     /// <summary>
@@ -69,7 +91,7 @@ public sealed class DdcCiService : IDisposable
     /// The snapshot is replaced atomically after a monitor refresh completes.
     /// </summary>
     public IReadOnlyList<MonitorDisplaySnapshot> GetMonitorDisplaySnapshot()
-        => Volatile.Read(ref _monitorDisplaySnapshots);
+        => IsStopping ? [] : Volatile.Read(ref _monitorDisplaySnapshots);
 
     /// <summary>
     /// Sets brightness on a specific monitor. brightness is a percentage 0–100.
@@ -81,7 +103,7 @@ public sealed class DdcCiService : IDisposable
         // Acquire the lock so a concurrent Refresh() cannot destroy the handle mid-call.
         lock (_lock)
         {
-            if (_disposed) return false;
+            if (!IsCurrentMonitorLocked(monitor)) return false;
             var ok = monitor.BrightnessBackendType switch
             {
                 MonitorBrightnessBackend.HighLevelApi => TrySetHighLevelBrightness(monitor, brightnessPercent),
@@ -118,7 +140,7 @@ public sealed class DdcCiService : IDisposable
         brightnessPercent = 0;
         lock (_lock)
         {
-            if (_disposed) return false;
+            if (!IsCurrentMonitorLocked(monitor)) return false;
             var ok = monitor.BrightnessBackendType switch
             {
                 MonitorBrightnessBackend.HighLevelApi => TryGetHighLevelBrightness(monitor, out brightnessPercent),
@@ -141,148 +163,163 @@ public sealed class DdcCiService : IDisposable
 
     // --- Private ---
 
-    private void EnumerateMonitors(bool useLegacyDetection)
+    private DdcMonitorSet EnumerateMonitors(bool useLegacyDetection, CancellationToken cancellationToken)
     {
         var hMonitors = new List<IntPtr>();
-        NativeMethods.EnumDisplayMonitors(
-            IntPtr.Zero, IntPtr.Zero,
-            (IntPtr hMon, IntPtr hdc, ref NativeMethods.RECT rect, IntPtr data) =>
-            {
-                hMonitors.Add(hMon);
-                return true;
-            },
-            IntPtr.Zero);
+        var monitors = new List<DdcMonitor>();
+        var groups = new List<PhysicalMonitorGroup>();
 
-        foreach (var hMonitor in hMonitors)
+        try
         {
-            var deviceName = GetDeviceName(hMonitor, out var resW, out var resH);
-
-            var internalDetection = MonitorDetectionResolver.Resolve(deviceName, deviceName, useLegacyDetection);
-            if (internalDetection.IsInternal)
-            {
-                var internalHdrInfo = internalDetection.HdrInfo;
-                var tempWatcher = new BrightSync.Core.Brightness.InternalBrightnessWatcher();
-                var currentBrightness = tempWatcher.ReadCurrentBrightness();
-
-                _monitors.Add(new DdcMonitor
+            NativeMethods.EnumDisplayMonitors(
+                IntPtr.Zero, IntPtr.Zero,
+                (IntPtr hMon, IntPtr hdc, ref NativeMethods.RECT rect, IntPtr data) =>
                 {
-                    DeviceName = deviceName,
-                    ManufacturerName = internalDetection.ManufacturerName,
-                    ModelName = internalDetection.ModelName,
-                    FriendlyName = internalDetection.FriendlyName,
-                    Description = "Internal Display",
-                    ResolutionWidth = resW,
-                    ResolutionHeight = resH,
-                    RefreshRateHz = useLegacyDetection ? 0 : GetRefreshRate(deviceName),
-                    ConnectionType = internalDetection.ConnectionType,
-                    IsInternal = true,
-                    SupportsDdcCi = true,
-                    SupportsBrightnessRead = true,
-                    MinNativeBrightness = 0,
-                    MaxDdcBrightness = 100,
-                    LastCommandedPercent = currentBrightness >= 0 ? currentBrightness : 50,
-                    BrightnessBackendType = MonitorBrightnessBackend.InternalWmi,
-                    BrightnessBackend = "WMI (Internal)",
-                    IsHdrSupported = internalHdrInfo.IsHdrSupported,
-                    IsHdrEnabled = internalHdrInfo.IsHdrEnabled,
-                    SdrWhiteLevelNits = internalHdrInfo.SdrWhiteLevelNits,
-                    IsAppleDisplay = false,
-                    IsAppleStudioDisplay = false,
-                    DetectionBackend = $"{internalDetection.DetectionBackend} + WMI",
-                    DetectionDetails = "Internal display controlled via WMI (WmiSetBrightness).",
-                    Handle = IntPtr.Zero,
-                    Group = null
-                });
+                    hMonitors.Add(hMon);
+                    return true;
+                },
+                IntPtr.Zero);
 
-                Log.Debug(
-                    "Detected internal monitor. Device={DeviceName}, FriendlyName={FriendlyName}, SupportsDdcCi=True, IsInternal=True, BrightnessBackend=WMI",
-                    deviceName,
-                    internalDetection.FriendlyName);
-
-                continue;
-            }
-
-            if (!NativeMethods.GetNumberOfPhysicalMonitorsFromHMONITOR(hMonitor, out var count) || count == 0)
+            foreach (var hMonitor in hMonitors)
             {
-                Log.Debug("No physical monitors found for HMONITOR {Handle}", hMonitor);
-                continue;
-            }
+                cancellationToken.ThrowIfCancellationRequested();
+                var deviceName = GetDeviceName(hMonitor, out var resW, out var resH);
 
-            var physicals = new NativeMethods.PHYSICAL_MONITOR[count];
-            if (!NativeMethods.GetPhysicalMonitorsFromHMONITOR(hMonitor, count, physicals))
-            {
-                Log.Warning("Failed to resolve physical monitor handles for device {DeviceName}", deviceName);
-                continue;
-            }
-
-            var group = new PhysicalMonitorGroup(physicals, deviceName);
-            _groups.Add(group);
-            var primaryDescription = physicals[0].szPhysicalMonitorDescription?.Trim() ?? deviceName;
-            var detection = MonitorDetectionResolver.Resolve(deviceName, primaryDescription, useLegacyDetection);
-            var hdrInfo = detection.HdrInfo;
-            var isAppleDisplay =
-                string.Equals(detection.ManufacturerName, "Apple", StringComparison.OrdinalIgnoreCase) ||
-                detection.FriendlyName.Contains("Apple", StringComparison.OrdinalIgnoreCase);
-            var isAppleStudioDisplay =
-                detection.FriendlyName.Contains("Studio Display", StringComparison.OrdinalIgnoreCase) ||
-                detection.ModelName.Contains("Studio Display", StringComparison.OrdinalIgnoreCase);
-
-            for (var i = 0; i < physicals.Length; i++)
-            {
-                var pm = physicals[i];
-                var description = pm.szPhysicalMonitorDescription?.Trim() ?? deviceName;
-                var brightnessSupport = MonitorBrightnessResolver.Probe(pm.hPhysicalMonitor);
-                var details = BuildCombinedDetectionDetails(
-                    detection.DetectionDetails,
-                    brightnessSupport.DetectionDetails,
-                    hdrInfo,
-                    isAppleStudioDisplay,
-                    brightnessSupport.SupportsBrightnessControl);
-
-                var m = new DdcMonitor
+                var internalDetection = MonitorDetectionResolver.Resolve(deviceName, deviceName, useLegacyDetection);
+                if (internalDetection.IsInternal)
                 {
-                    DeviceName = deviceName,
-                    ManufacturerName = detection.ManufacturerName,
-                    ModelName = detection.ModelName,
-                    FriendlyName = detection.FriendlyName,
-                    Description = description,
-                    ResolutionWidth = resW,
-                    ResolutionHeight = resH,
-                    RefreshRateHz = useLegacyDetection ? 0 : GetRefreshRate(deviceName),
-                    ConnectionType = detection.ConnectionType,
-                    IsInternal = detection.IsInternal,
-                    SupportsDdcCi = brightnessSupport.SupportsBrightnessControl,
-                    SupportsBrightnessRead = brightnessSupport.SupportsBrightnessRead,
-                    MinNativeBrightness = (int)brightnessSupport.MinimumNativeBrightness,
-                    MaxDdcBrightness = (int)brightnessSupport.MaximumNativeBrightness,
-                    LastCommandedPercent = brightnessSupport.CurrentBrightnessPercent,
-                    BrightnessBackendType = brightnessSupport.Backend,
-                    BrightnessBackend = brightnessSupport.BackendLabel,
-                    IsHdrSupported = hdrInfo.IsHdrSupported,
-                    IsHdrEnabled = hdrInfo.IsHdrEnabled,
-                    SdrWhiteLevelNits = hdrInfo.SdrWhiteLevelNits,
-                    IsAppleDisplay = isAppleDisplay,
-                    IsAppleStudioDisplay = isAppleStudioDisplay,
-                    DetectionBackend = $"{detection.DetectionBackend} + {brightnessSupport.BackendLabel}",
-                    DetectionDetails = details,
-                    Handle = pm.hPhysicalMonitor,
-                    Group = group
-                };
+                    var internalHdrInfo = internalDetection.HdrInfo;
+                    var tempWatcher = new BrightSync.Core.Brightness.InternalBrightnessWatcher();
+                    var currentBrightness = tempWatcher.ReadCurrentBrightness();
 
-                ProbeAdvancedCapabilities(m);
-                _monitors.Add(m);
+                    monitors.Add(new DdcMonitor
+                    {
+                        DeviceName = deviceName,
+                        ManufacturerName = internalDetection.ManufacturerName,
+                        ModelName = internalDetection.ModelName,
+                        FriendlyName = internalDetection.FriendlyName,
+                        Description = "Internal Display",
+                        ResolutionWidth = resW,
+                        ResolutionHeight = resH,
+                        RefreshRateHz = useLegacyDetection ? 0 : GetRefreshRate(deviceName),
+                        ConnectionType = internalDetection.ConnectionType,
+                        IsInternal = true,
+                        SupportsDdcCi = true,
+                        SupportsBrightnessRead = true,
+                        MinNativeBrightness = 0,
+                        MaxDdcBrightness = 100,
+                        LastCommandedPercent = currentBrightness >= 0 ? currentBrightness : 50,
+                        BrightnessBackendType = MonitorBrightnessBackend.InternalWmi,
+                        BrightnessBackend = "WMI (Internal)",
+                        IsHdrSupported = internalHdrInfo.IsHdrSupported,
+                        IsHdrEnabled = internalHdrInfo.IsHdrEnabled,
+                        SdrWhiteLevelNits = internalHdrInfo.SdrWhiteLevelNits,
+                        IsAppleDisplay = false,
+                        IsAppleStudioDisplay = false,
+                        DetectionBackend = $"{internalDetection.DetectionBackend} + WMI",
+                        DetectionDetails = "Internal display controlled via WMI (WmiSetBrightness).",
+                        Handle = IntPtr.Zero,
+                        Group = null
+                    });
 
-                Log.Debug(
-                    "Detected monitor. DetectionMode={DetectionMode}, Device={DeviceName}, FriendlyName={FriendlyName}, SupportsDdcCi={SupportsDdcCi}, IsInternal={IsInternal}, DetectionBackend={DetectionBackend}, BrightnessBackend={BrightnessBackend}, HdrEnabled={HdrEnabled}",
-                    useLegacyDetection ? "Legacy" : "Modern",
-                    deviceName,
-                    detection.FriendlyName,
-                    brightnessSupport.SupportsBrightnessControl,
-                    detection.IsInternal,
-                    detection.DetectionBackend,
-                    brightnessSupport.BackendLabel,
-                    hdrInfo.IsHdrEnabled);
+                    Log.Debug(
+                        "Detected internal monitor. Device={DeviceName}, FriendlyName={FriendlyName}, SupportsDdcCi=True, IsInternal=True, BrightnessBackend=WMI",
+                        deviceName,
+                        internalDetection.FriendlyName);
+
+                    continue;
+                }
+
+                if (!NativeMethods.GetNumberOfPhysicalMonitorsFromHMONITOR(hMonitor, out var count) || count == 0)
+                {
+                    Log.Debug("No physical monitors found for HMONITOR {Handle}", hMonitor);
+                    continue;
+                }
+
+                var physicals = new NativeMethods.PHYSICAL_MONITOR[count];
+                if (!NativeMethods.GetPhysicalMonitorsFromHMONITOR(hMonitor, count, physicals))
+                {
+                    Log.Warning("Failed to resolve physical monitor handles for device {DeviceName}", deviceName);
+                    continue;
+                }
+
+                var group = new PhysicalMonitorGroup(physicals, deviceName);
+                groups.Add(group);
+                var primaryDescription = physicals[0].szPhysicalMonitorDescription?.Trim() ?? deviceName;
+                var detection = MonitorDetectionResolver.Resolve(deviceName, primaryDescription, useLegacyDetection);
+                var hdrInfo = detection.HdrInfo;
+                var isAppleDisplay =
+                    string.Equals(detection.ManufacturerName, "Apple", StringComparison.OrdinalIgnoreCase) ||
+                    detection.FriendlyName.Contains("Apple", StringComparison.OrdinalIgnoreCase);
+                var isAppleStudioDisplay =
+                    detection.FriendlyName.Contains("Studio Display", StringComparison.OrdinalIgnoreCase) ||
+                    detection.ModelName.Contains("Studio Display", StringComparison.OrdinalIgnoreCase);
+
+                for (var i = 0; i < physicals.Length; i++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var pm = physicals[i];
+                    var description = pm.szPhysicalMonitorDescription?.Trim() ?? deviceName;
+                    var brightnessSupport = MonitorBrightnessResolver.Probe(pm.hPhysicalMonitor);
+                    var details = BuildCombinedDetectionDetails(
+                        detection.DetectionDetails,
+                        brightnessSupport.DetectionDetails,
+                        hdrInfo,
+                        isAppleStudioDisplay,
+                        brightnessSupport.SupportsBrightnessControl);
+
+                    var m = new DdcMonitor
+                    {
+                        DeviceName = deviceName,
+                        ManufacturerName = detection.ManufacturerName,
+                        ModelName = detection.ModelName,
+                        FriendlyName = detection.FriendlyName,
+                        Description = description,
+                        ResolutionWidth = resW,
+                        ResolutionHeight = resH,
+                        RefreshRateHz = useLegacyDetection ? 0 : GetRefreshRate(deviceName),
+                        ConnectionType = detection.ConnectionType,
+                        IsInternal = detection.IsInternal,
+                        SupportsDdcCi = brightnessSupport.SupportsBrightnessControl,
+                        SupportsBrightnessRead = brightnessSupport.SupportsBrightnessRead,
+                        MinNativeBrightness = (int)brightnessSupport.MinimumNativeBrightness,
+                        MaxDdcBrightness = (int)brightnessSupport.MaximumNativeBrightness,
+                        LastCommandedPercent = brightnessSupport.CurrentBrightnessPercent,
+                        BrightnessBackendType = brightnessSupport.Backend,
+                        BrightnessBackend = brightnessSupport.BackendLabel,
+                        IsHdrSupported = hdrInfo.IsHdrSupported,
+                        IsHdrEnabled = hdrInfo.IsHdrEnabled,
+                        SdrWhiteLevelNits = hdrInfo.SdrWhiteLevelNits,
+                        IsAppleDisplay = isAppleDisplay,
+                        IsAppleStudioDisplay = isAppleStudioDisplay,
+                        DetectionBackend = $"{detection.DetectionBackend} + {brightnessSupport.BackendLabel}",
+                        DetectionDetails = details,
+                        Handle = pm.hPhysicalMonitor,
+                        Group = group
+                    };
+
+                    ProbeAdvancedCapabilities(m, cancellationToken);
+                    monitors.Add(m);
+
+                    Log.Debug(
+                        "Detected monitor. DetectionMode={DetectionMode}, Device={DeviceName}, FriendlyName={FriendlyName}, SupportsDdcCi={SupportsDdcCi}, IsInternal={IsInternal}, DetectionBackend={DetectionBackend}, BrightnessBackend={BrightnessBackend}, HdrEnabled={HdrEnabled}",
+                        useLegacyDetection ? "Legacy" : "Modern",
+                        deviceName,
+                        detection.FriendlyName,
+                        brightnessSupport.SupportsBrightnessControl,
+                        detection.IsInternal,
+                        detection.DetectionBackend,
+                        brightnessSupport.BackendLabel,
+                        hdrInfo.IsHdrEnabled);
+                }
             }
+
+            return new DdcMonitorSet(monitors, groups);
+        }
+        catch
+        {
+            DisposeGroups(groups);
+            throw;
         }
     }
 
@@ -323,16 +360,9 @@ public sealed class DdcCiService : IDisposable
     {
         lock (_lock)
         {
-            if (_disposed || monitor.IsInternal) return false;
-            
-            for (var attempt = 0; attempt < 2; attempt++)
-            {
-                if (NativeMethods.SetVCPFeature(monitor.Handle, vcpCode, value))
-                    return true;
-                if (attempt < 1)
-                    Thread.Sleep(RetryDelayMilliseconds);
-            }
-            return false;
+            return IsCurrentMonitorLocked(monitor) &&
+                   !monitor.IsInternal &&
+                   TrySetVcpFeatureCore(monitor, vcpCode, value, CancellationToken.None);
         }
     }
 
@@ -342,31 +372,68 @@ public sealed class DdcCiService : IDisposable
         maxValue = 0;
         lock (_lock)
         {
-            if (_disposed || monitor.IsInternal) return false;
-
-            for (var attempt = 0; attempt < 2; attempt++)
-            {
-                if (NativeMethods.GetVCPFeatureAndVCPFeatureReply(
-                        monitor.Handle,
-                        vcpCode,
-                        out _,
-                        out var current,
-                        out var max))
-                {
-                    currentValue = current;
-                    maxValue = max;
-                    return true;
-                }
-                
-                var err = Marshal.GetLastWin32Error();
-                Log.Debug("GetVcpFeature failed. Monitor={Monitor}, VcpCode=0x{Vcp:X2}, Error=0x{Error:X8}, Attempt={Attempt}", 
-                    monitor.FriendlyName, vcpCode, err, attempt + 1);
-
-                if (attempt < 1)
-                    Thread.Sleep(RetryDelayMilliseconds);
-            }
-            return false;
+            return IsCurrentMonitorLocked(monitor) &&
+                   !monitor.IsInternal &&
+                   TryGetVcpFeatureCore(
+                       monitor,
+                       vcpCode,
+                       out currentValue,
+                       out maxValue,
+                       CancellationToken.None);
         }
+    }
+
+    private static bool TrySetVcpFeatureCore(
+        DdcMonitor monitor,
+        byte vcpCode,
+        uint value,
+        CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (NativeMethods.SetVCPFeature(monitor.Handle, vcpCode, value))
+                return true;
+            if (attempt < 1)
+                Thread.Sleep(RetryDelayMilliseconds);
+        }
+
+        return false;
+    }
+
+    private static bool TryGetVcpFeatureCore(
+        DdcMonitor monitor,
+        byte vcpCode,
+        out uint currentValue,
+        out uint maxValue,
+        CancellationToken cancellationToken)
+    {
+        currentValue = 0;
+        maxValue = 0;
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (NativeMethods.GetVCPFeatureAndVCPFeatureReply(
+                    monitor.Handle,
+                    vcpCode,
+                    out _,
+                    out var current,
+                    out var max))
+            {
+                currentValue = current;
+                maxValue = max;
+                return true;
+            }
+
+            var err = Marshal.GetLastWin32Error();
+            Log.Debug("GetVcpFeature failed. Monitor={Monitor}, VcpCode=0x{Vcp:X2}, Error=0x{Error:X8}, Attempt={Attempt}",
+                monitor.FriendlyName, vcpCode, err, attempt + 1);
+
+            if (attempt < 1)
+                Thread.Sleep(RetryDelayMilliseconds);
+        }
+
+        return false;
     }
 
     private string? GetCapabilitiesString(IntPtr hMonitor)
@@ -472,7 +539,7 @@ public sealed class DdcCiService : IDisposable
         return result;
     }
 
-    private void ProbeAdvancedCapabilities(DdcMonitor monitor)
+    private void ProbeAdvancedCapabilities(DdcMonitor monitor, CancellationToken cancellationToken)
     {
         if (monitor.IsInternal)
             return;
@@ -480,6 +547,7 @@ public sealed class DdcCiService : IDisposable
         Log.Debug("Probing advanced capabilities for monitor: {Monitor}", monitor.FriendlyName);
 
         var capStr = GetCapabilitiesString(monitor.Handle);
+        cancellationToken.ThrowIfCancellationRequested();
         Dictionary<byte, List<uint>>? parsedCaps = null;
         if (!string.IsNullOrEmpty(capStr))
         {
@@ -493,29 +561,35 @@ public sealed class DdcCiService : IDisposable
                 monitor.SupportedInputs = inputs;
         }
 
-        if (GetVcpFeature(monitor, NativeMethods.VCP_CONTRAST, out var contrastVal, out var contrastMax))
+        if (TryGetVcpFeatureCore(monitor, NativeMethods.VCP_CONTRAST, out var contrastVal, out var contrastMax,
+                cancellationToken))
         {
             monitor.SupportsContrast = true;
             monitor.CurrentContrast = (int)contrastVal;
             monitor.MaxContrast = (int)contrastMax;
         }
 
-        if (GetVcpFeature(monitor, NativeMethods.VCP_VOLUME, out var volVal, out var volMax))
+        if (TryGetVcpFeatureCore(monitor, NativeMethods.VCP_VOLUME, out var volVal, out var volMax,
+                cancellationToken))
         {
             monitor.SupportsVolume = true;
             monitor.CurrentVolume = (int)volVal;
             monitor.MaxVolume = (int)volMax;
         }
 
-        if (GetVcpFeature(monitor, NativeMethods.VCP_COLOR_PRESET, out var presetVal, out _))
+        if (TryGetVcpFeatureCore(monitor, NativeMethods.VCP_COLOR_PRESET, out var presetVal, out _,
+                cancellationToken))
         {
             monitor.SupportsColorPreset = true;
             monitor.CurrentColorPreset = (int)presetVal;
         }
 
-        if (GetVcpFeature(monitor, NativeMethods.VCP_RED_GAIN, out var redVal, out var rgbMax) &&
-            GetVcpFeature(monitor, NativeMethods.VCP_GREEN_GAIN, out var greenVal, out _) &&
-            GetVcpFeature(monitor, NativeMethods.VCP_BLUE_GAIN, out var blueVal, out _))
+        if (TryGetVcpFeatureCore(monitor, NativeMethods.VCP_RED_GAIN, out var redVal, out var rgbMax,
+                cancellationToken) &&
+            TryGetVcpFeatureCore(monitor, NativeMethods.VCP_GREEN_GAIN, out var greenVal, out _,
+                cancellationToken) &&
+            TryGetVcpFeatureCore(monitor, NativeMethods.VCP_BLUE_GAIN, out var blueVal, out _,
+                cancellationToken))
         {
             monitor.SupportsRgbGains = true;
             monitor.CurrentRedGain = (int)redVal;
@@ -524,7 +598,8 @@ public sealed class DdcCiService : IDisposable
             monitor.MaxRgbGain = (int)rgbMax;
         }
 
-        if (GetVcpFeature(monitor, NativeMethods.VCP_INPUT_SOURCE, out var inputVal, out _))
+        if (TryGetVcpFeatureCore(monitor, NativeMethods.VCP_INPUT_SOURCE, out var inputVal, out _,
+                cancellationToken))
         {
             monitor.SupportsInputSource = true;
             monitor.CurrentInputSource = (int)inputVal;
@@ -532,31 +607,162 @@ public sealed class DdcCiService : IDisposable
 
         monitor.RawCapabilitiesString = capStr ?? string.Empty;
 
-        if (GetVcpFeature(monitor, NativeMethods.VCP_SHARPNESS, out var sharpnessVal, out var sharpnessMax))
+        if (TryGetVcpFeatureCore(monitor, NativeMethods.VCP_SHARPNESS, out var sharpnessVal, out var sharpnessMax,
+                cancellationToken))
         {
             monitor.SupportsSharpness = true;
             monitor.CurrentSharpness = (int)sharpnessVal;
             monitor.MaxSharpness = (int)sharpnessMax;
         }
 
-        if (GetVcpFeature(monitor, NativeMethods.VCP_SATURATION, out var saturationVal, out var saturationMax))
+        if (TryGetVcpFeatureCore(monitor, NativeMethods.VCP_SATURATION, out var saturationVal, out var saturationMax,
+                cancellationToken))
         {
             monitor.SupportsSaturation = true;
             monitor.CurrentSaturation = (int)saturationVal;
             monitor.MaxSaturation = (int)saturationMax;
         }
 
-        if (GetVcpFeature(monitor, NativeMethods.VCP_GAMMA, out var gammaVal, out _))
+        if (TryGetVcpFeatureCore(monitor, NativeMethods.VCP_GAMMA, out var gammaVal, out _,
+                cancellationToken))
         {
             monitor.SupportsGamma = true;
             monitor.CurrentGamma = (int)gammaVal;
         }
 
-        if (GetVcpFeature(monitor, NativeMethods.VCP_POWER_CONTROL, out var powerVal, out _))
+        if (TryGetVcpFeatureCore(monitor, NativeMethods.VCP_POWER_CONTROL, out var powerVal, out _,
+                cancellationToken))
         {
             monitor.SupportsPowerControl = true;
             monitor.CurrentPowerState = (int)powerVal;
         }
+    }
+
+    private void ExecuteRefreshLoop(TaskCompletionSource completion)
+    {
+        try
+        {
+            while (true)
+            {
+                try
+                {
+                    RefreshCore(_lifetimeCts.Token);
+                }
+                catch (OperationCanceledException) when (IsDisposed || IsStopping)
+                {
+                    Log.Debug("DDC/CI refresh canceled during service disposal");
+                }
+                catch (Exception ex)
+                {
+                    // Refresh can run from timer/event threads. Keep failures
+                    // observed and preserve the last known-good monitor set.
+                    Log.Error(ex, "DDC/CI monitor refresh failed");
+                }
+
+                lock (_refreshLock)
+                {
+                    if (IsDisposed || !_refreshRequested)
+                    {
+                        _refreshRequested = false;
+                        _refreshInProgress = false;
+                        if (ReferenceEquals(_refreshCompletion, completion))
+                            _refreshCompletion = null;
+                        completion.TrySetResult();
+                        return;
+                    }
+
+                    // Consume the request and make exactly one follow-up pass.
+                    _refreshRequested = false;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Keep the coordinator itself exception-contained even if a future
+            // change fails outside the per-pass refresh boundary.
+            Log.Error(ex, "Unexpected DDC/CI refresh coordinator failure");
+            lock (_refreshLock)
+            {
+                _refreshRequested = false;
+                _refreshInProgress = false;
+                if (ReferenceEquals(_refreshCompletion, completion))
+                    _refreshCompletion = null;
+            }
+
+            completion.TrySetResult();
+        }
+    }
+
+    private void RefreshCore(CancellationToken cancellationToken)
+    {
+        if (IsDisposed || IsStopping || cancellationToken.IsCancellationRequested)
+            return;
+
+        MonitorNameResolver.InvalidateCache();
+        cancellationToken.ThrowIfCancellationRequested();
+
+        DdcMonitorSet? candidate = null;
+        try
+        {
+            var useLegacyDetection = _config.Config.UseLegacyDdcCiDetection;
+            var refreshedMonitors = _monitorProvider?.Enumerate(
+                                        useLegacyDetection,
+                                        cancellationToken) ??
+                                    EnumerateMonitors(useLegacyDetection, cancellationToken);
+            candidate = refreshedMonitors;
+            cancellationToken.ThrowIfCancellationRequested();
+
+            lock (_lock)
+            {
+                if (IsDisposed || IsStopping || cancellationToken.IsCancellationRequested)
+                    return;
+
+                var newMonitors = refreshedMonitors.Monitors.ToList();
+                var newGroups = refreshedMonitors.Groups.ToList();
+
+                var oldGroups = _groups;
+                _groups = newGroups;
+                _monitors = newMonitors;
+                // Ownership transfers to _groups once the candidate is published.
+                candidate = null;
+
+                // Publish only immutable display metadata. The quick UI can read
+                // this while hardware enumeration for a later pass is in flight.
+                Volatile.Write(ref _monitorDisplaySnapshots, newMonitors
+                    .Select(m => new MonitorDisplaySnapshot(
+                        m.DeviceName,
+                        m.ManufacturerName,
+                        m.ModelName,
+                        m.FriendlyName,
+                        m.Description,
+                        m.SupportsDdcCi))
+                    .ToArray());
+
+                DisposeGroups(oldGroups);
+
+                Log.Information(
+                    "DDC/CI refresh finished. DetectionMode={DetectionMode}, TotalMonitors={TotalMonitors}, ControllableMonitors={ControllableMonitors}",
+                    useLegacyDetection ? "Legacy" : "Modern",
+                    newMonitors.Count,
+                    newMonitors.Count(m => m.SupportsDdcCi));
+            }
+
+        }
+        finally
+        {
+            candidate?.DisposeGroups();
+        }
+    }
+
+    private bool IsCurrentMonitorLocked(DdcMonitor monitor)
+    {
+        if (monitor is null || IsDisposed || IsStopping)
+            return false;
+
+        // GetMonitors intentionally returns shallow monitor objects for existing
+        // callers. Reference membership makes every object from a replaced
+        // snapshot fail before its native handle can be used.
+        return _monitors.Any(current => ReferenceEquals(current, monitor));
     }
 
     private static bool TrySetVcpBrightness(DdcMonitor monitor, int brightnessPercent, int retryCount)
@@ -665,18 +871,37 @@ public sealed class DdcCiService : IDisposable
 
     private void DisposeGroups()
     {
-        foreach (var g in _groups)
-            g.Dispose();
+        DisposeGroups(_groups);
         _groups.Clear();
     }
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
+        lock (_refreshLock)
+        {
+            if (IsDisposed || Interlocked.Exchange(ref _disposing, 1) != 0)
+                return;
+
+            _refreshRequested = false;
+            _lifetimeCts.Cancel();
+        }
+
         Log.Debug("Disposing DDC/CI service");
         lock (_lock)
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+                return;
+
             DisposeGroups();
+            _monitors = new List<DdcMonitor>();
+            Volatile.Write(ref _monitorDisplaySnapshots, []);
+        }
+    }
+
+    private static void DisposeGroups(IEnumerable<PhysicalMonitorGroup> groups)
+    {
+        foreach (var group in groups)
+            group.Dispose();
     }
 }
 
@@ -688,3 +913,33 @@ public sealed record MonitorDisplaySnapshot(
     string FriendlyName,
     string Description,
     bool SupportsDdcCi);
+
+internal interface IDdcMonitorProvider
+{
+    DdcMonitorSet Enumerate(bool useLegacyDetection, CancellationToken cancellationToken);
+}
+
+internal sealed class DdcMonitorSet
+{
+    public IReadOnlyList<DdcMonitor> Monitors { get; }
+    public IReadOnlyList<PhysicalMonitorGroup> Groups { get; }
+
+    internal DdcMonitorSet(IEnumerable<DdcMonitor> monitors)
+        : this(monitors, [])
+    {
+    }
+
+    internal DdcMonitorSet(
+        IEnumerable<DdcMonitor> monitors,
+        IEnumerable<PhysicalMonitorGroup> groups)
+    {
+        Monitors = monitors.ToList();
+        Groups = groups.ToList();
+    }
+
+    public void DisposeGroups()
+    {
+        foreach (var group in Groups)
+            group.Dispose();
+    }
+}

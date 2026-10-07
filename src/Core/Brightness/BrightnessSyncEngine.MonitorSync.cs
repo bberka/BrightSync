@@ -9,6 +9,9 @@ public sealed partial class BrightSyncEngine
     /// <summary>Forces an immediate re-sync of all monitors (e.g. after settings change).</summary>
     public void ForceSync()
     {
+        if (IsDisposed)
+            return;
+
         if (_masterBrightness >= 0)
         {
             Log.Debug("Force sync requested at master brightness {Brightness}%", _masterBrightness);
@@ -25,22 +28,35 @@ public sealed partial class BrightSyncEngine
     /// <summary>Call after monitor list or config changes to rebuild DDC handles.</summary>
     public void RefreshMonitors()
     {
+        if (IsDisposed)
+            return;
+
         if (IsMonitorAccessSuspended)
         {
             Log.Information("Monitor refresh skipped because monitor access is paused while the session is locked");
             return;
         }
 
-        Log.Information("Refreshing monitor list");
-        _ddc.Refresh();
-        Log.Information("Monitor refresh complete. KnownMonitors={MonitorCount}", _ddc.GetMonitors().Count);
-        ForceSync();
-        ApplyAllPersistedSettings();
+        try
+        {
+            Log.Information("Refreshing monitor list");
+            _ddc.Refresh();
+            if (IsDisposed)
+                return;
+
+            Log.Information("Monitor refresh complete. KnownMonitors={MonitorCount}", _ddc.GetMonitors().Count);
+            ForceSync();
+            ApplyAllPersistedSettings();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Monitor refresh/synchronization failed");
+        }
     }
 
     public void ApplyPersistedSettings(DdcMonitor monitor)
     {
-        if (IsMonitorAccessSuspended || !monitor.SupportsDdcCi) return;
+        if (IsDisposed || IsMonitorAccessSuspended || !monitor.SupportsDdcCi) return;
 
         var profile = _config.GetOrCreateProfile(monitor.DeviceName);
         if (!profile.Enabled) return;
@@ -97,10 +113,13 @@ public sealed partial class BrightSyncEngine
 
     public void ApplyAllPersistedSettings()
     {
-        if (IsMonitorAccessSuspended) return;
+        if (IsDisposed || IsMonitorAccessSuspended) return;
 
         foreach (var monitor in _ddc.GetMonitors())
         {
+            if (IsDisposed)
+                return;
+
             ApplyPersistedSettings(monitor);
         }
     }
@@ -116,6 +135,9 @@ public sealed partial class BrightSyncEngine
 
     public bool SetIdleReductionActive(bool active)
     {
+        if (IsDisposed)
+            return false;
+
         if (_idleReductionActive == active)
             return false;
 
@@ -123,7 +145,7 @@ public sealed partial class BrightSyncEngine
         Log.Information("Idle brightness reduction {State}", active ? "activated" : "cleared");
 
         if (_masterBrightness >= 0)
-            Task.Run(SyncAllMonitors);
+            QueueSync();
 
         RaiseTargetsChanged();
         return true;
@@ -131,6 +153,9 @@ public sealed partial class BrightSyncEngine
 
     private bool TryApplyUserBrightness(int brightness, bool synchronize)
     {
+        if (IsDisposed)
+            return false;
+
         if (_config.Config.AutoBrightness.Enabled)
         {
             Log.Debug("Manual brightness request ignored because auto brightness is enabled");
@@ -142,6 +167,9 @@ public sealed partial class BrightSyncEngine
 
     private bool ApplyBrightness(int brightness, bool allowManualWhenAutoEnabled, string source, bool synchronize)
     {
+        if (IsDisposed)
+            return false;
+
         if (!allowManualWhenAutoEnabled && _config.Config.AutoBrightness.Enabled)
         {
             Log.Debug("Brightness request from {Source} ignored because auto brightness is enabled", source);
@@ -160,13 +188,57 @@ public sealed partial class BrightSyncEngine
         if (synchronize)
             SyncAllMonitors();
         else
-            Task.Run(SyncAllMonitors);
+            QueueSync();
         return true;
+    }
+
+    private void QueueSync()
+    {
+        if (IsDisposed)
+            return;
+
+        Volatile.Write(ref _syncRequested, 1);
+        if (Interlocked.CompareExchange(ref _syncWorkerActive, 1, 0) != 0)
+            return;
+
+        _ = Task.Run(RunQueuedSync);
+    }
+
+    private void RunQueuedSync()
+    {
+        try
+        {
+            while (!IsDisposed && !_lifetimeCts.IsCancellationRequested)
+            {
+                Volatile.Write(ref _syncRequested, 0);
+                SyncAllMonitors();
+
+                if (Volatile.Read(ref _syncRequested) == 0)
+                    return;
+            }
+        }
+        catch (OperationCanceledException) when (IsDisposed)
+        {
+            // Disposal is the expected cancellation path for queued work.
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Background monitor synchronization failed");
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _syncWorkerActive, 0);
+            if (!IsDisposed && Volatile.Read(ref _syncRequested) != 0 &&
+                Interlocked.CompareExchange(ref _syncWorkerActive, 1, 0) == 0)
+            {
+                _ = Task.Run(RunQueuedSync);
+            }
+        }
     }
 
     private void SyncAllMonitors()
     {
-        if (IsMonitorAccessSuspended)
+        if (IsDisposed || IsMonitorAccessSuspended)
         {
             Log.Debug("Monitor sync skipped because monitor access is paused while the session is locked");
             return;
@@ -177,6 +249,9 @@ public sealed partial class BrightSyncEngine
 
         foreach (var monitor in _ddc.GetMonitors())
         {
+            if (IsDisposed)
+                return;
+
             if (!monitor.SupportsDdcCi)
             {
                 skippedCount++;
@@ -202,7 +277,7 @@ public sealed partial class BrightSyncEngine
 
     private void Enforce()
     {
-        if (IsMonitorAccessSuspended)
+        if (IsDisposed || IsMonitorAccessSuspended)
         {
             Log.Debug("Brightness enforcement skipped because monitor access is paused while the session is locked");
             return;
@@ -214,6 +289,9 @@ public sealed partial class BrightSyncEngine
         var reappliedCount = 0;
         foreach (var monitor in _ddc.GetMonitors())
         {
+            if (IsDisposed)
+                return;
+
             if (!monitor.SupportsDdcCi)
                 continue;
 

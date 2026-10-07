@@ -19,11 +19,18 @@ public sealed partial class BrightSyncEngine : IDisposable
 
     private readonly DdcCiService _ddc;
     public DdcCiService Ddc => _ddc;
+    private readonly object _timerLock = new();
     private readonly Timer _enforcementTimer;
     private readonly Timer _periodicRefreshTimer;
     private readonly InternalBrightnessWatcher _watcher;
+    private readonly CancellationTokenSource _lifetimeCts = new();
     private BrightnessBoostService? _brightnessBoost;
-    private bool _disposed;
+    private int _disposed;
+    private int _enforcementInProgress;
+    private int _periodicRefreshInProgress;
+    private int _periodicRefreshRequested;
+    private int _syncWorkerActive;
+    private int _syncRequested;
     private EyeProtectionService? _eyeProtection;
     private bool _idleReductionActive;
     private bool _isSessionLocked;
@@ -41,11 +48,13 @@ public sealed partial class BrightSyncEngine : IDisposable
 
         _enforcementTimer = new Timer(
             Math.Max(5, _config.Config.EnforcementIntervalSeconds) * 1000.0);
-        _enforcementTimer.Elapsed += (_, _) => Enforce();
+        _enforcementTimer.Elapsed += (_, _) => RunEnforcementTimer();
 
         _periodicRefreshTimer = new Timer();
-        _periodicRefreshTimer.Elapsed += (_, _) => PeriodicRefresh();
+        _periodicRefreshTimer.Elapsed += (_, _) => RunPeriodicRefreshTimer();
     }
+
+    private bool IsDisposed => Volatile.Read(ref _disposed) != 0;
 
     public int MasterBrightness => _masterBrightness;
     public bool IsMonitorAccessSuspended => _config.Config.DisableMonitorAccessWhileLocked && _isSessionLocked;
@@ -59,15 +68,20 @@ public sealed partial class BrightSyncEngine : IDisposable
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
+
         Log.Debug("Disposing brightness sync engine");
+        _lifetimeCts.Cancel();
         SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         SystemEvents.SessionSwitch -= OnSessionSwitch;
-        _enforcementTimer.Stop();
-        _enforcementTimer.Dispose();
-        _periodicRefreshTimer.Stop();
-        _periodicRefreshTimer.Dispose();
+        lock (_timerLock)
+        {
+            _enforcementTimer.Stop();
+            _enforcementTimer.Dispose();
+            _periodicRefreshTimer.Stop();
+            _periodicRefreshTimer.Dispose();
+        }
         _watcher.Dispose();
     }
 
@@ -91,6 +105,9 @@ public sealed partial class BrightSyncEngine : IDisposable
 
     public void Start()
     {
+        if (IsDisposed)
+            return;
+
         // Capture initial brightness from config, or fallback to internal display's current brightness, or 50.
         var initial = _config.Config.MasterBrightness;
         if (initial == -1)
@@ -104,9 +121,15 @@ public sealed partial class BrightSyncEngine : IDisposable
         _masterBrightness = Math.Clamp(initial, 0, 100);
         Log.Information("Initial master brightness set to {Brightness}%", _masterBrightness);
 
-        _enforcementTimer.Start();
-        Log.Debug("Enforcement timer started. IntervalSeconds={IntervalSeconds}",
-            Math.Max(5, _config.Config.EnforcementIntervalSeconds));
+        lock (_timerLock)
+        {
+            if (IsDisposed)
+                return;
+
+            _enforcementTimer.Start();
+            Log.Debug("Enforcement timer started. IntervalSeconds={IntervalSeconds}",
+                Math.Max(5, _config.Config.EnforcementIntervalSeconds));
+        }
 
         UpdatePeriodicRefreshTimer();
 
@@ -174,16 +197,22 @@ public sealed partial class BrightSyncEngine : IDisposable
 
     private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
     {
+        if (IsDisposed)
+            return;
+
         if (e.Mode == PowerModes.Resume)
         {
             Log.Information("System resume detected; scheduling monitor refresh");
             // Give displays a moment to initialise after wake
-            Task.Delay(2000).ContinueWith(_ => RefreshMonitors());
+            _ = ScheduleRefreshAfterDelay(TimeSpan.FromSeconds(2), "system resume");
         }
     }
 
     private void OnSessionSwitch(object sender, SessionSwitchEventArgs e)
     {
+        if (IsDisposed)
+            return;
+
         switch (e.Reason)
         {
             case SessionSwitchReason.SessionLock:
@@ -200,31 +229,65 @@ public sealed partial class BrightSyncEngine : IDisposable
                     return;
 
                 Log.Information("Windows session unlocked; scheduling monitor refresh");
-                Task.Delay(1500).ContinueWith(_ => RefreshMonitors());
+                _ = ScheduleRefreshAfterDelay(TimeSpan.FromMilliseconds(1500), "session unlock");
                 break;
+        }
+    }
+
+    internal Task ScheduleRefreshAfterDelay(TimeSpan delay)
+        => ScheduleRefreshAfterDelay(delay, "scheduled monitor refresh");
+
+    private async Task ScheduleRefreshAfterDelay(TimeSpan delay, string reason)
+    {
+        var cancellationToken = _lifetimeCts.Token;
+        try
+        {
+            await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+            if (cancellationToken.IsCancellationRequested || IsDisposed)
+                return;
+
+            Log.Debug("Running delayed monitor refresh. Reason={Reason}", reason);
+            RefreshMonitors();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || IsDisposed)
+        {
+            // Disposal is the expected cancellation path for delayed work.
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Delayed monitor refresh failed. Reason={Reason}", reason);
         }
     }
 
     public void UpdatePeriodicRefreshTimer()
     {
-        _periodicRefreshTimer.Stop();
+        lock (_timerLock)
+        {
+            if (IsDisposed)
+                return;
 
-        if (_config.Config.PeriodicMonitorRefreshEnabled)
-        {
-            var intervalMs = Math.Max(1, _config.Config.PeriodicMonitorRefreshIntervalMinutes) * 60 * 1000.0;
-            _periodicRefreshTimer.Interval = intervalMs;
-            _periodicRefreshTimer.Start();
-            Log.Information("Periodic monitor refresh timer started. IntervalMinutes={IntervalMinutes}",
-                _config.Config.PeriodicMonitorRefreshIntervalMinutes);
-        }
-        else
-        {
-            Log.Debug("Periodic monitor refresh timer stopped");
+            _periodicRefreshTimer.Stop();
+
+            if (_config.Config.PeriodicMonitorRefreshEnabled)
+            {
+                var intervalMs = Math.Max(1, _config.Config.PeriodicMonitorRefreshIntervalMinutes) * 60 * 1000.0;
+                _periodicRefreshTimer.Interval = intervalMs;
+                _periodicRefreshTimer.Start();
+                Log.Information("Periodic monitor refresh timer started. IntervalMinutes={IntervalMinutes}",
+                    _config.Config.PeriodicMonitorRefreshIntervalMinutes);
+            }
+            else
+            {
+                Log.Debug("Periodic monitor refresh timer stopped");
+            }
         }
     }
 
     private void PeriodicRefresh()
     {
+        if (IsDisposed)
+            return;
+
         if (IsMonitorAccessSuspended)
         {
             Log.Debug("Periodic monitor refresh skipped because monitor access is paused while the session is locked");
@@ -233,5 +296,59 @@ public sealed partial class BrightSyncEngine : IDisposable
 
         Log.Information("Triggering periodic monitor refresh");
         RefreshMonitors();
+    }
+
+    private void RunEnforcementTimer()
+    {
+        if (Interlocked.Exchange(ref _enforcementInProgress, 1) != 0)
+            return;
+
+        try
+        {
+            if (!IsDisposed)
+                Enforce();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Background brightness enforcement failed");
+        }
+        finally
+        {
+            Volatile.Write(ref _enforcementInProgress, 0);
+        }
+    }
+
+    private void RunPeriodicRefreshTimer()
+    {
+        if (IsDisposed)
+            return;
+
+        Volatile.Write(ref _periodicRefreshRequested, 1);
+        if (Interlocked.Exchange(ref _periodicRefreshInProgress, 1) != 0)
+            return;
+
+        try
+        {
+            while (!IsDisposed)
+            {
+                Volatile.Write(ref _periodicRefreshRequested, 0);
+                PeriodicRefresh();
+
+                if (Volatile.Read(ref _periodicRefreshRequested) == 0)
+                    return;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Background periodic monitor refresh failed");
+        }
+        finally
+        {
+            Volatile.Write(ref _periodicRefreshInProgress, 0);
+            if (!IsDisposed && Volatile.Read(ref _periodicRefreshRequested) != 0)
+            {
+                _ = Task.Run(RunPeriodicRefreshTimer);
+            }
+        }
     }
 }
