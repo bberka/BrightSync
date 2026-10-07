@@ -3,6 +3,7 @@ using System.Security;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using BrightSync.Core.Monitors;
 using Microsoft.Win32;
 using Serilog;
 
@@ -68,21 +69,171 @@ public sealed class ConfigManager
     }
 
     public MonitorProfile GetOrCreateProfile(string deviceName)
+        => GetOrCreateProfile(deviceName, stableIdentity: null);
+
+    /// <summary>
+    /// Gets the profile for a runtime monitor. Stable identities are stored as the
+    /// dictionary key; the old DISPLAYn key is only migrated when one unambiguous
+    /// legacy candidate exists. Multiple legacy profiles cannot be mapped to physical
+    /// displays safely because their historical identity was not persisted, so they
+    /// remain untouched and a new stable profile is created instead.
+    /// </summary>
+    public MonitorProfile GetOrCreateProfile(string deviceName, string? stableIdentity)
     {
         lock (_synchronizationRoot)
         {
-            if (!Config.Monitors.TryGetValue(deviceName, out var profile))
+            var normalizedIdentity = MonitorIdentityResolver.NormalizeProfileIdentity(stableIdentity);
+            MonitorProfile? profile = null;
+
+            if (MonitorIdentityResolver.IsStableIdentity(normalizedIdentity))
             {
-                profile = new MonitorProfile();
-                Config.Monitors[deviceName] = profile;
-                Log.Debug("Created new monitor profile for {DeviceName}", deviceName);
+                var stableProfiles = FindProfiles(normalizedIdentity);
+                if (stableProfiles.Count == 1)
+                {
+                    profile = stableProfiles[0];
+                }
+                else if (stableProfiles.Count > 1)
+                {
+                    Log.Warning(
+                        "Stable monitor identity {StableIdentity} matches {ProfileCount} profiles; using a device fallback without merging them",
+                        normalizedIdentity,
+                        stableProfiles.Count);
+                    profile = CreateProfile(
+                        MonitorIdentityResolver.CreateDeviceNameFallback(deviceName),
+                        deviceName);
+                }
+                else
+                {
+                    if (TryMigrateLegacyProfile(deviceName, normalizedIdentity, out profile))
+                    {
+                        Log.Information(
+                            "Migrated legacy monitor profile {LegacyDeviceName} to stable identity {StableIdentity}",
+                            deviceName,
+                            normalizedIdentity);
+                    }
+                    else
+                    {
+                        profile = CreateProfile(normalizedIdentity, deviceName);
+                        Log.Debug("Created stable monitor profile for {StableIdentity}", normalizedIdentity);
+                    }
+                }
+            }
+            else if (MonitorIdentityResolver.IsDeviceNameFallback(normalizedIdentity))
+            {
+                // A runtime DISPLAYn fallback is intentionally not associated with
+                // an old DISPLAYn profile: doing so would silently follow a display
+                // after Windows reorders aliases. The old entry remains available
+                // through the string-only compatibility API and is never overwritten.
+                if (!TryGetUniqueProfile(normalizedIdentity, out profile))
+                {
+                    profile = CreateProfile(normalizedIdentity, deviceName);
+                    Log.Debug("Created conservative fallback monitor profile for {ProfileKey}", normalizedIdentity);
+                }
+            }
+            else if (string.IsNullOrWhiteSpace(stableIdentity) &&
+                     !string.IsNullOrWhiteSpace(deviceName) &&
+                     TryGetUniqueProfile(deviceName, out profile))
+            {
+                // Keep the exact legacy key when no reliable physical identity was available.
+            }
+            else
+            {
+                var profileKey = string.IsNullOrWhiteSpace(normalizedIdentity)
+                    ? deviceName
+                    : normalizedIdentity;
+                profile = CreateProfile(profileKey, deviceName);
+                Log.Debug("Created monitor profile for {ProfileKey}", profileKey);
             }
 
             // Clear any previously persisted custom/generic monitor name; names are detected at runtime now.
-            profile.FriendlyName = string.Empty;
+            profile!.FriendlyName = string.Empty;
             return profile;
         }
     }
+
+    private bool TryMigrateLegacyProfile(
+        string deviceName,
+        string stableIdentity,
+        out MonitorProfile? profile)
+    {
+        profile = null;
+        if (string.IsNullOrWhiteSpace(deviceName) || !IsLegacyDeviceName(deviceName))
+            return false;
+
+        var normalizedDeviceName = MonitorIdentityResolver.NormalizeDeviceName(deviceName);
+        var legacyMatches = Config.Monitors
+            .Where(pair => IsLegacyDeviceName(pair.Key) &&
+                           string.Equals(
+                               MonitorIdentityResolver.NormalizeDeviceName(pair.Key),
+                               normalizedDeviceName,
+                               StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (legacyMatches.Length != 1)
+            return false;
+
+        var legacyKey = legacyMatches[0].Key;
+        var legacyProfile = legacyMatches[0].Value;
+
+        var legacyKeys = Config.Monitors.Keys
+            .Where(IsLegacyDeviceName)
+            .ToArray();
+        if (legacyKeys.Length != 1)
+        {
+            Log.Warning(
+                "Did not migrate legacy monitor key {LegacyDeviceName}: {LegacyProfileCount} legacy profiles are ambiguous",
+                deviceName,
+                legacyKeys.Length);
+            return false;
+        }
+
+        Config.Monitors.Remove(legacyKey);
+        Config.Monitors[stableIdentity] = legacyProfile;
+        profile = legacyProfile;
+        return true;
+    }
+
+    private MonitorProfile CreateProfile(string requestedKey, string deviceName)
+    {
+        var profileKey = requestedKey;
+        if (string.IsNullOrWhiteSpace(profileKey))
+            profileKey = deviceName;
+
+        if (HasProfileKey(profileKey))
+        {
+            var occurrence = 0;
+            do
+            {
+                profileKey = MonitorIdentityResolver.CreateDeviceNameFallback(deviceName, occurrence++);
+            }
+            while (HasProfileKey(profileKey));
+        }
+
+        var profile = new MonitorProfile();
+        Config.Monitors[profileKey] = profile;
+        return profile;
+    }
+
+    private bool TryGetUniqueProfile(string key, out MonitorProfile? profile)
+    {
+        var matches = FindProfiles(key);
+        profile = matches.Count == 1 ? matches[0] : null;
+        return profile is not null;
+    }
+
+    private List<MonitorProfile> FindProfiles(string key)
+        => Config.Monitors
+            .Where(pair => string.Equals(pair.Key, key, StringComparison.OrdinalIgnoreCase))
+            .Select(pair => pair.Value)
+            .Where(value => value is not null)
+            .ToList()!;
+
+    private bool HasProfileKey(string key)
+        => Config.Monitors.Keys.Any(existingKey =>
+            string.Equals(existingKey, key, StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsLegacyDeviceName(string key)
+        => key.StartsWith("DISPLAY", StringComparison.OrdinalIgnoreCase) ||
+           key.StartsWith(@"\\.\DISPLAY", StringComparison.OrdinalIgnoreCase);
 
     public void Save()
     {

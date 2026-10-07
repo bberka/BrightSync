@@ -26,6 +26,19 @@ public sealed class MonitorLifecycleTests
     }
 
     [Fact]
+    public void MonitorDisplaySnapshot_preserves_stable_identity_for_ui_profile_lookups()
+    {
+        var monitor = CreateMonitor("first");
+        monitor.StableIdentity = "edid:DEL4141|INSTANCE-A";
+        var provider = new FakeMonitorProvider((_, _) => new DdcMonitorSet(new[] { monitor }));
+        using var ddc = CreateDdc(provider);
+
+        var snapshot = Assert.Single(ddc.GetMonitorDisplaySnapshot());
+
+        Assert.Equal(monitor.StableIdentity, snapshot.StableIdentity);
+    }
+
+    [Fact]
     public void Dispose_IsIdempotent_AndRejectsRefreshAndCommands()
     {
         var monitor = CreateMonitor("only");

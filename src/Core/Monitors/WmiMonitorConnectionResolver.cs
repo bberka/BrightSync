@@ -31,6 +31,7 @@ internal static class WmiMonitorConnectionResolver
                     DisplayConfigResolver.MapConnectionType(technology),
                     DisplayConfigResolver.IsInternal(technology),
                     string.Empty,
+                    string.Empty,
                     HdrDisplayInfo.Empty);
             }
         }

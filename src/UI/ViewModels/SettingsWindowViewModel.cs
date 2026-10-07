@@ -855,7 +855,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         Monitors.Clear();
         foreach (var monitor in _ddc.GetMonitors())
         {
-            var profile = _config.GetOrCreateProfile(monitor.DeviceName);
+            var profile = _config.GetOrCreateProfile(monitor.DeviceName, monitor.StableIdentity);
             Monitors.Add(new MonitorRowViewModel(
                 monitor,
                 profile,

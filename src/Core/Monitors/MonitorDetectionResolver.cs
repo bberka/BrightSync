@@ -9,6 +9,7 @@ internal static class MonitorDetectionResolver
     {
         var details = new List<string>();
         var backendParts = new List<string>();
+        var hardwareDeviceId = MonitorNameResolver.GetDeviceIdForAdapter(deviceName);
 
         var identity = useLegacyDetection
             ? MonitorNameResolver.MonitorIdentity.Unknown
@@ -47,6 +48,7 @@ internal static class MonitorDetectionResolver
         var displayConfig = useLegacyDetection
             ? DisplayConfigInfo.Empty
             : DisplayConfigResolver.Resolve(deviceName);
+        var monitorDevicePath = displayConfig.MonitorDevicePath;
         if (HasConnectionInfo(displayConfig))
         {
             backendParts.Add("DisplayConfig");
@@ -68,6 +70,18 @@ internal static class MonitorDetectionResolver
         }
 
         var friendlyName = BuildFriendlyName(selectedIdentity, displayConfig, physicalDescription, deviceName);
+        var stableIdentity = MonitorIdentityResolver.Resolve(
+            monitorDevicePath,
+            hardwareDeviceId,
+            deviceName);
+        if (MonitorIdentityResolver.IsDeviceNameFallback(stableIdentity))
+        {
+            details.Add("No physical monitor identity was available; profile continuity is limited to the current DISPLAYn alias.");
+        }
+        else if (stableIdentity.StartsWith(MonitorIdentityResolver.HardwarePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            details.Add("Profile identity uses the normalized monitor device ID; identical hardware may require a conservative fallback.");
+        }
         if (string.Equals(friendlyName, physicalDescription, StringComparison.OrdinalIgnoreCase))
             details.Add("Friendly name fell back to the monitor firmware description.");
         else if (string.Equals(friendlyName, deviceName, StringComparison.OrdinalIgnoreCase))
@@ -83,6 +97,7 @@ internal static class MonitorDetectionResolver
             displayConfig.ConnectionType,
             displayConfig.IsInternal,
             displayConfig.HdrInfo,
+            stableIdentity,
             string.Join(" + ", backendParts),
             string.Join(" ", details));
     }

@@ -40,6 +40,9 @@ public static class MonitorNameResolver
     internal static string GetHardwareIdForAdapter(string adapterDeviceName)
         => GetHardwareId(adapterDeviceName);
 
+    internal static string GetDeviceIdForAdapter(string adapterDeviceName)
+        => GetDeviceId(adapterDeviceName);
+
     internal static MonitorIdentity DecodeHardwareId(string hardwareId)
         => DecodePnpId(hardwareId);
 
@@ -54,6 +57,13 @@ public static class MonitorNameResolver
     /// </summary>
     private static string GetHardwareId(string adapterDeviceName)
     {
+        var deviceId = GetDeviceId(adapterDeviceName);
+        var parts = deviceId.Split('\\', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2 ? parts[1] : string.Empty;
+    }
+
+    private static string GetDeviceId(string adapterDeviceName)
+    {
         var dd = new NativeMethods.DISPLAY_DEVICE
         {
             cb = (uint)Marshal.SizeOf<NativeMethods.DISPLAY_DEVICE>()
@@ -63,9 +73,10 @@ public static class MonitorNameResolver
         if (!NativeMethods.EnumDisplayDevices(adapterDeviceName, 0, ref dd, 0))
             return string.Empty;
 
-        // DeviceID looks like "MONITOR\DEL4141\{4D36E96E-...}\0002"
-        var parts = dd.DeviceID.Split('\\');
-        return parts.Length >= 2 ? parts[1] : string.Empty;
+        // DeviceID looks like "MONITOR\DEL4141\{4D36E96E-...}\0002".
+        // Keep the complete value for profile identity; the shorter hardware ID
+        // remains available for the existing WMI name/connection fallbacks.
+        return dd.DeviceID?.Trim() ?? string.Empty;
     }
 
     private static void EnsureCache()

@@ -87,6 +87,7 @@ internal static class DisplayConfigResolver
             MapConnectionType(technology),
             IsInternal(technology),
             target?.monitorFriendlyDeviceName?.Trim() ?? string.Empty,
+            target?.monitorDevicePath?.Trim() ?? string.Empty,
             hdrInfo);
     }
 
@@ -187,7 +188,8 @@ internal readonly record struct DisplayConfigInfo(
     string ConnectionType,
     bool IsInternal,
     string FriendlyTargetName,
+    string MonitorDevicePath,
     HdrDisplayInfo HdrInfo)
 {
-    public static DisplayConfigInfo Empty => new(string.Empty, false, string.Empty, HdrDisplayInfo.Empty);
+    public static DisplayConfigInfo Empty => new(string.Empty, false, string.Empty, string.Empty, HdrDisplayInfo.Empty);
 }

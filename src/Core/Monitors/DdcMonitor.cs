@@ -7,8 +7,15 @@ namespace BrightSync.Core.Monitors;
 /// </summary>
 public sealed class DdcMonitor
 {
-    /// <summary>Stable identifier — Windows device name, e.g. \\.\DISPLAY2</summary>
+    /// <summary>Volatile Windows display alias, e.g. \\.\DISPLAY2.</summary>
     public string DeviceName { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Profile identity derived from physical display metadata when available.
+    /// This is preferred over <see cref="DeviceName"/> because DISPLAYn can change
+    /// when Windows reorders the active displays.
+    /// </summary>
+    public string StableIdentity { get; set; } = string.Empty;
 
     /// <summary>Manufacturer name, e.g. "Samsung".</summary>
     public string ManufacturerName { get; init; } = string.Empty;

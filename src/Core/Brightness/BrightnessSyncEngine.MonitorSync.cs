@@ -58,7 +58,7 @@ public sealed partial class BrightSyncEngine
     {
         if (IsDisposed || IsMonitorAccessSuspended || !monitor.SupportsDdcCi) return;
 
-        var profile = _config.GetOrCreateProfile(monitor.DeviceName);
+        var profile = _config.GetOrCreateProfile(monitor.DeviceName, monitor.StableIdentity);
         if (!profile.Enabled) return;
 
         if (!profile.AdvancedFeaturesEnabled) return;
@@ -258,7 +258,7 @@ public sealed partial class BrightSyncEngine
                 continue;
             }
 
-            var profile = _config.GetOrCreateProfile(monitor.DeviceName);
+            var profile = _config.GetOrCreateProfile(monitor.DeviceName, monitor.StableIdentity);
             if (!profile.Enabled)
             {
                 skippedCount++;
@@ -295,7 +295,7 @@ public sealed partial class BrightSyncEngine
             if (!monitor.SupportsDdcCi)
                 continue;
 
-            var profile = _config.GetOrCreateProfile(monitor.DeviceName);
+            var profile = _config.GetOrCreateProfile(monitor.DeviceName, monitor.StableIdentity);
             if (!profile.Enabled || monitor.LastCommandedPercent < 0)
                 continue;
 

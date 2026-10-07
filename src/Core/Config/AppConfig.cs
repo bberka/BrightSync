@@ -2,7 +2,10 @@ namespace BrightSync.Core.Config;
 
 public sealed class AppConfig
 {
-    /// <summary>Per-monitor settings keyed by Windows device name (e.g. \\.\DISPLAY2).</summary>
+    /// <summary>
+    /// Per-monitor settings keyed by a stable physical monitor identity when available.
+    /// Legacy \\.\DISPLAYn keys remain readable and are migrated conservatively.
+    /// </summary>
     public Dictionary<string, MonitorProfile> Monitors { get; set; } = new();
 
     /// <summary>Global automatic brightness settings.</summary>

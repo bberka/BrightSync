@@ -195,6 +195,7 @@ public sealed class DdcCiService : IDisposable
                     monitors.Add(new DdcMonitor
                     {
                         DeviceName = deviceName,
+                        StableIdentity = internalDetection.StableIdentity,
                         ManufacturerName = internalDetection.ManufacturerName,
                         ModelName = internalDetection.ModelName,
                         FriendlyName = internalDetection.FriendlyName,
@@ -271,6 +272,7 @@ public sealed class DdcCiService : IDisposable
                     var m = new DdcMonitor
                     {
                         DeviceName = deviceName,
+                        StableIdentity = detection.StableIdentity,
                         ManufacturerName = detection.ManufacturerName,
                         ModelName = detection.ModelName,
                         FriendlyName = detection.FriendlyName,
@@ -314,6 +316,7 @@ public sealed class DdcCiService : IDisposable
                 }
             }
 
+            MonitorIdentityResolver.EnsureUniqueIdentities(monitors);
             return new DdcMonitorSet(monitors, groups);
         }
         catch
@@ -719,6 +722,7 @@ public sealed class DdcCiService : IDisposable
 
                 var newMonitors = refreshedMonitors.Monitors.ToList();
                 var newGroups = refreshedMonitors.Groups.ToList();
+                MonitorIdentityResolver.EnsureUniqueIdentities(newMonitors);
 
                 var oldGroups = _groups;
                 _groups = newGroups;
@@ -735,7 +739,10 @@ public sealed class DdcCiService : IDisposable
                         m.ModelName,
                         m.FriendlyName,
                         m.Description,
-                        m.SupportsDdcCi))
+                        m.SupportsDdcCi)
+                    {
+                        StableIdentity = m.StableIdentity
+                    })
                     .ToArray());
 
                 DisposeGroups(oldGroups);
@@ -912,7 +919,10 @@ public sealed record MonitorDisplaySnapshot(
     string ModelName,
     string FriendlyName,
     string Description,
-    bool SupportsDdcCi);
+    bool SupportsDdcCi)
+{
+    public string StableIdentity { get; init; } = string.Empty;
+}
 
 internal interface IDdcMonitorProvider
 {

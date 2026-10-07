@@ -227,7 +227,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
         foreach (var monitor in _getMonitorDisplaySnapshot())
         {
             if (!monitor.SupportsDdcCi) continue;
-            var profile = _config.GetOrCreateProfile(monitor.DeviceName);
+            var profile = _config.GetOrCreateProfile(monitor.DeviceName, monitor.StableIdentity);
             if (!profile.Enabled) continue;
             var target = _engine.CalculateTarget(monitor.DeviceName, profile);
             MonitorTargets.Add(new MonitorTargetInfo(
