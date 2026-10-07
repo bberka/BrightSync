@@ -13,12 +13,13 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
 {
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    private readonly BrightSyncEngine _engine;
+    private readonly IBrightnessEngineOperations _engine;
     private readonly AutoBrightnessService _autoBrightness;
     private readonly EyeProtectionService _eyeProtection;
     private readonly BrightnessBoostService _brightnessBoost;
-    private readonly DdcCiService _ddc;
+    private readonly Func<IReadOnlyList<MonitorDisplaySnapshot>> _getMonitorDisplaySnapshot;
     private readonly ConfigManager _config;
+    private readonly Action<Action> _invokeOnUiThread;
     private bool _isUpdating;
     private System.Threading.Timer? _brightnessDebounce;
 
@@ -147,13 +148,35 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
         DdcCiService ddc,
         ConfigManager config,
         Action openSettings)
+        : this(
+            new BrightnessEngineOperations(engine),
+            autoBrightness,
+            eyeProtection,
+            brightnessBoost,
+            ddc.GetMonitorDisplaySnapshot,
+            config,
+            openSettings,
+            action => Avalonia.Threading.Dispatcher.UIThread.Invoke(action))
+    {
+    }
+
+    internal QuickBrightnessViewModel(
+        IBrightnessEngineOperations engine,
+        AutoBrightnessService autoBrightness,
+        EyeProtectionService eyeProtection,
+        BrightnessBoostService brightnessBoost,
+        Func<IReadOnlyList<MonitorDisplaySnapshot>> getMonitorDisplaySnapshot,
+        ConfigManager config,
+        Action openSettings,
+        Action<Action> invokeOnUiThread)
     {
         _engine = engine;
         _autoBrightness = autoBrightness;
         _eyeProtection = eyeProtection;
         _brightnessBoost = brightnessBoost;
-        _ddc = ddc;
+        _getMonitorDisplaySnapshot = getMonitorDisplaySnapshot;
         _config = config;
+        _invokeOnUiThread = invokeOnUiThread;
 
         var initial = engine.MasterBrightness;
         _internalBrightness = initial >= 0 ? initial : 50;
@@ -170,12 +193,12 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
 
     private void OnEyeProtectionChanged(object? sender, bool e)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Invoke(Refresh);
+        _invokeOnUiThread(Refresh);
     }
 
     private void OnBrightnessBoostChanged(object? sender, bool e)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Invoke(Refresh);
+        _invokeOnUiThread(Refresh);
     }
 
     /// <summary>Refreshes brightness + monitor targets — call when showing the popup.</summary>
@@ -201,7 +224,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
     private void RefreshMonitorTargets()
     {
         MonitorTargets.Clear();
-        foreach (var monitor in _ddc.GetMonitorDisplaySnapshot())
+        foreach (var monitor in _getMonitorDisplaySnapshot())
         {
             if (!monitor.SupportsDdcCi) continue;
             var profile = _config.GetOrCreateProfile(monitor.DeviceName);
@@ -215,7 +238,7 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
 
     private void OnBrightnessChanged(object? sender, int brightness)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
+        _invokeOnUiThread(() =>
         {
             _isUpdating = true;
             InternalBrightness = brightness >= 0 ? brightness : _internalBrightness;
@@ -226,12 +249,12 @@ public sealed class QuickBrightnessViewModel : INotifyPropertyChanged, IDisposab
 
     private void OnAutoBrightnessChanged(object? sender, EventArgs e)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Invoke(Refresh);
+        _invokeOnUiThread(Refresh);
     }
 
     private void OnTargetsChanged(object? sender, EventArgs e)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
+        _invokeOnUiThread(() =>
         {
             OnChanged(nameof(IsIdleReductionActive));
             OnChanged(nameof(IdleReductionStatusText));

@@ -5,17 +5,93 @@ using Timer = System.Threading.Timer;
 
 namespace BrightSync.Core.Brightness;
 
+internal interface IBrightnessEngineOperations
+{
+    event EventHandler<int>? MasterBrightnessChanged;
+    event EventHandler? TargetsChanged;
+
+    int MasterBrightness { get; }
+    bool IsIdleReductionActive { get; }
+
+    bool ApplyAutomaticBrightness(int brightness);
+    bool TrySetUserBrightness(int brightness);
+    int CalculateTarget(string monitorDeviceName, MonitorProfile profile);
+    void ForceSync();
+}
+
+internal sealed class BrightnessEngineOperations(BrightSyncEngine engine) : IBrightnessEngineOperations
+{
+    public event EventHandler<int>? MasterBrightnessChanged
+    {
+        add => engine.MasterBrightnessChanged += value;
+        remove => engine.MasterBrightnessChanged -= value;
+    }
+
+    public event EventHandler? TargetsChanged
+    {
+        add => engine.TargetsChanged += value;
+        remove => engine.TargetsChanged -= value;
+    }
+
+    public int MasterBrightness => engine.MasterBrightness;
+    public bool IsIdleReductionActive => engine.IsIdleReductionActive;
+
+    public bool ApplyAutomaticBrightness(int brightness)
+        => engine.ApplyAutomaticBrightness(brightness);
+
+    public bool TrySetUserBrightness(int brightness)
+        => engine.TrySetUserBrightness(brightness);
+
+    public int CalculateTarget(string monitorDeviceName, MonitorProfile profile)
+        => engine.CalculateTarget(monitorDeviceName, profile);
+
+    public void ForceSync()
+        => engine.ForceSync();
+}
+
+internal static class TimedModeDuration
+{
+    // These limits match the existing settings controls and ConfigManager validation.
+    public const int MinimumHours = 1;
+    public const int MaximumHours = 24;
+
+    public static bool IsValidHours(int hours)
+        => hours is >= MinimumHours and <= MaximumHours;
+
+    public static bool TryCalculateEndUtc(int hours, DateTime nowUtc, out DateTime endUtc)
+    {
+        endUtc = default;
+        if (!IsValidHours(hours) || nowUtc.Kind != DateTimeKind.Utc)
+            return false;
+
+        try
+        {
+            endUtc = nowUtc.AddHours(hours);
+            return endUtc > nowUtc && endUtc.Kind == DateTimeKind.Utc;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return false;
+        }
+    }
+}
+
 public sealed class AutoBrightnessService : IDisposable
 {
     public event EventHandler? StateChanged;
 
-    private readonly BrightSyncEngine _engine;
+    private readonly IBrightnessEngineOperations _engine;
     private readonly ConfigManager _config;
     private readonly Timer _timer;
     private bool _disposed;
     private int _lastAppliedBrightness = -1;
 
     public AutoBrightnessService(BrightSyncEngine engine, ConfigManager config)
+        : this(new BrightnessEngineOperations(engine), config)
+    {
+    }
+
+    internal AutoBrightnessService(IBrightnessEngineOperations engine, ConfigManager config)
     {
         _engine = engine;
         _config = config;
@@ -45,7 +121,18 @@ public sealed class AutoBrightnessService : IDisposable
         if (_config.Config.AutoBrightness.Enabled == enabled)
             return;
 
+        var previousEnabled = _config.Config.AutoBrightness.Enabled;
         _config.Config.AutoBrightness.Enabled = enabled;
+        try
+        {
+            _config.Save();
+        }
+        catch
+        {
+            _config.Config.AutoBrightness.Enabled = previousEnabled;
+            throw;
+        }
+
         Log.Information("Auto brightness {State}", enabled ? "enabled" : "disabled");
         if (enabled)
         {

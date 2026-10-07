@@ -218,8 +218,6 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
             foreach (var monitor in Monitors)
                 monitor.RefreshTargetText();
-
-            RequestAutoSave();
         }
     }
 

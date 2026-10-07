@@ -58,6 +58,43 @@ public sealed class CliParserTests
         Assert.Equal(3, result.Command.DurationHours);
     }
 
+    [Theory]
+    [InlineData("1", 1)]
+    [InlineData("24", 24)]
+    public void Parse_accepts_timed_mode_duration_product_boundaries(string hoursText, int hours)
+    {
+        var result = CliParser.Parse(["boost", "on", "--hours", hoursText]);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Command);
+        Assert.Equal(hours, result.Command!.DurationHours);
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-1")]
+    [InlineData("25")]
+    public void Parse_rejects_timed_mode_duration_outside_product_range(string hoursText)
+    {
+        var result = CliParser.Parse(["eye-protection", "on", "--hours", hoursText]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(
+            $"'{hoursText}' is not a valid hour count from 1 to 24.",
+            result.ErrorMessage);
+    }
+
+    [Fact]
+    public void Parse_rejects_timed_mode_duration_that_overflows_int32()
+    {
+        var result = CliParser.Parse(["boost", "on", "--hours", "2147483648"]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(
+            "'2147483648' is not a valid hour count from 1 to 24.",
+            result.ErrorMessage);
+    }
+
     [Fact]
     public void Parse_rejects_out_of_range_brightness_set_value()
     {

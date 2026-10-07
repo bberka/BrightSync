@@ -1,4 +1,5 @@
 using System.Globalization;
+using BrightSync.Core.Brightness;
 
 namespace BrightSync.Cli;
 
@@ -83,8 +84,12 @@ public static class CliParser
 
         if (args.Length == 4 && IsMatch(args[1], "on") && IsMatch(args[2], "--hours"))
         {
-            if (!TryParseInt(args[3], out var hours) || hours <= 0)
-                return CliParseResult.Invalid($"'{args[3]}' is not a valid positive hour count.");
+            if (!TryParseInt(args[3], out var hours) || !TimedModeDuration.IsValidHours(hours))
+            {
+                return CliParseResult.Invalid(
+                    $"'{args[3]}' is not a valid hour count from {TimedModeDuration.MinimumHours} to " +
+                    $"{TimedModeDuration.MaximumHours}.");
+            }
 
             return CliParseResult.Success(new AppCommand(onType, durationHours: hours));
         }

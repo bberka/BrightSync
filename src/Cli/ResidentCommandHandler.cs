@@ -5,16 +5,59 @@ using Serilog;
 
 namespace BrightSync.Cli;
 
-public sealed class ResidentCommandHandler(
-    BrightSyncEngine engine,
-    AutoBrightnessService autoBrightnessService,
-    EyeProtectionService eyeProtectionService,
-    BrightnessBoostService brightnessBoostService,
-    TrayManager trayManager,
-    Action requestAppExit)
+public sealed class ResidentCommandHandler
 {
+    private readonly IBrightnessEngineOperations _engine;
+    private readonly AutoBrightnessService _autoBrightnessService;
+    private readonly EyeProtectionService _eyeProtectionService;
+    private readonly BrightnessBoostService _brightnessBoostService;
+    private readonly Action _showSettings;
+    private readonly Action _refreshMonitors;
+    private readonly Action _requestAppExit;
+    private readonly Func<Func<CommandResponse>, CancellationToken, Task<CommandResponse>> _invokeOnUiThread;
+
+    public ResidentCommandHandler(
+        BrightSyncEngine engine,
+        AutoBrightnessService autoBrightnessService,
+        EyeProtectionService eyeProtectionService,
+        BrightnessBoostService brightnessBoostService,
+        TrayManager trayManager,
+        Action requestAppExit)
+        : this(
+            new BrightnessEngineOperations(engine),
+            autoBrightnessService,
+            eyeProtectionService,
+            brightnessBoostService,
+            trayManager.ShowSettings,
+            trayManager.RefreshMonitorsFromCommand,
+            requestAppExit,
+            static async (handler, cancellationToken) =>
+                await Dispatcher.UIThread.InvokeAsync(handler, DispatcherPriority.Normal, cancellationToken))
+    {
+    }
+
+    internal ResidentCommandHandler(
+        IBrightnessEngineOperations engine,
+        AutoBrightnessService autoBrightnessService,
+        EyeProtectionService eyeProtectionService,
+        BrightnessBoostService brightnessBoostService,
+        Action showSettings,
+        Action refreshMonitors,
+        Action requestAppExit,
+        Func<Func<CommandResponse>, CancellationToken, Task<CommandResponse>> invokeOnUiThread)
+    {
+        _engine = engine;
+        _autoBrightnessService = autoBrightnessService;
+        _eyeProtectionService = eyeProtectionService;
+        _brightnessBoostService = brightnessBoostService;
+        _showSettings = showSettings;
+        _refreshMonitors = refreshMonitors;
+        _requestAppExit = requestAppExit;
+        _invokeOnUiThread = invokeOnUiThread;
+    }
+
     public async Task<CommandResponse> HandleAsync(CommandRequest request, CancellationToken cancellationToken)
-        => await Dispatcher.UIThread.InvokeAsync(() => HandleCore(request), DispatcherPriority.Normal, cancellationToken);
+        => await _invokeOnUiThread(() => HandleCore(request), cancellationToken);
 
     private CommandResponse HandleCore(CommandRequest request)
     {
@@ -37,6 +80,11 @@ public sealed class ResidentCommandHandler(
                 _ => CommandResponse.Error(CliExitCode.InvalidArguments, "Unsupported BrightSync command.")
             };
         }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            Log.Warning(ex, "Resident command rejected for {CommandType}", request.CommandType);
+            return CommandResponse.Error(CliExitCode.InvalidArguments, ex.Message);
+        }
         catch (Exception ex)
         {
             Log.Warning(ex, "Resident command handling failed for {CommandType}", request.CommandType);
@@ -50,8 +98,8 @@ public sealed class ResidentCommandHandler(
             return CommandResponse.Error(CliExitCode.InvalidArguments, "Brightness set requires a value from 0 to 100.");
 
         var value = brightnessValue.Value;
-        return engine.TrySetUserBrightness(value)
-            ? CommandResponse.Ok($"Brightness set to {engine.MasterBrightness}%.", engine.MasterBrightness)
+        return _engine.TrySetUserBrightness(value)
+            ? CommandResponse.Ok($"Brightness set to {_engine.MasterBrightness}%.", _engine.MasterBrightness)
             : CommandResponse.Error(CliExitCode.ManualCommandBlockedByAutoBrightness,
                 "Automatic brightness is enabled. Disable it before using manual brightness commands.");
     }
@@ -61,46 +109,46 @@ public sealed class ResidentCommandHandler(
         if (!stepValue.HasValue || stepValue.Value is < 1 or > 100)
             return CommandResponse.Error(CliExitCode.InvalidArguments, "Brightness step requires a value from 1 to 100.");
 
-        var target = Math.Clamp(engine.MasterBrightness + (direction * stepValue.Value), 0, 100);
-        return engine.TrySetUserBrightness(target)
-            ? CommandResponse.Ok($"Brightness set to {engine.MasterBrightness}%.", engine.MasterBrightness)
+        var target = Math.Clamp(_engine.MasterBrightness + (direction * stepValue.Value), 0, 100);
+        return _engine.TrySetUserBrightness(target)
+            ? CommandResponse.Ok($"Brightness set to {_engine.MasterBrightness}%.", _engine.MasterBrightness)
             : CommandResponse.Error(CliExitCode.ManualCommandBlockedByAutoBrightness,
                 "Automatic brightness is enabled. Disable it before using manual brightness commands.");
     }
 
     private CommandResponse ShowSettings()
     {
-        trayManager.ShowSettings();
+        _showSettings();
         return CommandResponse.Ok("BrightSync settings opened.");
     }
 
     private CommandResponse RefreshMonitors()
     {
-        trayManager.RefreshMonitorsFromCommand();
+        _refreshMonitors();
         return CommandResponse.Ok("BrightSync monitor refresh requested.");
     }
 
     private CommandResponse ToggleAutoBrightness(bool enabled)
     {
-        autoBrightnessService.SetEnabled(enabled);
+        _autoBrightnessService.SetEnabled(enabled);
         return CommandResponse.Ok($"Automatic brightness {(enabled ? "enabled" : "disabled")}.");
     }
 
     private CommandResponse ToggleEyeProtection(bool enabled, int? durationHours)
     {
-        eyeProtectionService.SetEnabled(enabled, durationHours);
+        _eyeProtectionService.SetEnabled(enabled, durationHours);
         return CommandResponse.Ok($"Eye protection {(enabled ? "enabled" : "disabled")}.");
     }
 
     private CommandResponse ToggleBrightnessBoost(bool enabled, int? durationHours)
     {
-        brightnessBoostService.SetEnabled(enabled, durationHours);
+        _brightnessBoostService.SetEnabled(enabled, durationHours);
         return CommandResponse.Ok($"Brightness boost {(enabled ? "enabled" : "disabled")}.");
     }
 
     private CommandResponse ExitApp()
     {
-        requestAppExit();
+        _requestAppExit();
         return CommandResponse.Ok("BrightSync exit requested.");
     }
 }
