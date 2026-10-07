@@ -29,9 +29,12 @@ public sealed class TrayManager(
     SelfUpdateService selfUpdate)
     : IDisposable
 {
+    private const int QuickPopupCloseCooldownMilliseconds = 100;
+
     private bool _disposed;
     private QuickBrightnessWindow? _quickPopup;
     private DateTime _quickPopupShownAt = DateTime.MinValue;
+    private DateTime _quickPopupClosedAt = DateTime.MinValue;
     private QuickBrightnessViewModel? _quickVm;
     private int _quickPopupRefreshGeneration;
     private int _refreshInProgress;
@@ -209,6 +212,12 @@ public sealed class TrayManager(
             return;
         }
 
+        if ((DateTime.UtcNow - _quickPopupClosedAt).TotalMilliseconds < QuickPopupCloseCooldownMilliseconds)
+        {
+            Log.Debug("Quick brightness popup reopen suppressed during close cooldown");
+            return;
+        }
+
         ShowQuickPopup();
     }
 
@@ -283,8 +292,13 @@ public sealed class TrayManager(
 
     private void HideQuickPopup()
     {
+        var wasVisible = _quickPopup?.IsVisible == true;
+
         _quickPopupRefreshGeneration++;
         _quickPopup?.Hide();
+
+        if (wasVisible)
+            _quickPopupClosedAt = DateTime.UtcNow;
     }
 
     private void PositionQuickPopup(Window window)
