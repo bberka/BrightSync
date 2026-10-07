@@ -30,7 +30,6 @@ public sealed class TrayManager(
     : IDisposable
 {
     private bool _disposed;
-    private DateTime _lastPopupClosed = DateTime.MinValue;
     private QuickBrightnessWindow? _quickPopup;
     private DateTime _quickPopupShownAt = DateTime.MinValue;
     private QuickBrightnessViewModel? _quickVm;
@@ -190,30 +189,25 @@ public sealed class TrayManager(
 
     private void ToggleQuickPopup()
     {
-        Dispatcher.UIThread.Post(() =>
+        if (Dispatcher.UIThread.CheckAccess())
         {
-            if (_quickPopup?.IsVisible == true)
-            {
-                if ((DateTime.UtcNow - _quickPopupShownAt).TotalMilliseconds < 150)
-                {
-                    Log.Debug("Ignoring tray toggle because quick brightness popup just opened");
-                    return;
-                }
+            ToggleQuickPopupCore();
+            return;
+        }
 
-                Log.Debug("Hiding quick brightness popup");
-                _quickPopup.Hide();
-                return;
-            }
+        Dispatcher.UIThread.Post(ToggleQuickPopupCore);
+    }
 
-            // Prevent re-show if just closed by deactivation (tray icon click steals focus)
-            if ((DateTime.UtcNow - _lastPopupClosed).TotalMilliseconds < 300)
-            {
-                Log.Debug("Quick brightness popup reopen suppressed due to recent close");
-                return;
-            }
+    private void ToggleQuickPopupCore()
+    {
+        if (_quickPopup?.IsVisible == true)
+        {
+            Log.Debug("Hiding quick brightness popup");
+            _quickPopup.Hide();
+            return;
+        }
 
-            ShowQuickPopup();
-        });
+        ShowQuickPopup();
     }
 
     private void ShowQuickPopup()
@@ -243,15 +237,16 @@ public sealed class TrayManager(
                     PositionQuickPopup(_quickPopup);
             };
 
-            _quickPopup.PropertyChanged += (s, e) =>
-            {
-                if (e.Property == Window.IsVisibleProperty && e.NewValue is false)
-                    _lastPopupClosed = DateTime.UtcNow;
-            };
         }
         else
         {
-            _quickVm?.Refresh();
+            Dispatcher.UIThread.Post(
+                () =>
+                {
+                    if (!_disposed)
+                        _quickVm?.Refresh();
+                },
+                DispatcherPriority.Background);
         }
 
         _quickPopup.Opacity = 0;
