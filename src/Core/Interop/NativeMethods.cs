@@ -173,7 +173,7 @@ internal static class NativeMethods
     [DllImport("mscms.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     public static extern bool GetColorProfileDirectory(
         string? pMachineName,
-        System.Text.StringBuilder pBuffer,
+        System.Text.StringBuilder? pBuffer,
         ref uint pdwSize);
 
     [DllImport("mscms.dll", CharSet = CharSet.Unicode, SetLastError = true)]

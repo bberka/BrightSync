@@ -20,7 +20,7 @@ internal static class DisplaySettingsService
         try
         {
             var devMode = new NativeMethods.DEVMODE();
-            devMode.dmSize = (ushort)Marshal.SizeOf(typeof(NativeMethods.DEVMODE));
+            devMode.dmSize = (ushort)Marshal.SizeOf<NativeMethods.DEVMODE>();
             int modeNum = 0;
 
             while (NativeMethods.EnumDisplaySettings(deviceName, modeNum, ref devMode))
@@ -50,7 +50,7 @@ internal static class DisplaySettingsService
         try
         {
             var devMode = new NativeMethods.DEVMODE();
-            devMode.dmSize = (ushort)Marshal.SizeOf(typeof(NativeMethods.DEVMODE));
+            devMode.dmSize = (ushort)Marshal.SizeOf<NativeMethods.DEVMODE>();
             if (NativeMethods.EnumDisplaySettings(deviceName, NativeMethods.ENUM_CURRENT_SETTINGS, ref devMode))
             {
                 return (int)devMode.dmDisplayFrequency;
@@ -74,7 +74,7 @@ internal static class DisplaySettingsService
         try
         {
             var devMode = new NativeMethods.DEVMODE();
-            devMode.dmSize = (ushort)Marshal.SizeOf(typeof(NativeMethods.DEVMODE));
+            devMode.dmSize = (ushort)Marshal.SizeOf<NativeMethods.DEVMODE>();
             if (NativeMethods.EnumDisplaySettings(deviceName, NativeMethods.ENUM_CURRENT_SETTINGS, ref devMode))
             {
                 if (devMode.dmDisplayFrequency == refreshRate)
