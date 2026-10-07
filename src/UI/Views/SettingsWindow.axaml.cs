@@ -149,7 +149,7 @@ public partial class SettingsWindow : Window
             scaling,
             width,
             height,
-            TaskbarPosition.GetEdge());
+            TaskbarPosition.GetEdge(screen.Bounds));
     }
 
     private void FitHeightToWorkingArea(Screen screen)

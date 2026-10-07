@@ -300,7 +300,7 @@ public sealed class TrayManager(
         if (double.IsNaN(width) || width <= 0) width = 360;
         if (double.IsNaN(height) || height <= 0) height = 150;
 
-        var taskbarEdge = TaskbarPosition.GetEdge();
+        var taskbarEdge = TaskbarPosition.GetEdge(screen.Bounds);
         window.Position = TaskbarAwareWindowPositionCalculator.Calculate(
             workingArea,
             scaling,

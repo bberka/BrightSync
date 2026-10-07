@@ -14,7 +14,7 @@ internal enum TaskbarEdge
 
 internal static class TaskbarPosition
 {
-    public static TaskbarEdge GetEdge()
+    public static TaskbarEdge GetEdge(PixelRect screenBounds)
     {
         var appBarData = new NativeMethods.APPBARDATA
         {
@@ -24,14 +24,36 @@ internal static class TaskbarPosition
         if (NativeMethods.SHAppBarMessage(NativeMethods.ABM_GETTASKBARPOS, ref appBarData) == UIntPtr.Zero)
             return TaskbarEdge.Bottom;
 
-        return appBarData.uEdge switch
-        {
-            NativeMethods.ABE_LEFT => TaskbarEdge.Left,
-            NativeMethods.ABE_TOP => TaskbarEdge.Top,
-            NativeMethods.ABE_RIGHT => TaskbarEdge.Right,
-            NativeMethods.ABE_BOTTOM => TaskbarEdge.Bottom,
-            _ => TaskbarEdge.Bottom
-        };
+        return GetEdge(
+            screenBounds,
+            new PixelRect(
+                appBarData.rc.Left,
+                appBarData.rc.Top,
+                appBarData.rc.Right - appBarData.rc.Left,
+                appBarData.rc.Bottom - appBarData.rc.Top));
+    }
+
+    internal static TaskbarEdge GetEdge(PixelRect screenBounds, PixelRect taskbarBounds)
+    {
+        var overlapsScreen = taskbarBounds.Right > screenBounds.Position.X &&
+                             taskbarBounds.Position.X < screenBounds.Right &&
+                             taskbarBounds.Bottom > screenBounds.Position.Y &&
+                             taskbarBounds.Position.Y < screenBounds.Bottom;
+        if (!overlapsScreen)
+            return TaskbarEdge.Bottom;
+
+        var touchesLeft = taskbarBounds.Position.X <= screenBounds.Position.X;
+        var touchesTop = taskbarBounds.Position.Y <= screenBounds.Position.Y;
+        var touchesRight = taskbarBounds.Right >= screenBounds.Right;
+        var touchesBottom = taskbarBounds.Bottom >= screenBounds.Bottom;
+
+        if (touchesLeft && touchesRight)
+            return touchesTop ? TaskbarEdge.Top : TaskbarEdge.Bottom;
+
+        if (touchesTop && touchesBottom)
+            return touchesLeft ? TaskbarEdge.Left : TaskbarEdge.Right;
+
+        return TaskbarEdge.Bottom;
     }
 }
 

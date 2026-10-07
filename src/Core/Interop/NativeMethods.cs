@@ -28,10 +28,6 @@ internal static class NativeMethods
     public const uint DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO_2 = 15;
     public const uint MC_CAPS_BRIGHTNESS = 0x00000002;
     public const uint ABM_GETTASKBARPOS = 0x00000005;
-    public const uint ABE_LEFT = 0;
-    public const uint ABE_TOP = 1;
-    public const uint ABE_RIGHT = 2;
-    public const uint ABE_BOTTOM = 3;
 
     // --- DDC/CI (dxva2.dll) ---
 

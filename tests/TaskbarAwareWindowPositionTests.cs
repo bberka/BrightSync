@@ -6,6 +6,39 @@ namespace BrightSync.Tests;
 public sealed class TaskbarAwareWindowPositionTests
 {
     private static readonly PixelRect WorkingArea = new(0, 0, 1920, 1080);
+    private static readonly PixelRect ScreenBounds = new(0, 0, 1920, 1080);
+
+    [Fact]
+    public void GetEdge_detects_top_taskbar_from_taskbar_bounds()
+    {
+        var edge = TaskbarPosition.GetEdge(ScreenBounds, new PixelRect(0, 0, 1920, 48));
+
+        Assert.Equal(TaskbarEdge.Top, edge);
+    }
+
+    [Fact]
+    public void GetEdge_detects_bottom_taskbar_from_taskbar_bounds()
+    {
+        var edge = TaskbarPosition.GetEdge(ScreenBounds, new PixelRect(0, 1032, 1920, 48));
+
+        Assert.Equal(TaskbarEdge.Bottom, edge);
+    }
+
+    [Fact]
+    public void GetEdge_detects_left_taskbar_from_taskbar_bounds()
+    {
+        var edge = TaskbarPosition.GetEdge(ScreenBounds, new PixelRect(0, 0, 80, 1080));
+
+        Assert.Equal(TaskbarEdge.Left, edge);
+    }
+
+    [Fact]
+    public void GetEdge_detects_right_taskbar_from_taskbar_bounds()
+    {
+        var edge = TaskbarPosition.GetEdge(ScreenBounds, new PixelRect(1840, 0, 80, 1080));
+
+        Assert.Equal(TaskbarEdge.Right, edge);
+    }
 
     [Fact]
     public void Calculate_places_popup_above_bottom_taskbar()
