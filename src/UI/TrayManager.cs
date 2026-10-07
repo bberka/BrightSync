@@ -33,6 +33,7 @@ public sealed class TrayManager(
     private QuickBrightnessWindow? _quickPopup;
     private DateTime _quickPopupShownAt = DateTime.MinValue;
     private QuickBrightnessViewModel? _quickVm;
+    private int _quickPopupRefreshGeneration;
     private int _refreshInProgress;
     private SettingsWindow? _settingsWindow;
 
@@ -45,6 +46,7 @@ public sealed class TrayManager(
         _disposed = true;
         Log.Debug("Disposing tray manager");
         updateChecker.UpdateAvailable -= OnUpdateAvailable;
+        _quickPopupRefreshGeneration++;
         _quickVm?.Dispose();
         _quickPopup?.Close();
 
@@ -129,7 +131,7 @@ public sealed class TrayManager(
         Log.Information("Opening settings window");
         Dispatcher.UIThread.Post(() =>
         {
-            _quickPopup?.Hide();
+            HideQuickPopup();
 
             if (_settingsWindow == null)
             {
@@ -203,7 +205,7 @@ public sealed class TrayManager(
         if (_quickPopup?.IsVisible == true)
         {
             Log.Debug("Hiding quick brightness popup");
-            _quickPopup.Hide();
+            HideQuickPopup();
             return;
         }
 
@@ -240,11 +242,16 @@ public sealed class TrayManager(
         }
         else
         {
+            var refreshGeneration = ++_quickPopupRefreshGeneration;
             Dispatcher.UIThread.Post(
                 () =>
                 {
-                    if (!_disposed)
+                    if (!_disposed &&
+                        refreshGeneration == _quickPopupRefreshGeneration &&
+                        _quickPopup?.IsVisible == true)
+                    {
                         _quickVm?.Refresh();
+                    }
                 },
                 DispatcherPriority.Background);
         }
@@ -271,7 +278,13 @@ public sealed class TrayManager(
         }
 
         Log.Debug("Hiding quick brightness popup after deactivation");
-        _quickPopup.Hide();
+        HideQuickPopup();
+    }
+
+    private void HideQuickPopup()
+    {
+        _quickPopupRefreshGeneration++;
+        _quickPopup?.Hide();
     }
 
     private void PositionQuickPopup(Window window)
