@@ -1565,6 +1565,23 @@
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                                <TextBlock Text="Advanced Diagnostics" FontSize="13" Foreground="White" />
+                                                <TextBlock Text="Save a bounded, redacted report for troubleshooting; nothing is uploaded"
+                                                           FontSize="11" Foreground="#a0a0a0" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Content="Export"
+                                                    Click="ExportDiagnostics_Click"
+                                                    VerticalAlignment="Center" />
+                                        </Grid>
+
+                                        <Border Height="1" Background="#353535" Margin="0,4" />
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
                                                 <TextBlock Text="Releases &amp; Versions" FontSize="13"
                                                            Foreground="White" />
                                                 <TextBlock Text="View update history and download older builds"

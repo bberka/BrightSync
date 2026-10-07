@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Text;
 using Avalonia;
 using Avalonia.Collections;
 using Avalonia.Controls;
@@ -7,6 +8,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Platform;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using BrightSync.Core;
 using BrightSync.Core.Brightness;
@@ -15,6 +17,7 @@ using BrightSync.Core.Monitors;
 using BrightSync.Core.Updates;
 using BrightSync.UI;
 using BrightSync.UI.ViewModels;
+using Serilog;
 
 namespace BrightSync.UI.Views;
 
@@ -204,6 +207,47 @@ public partial class SettingsWindow : Window
     private void UpdateOverlay_Later_Click(object? sender, RoutedEventArgs e)
     {
         _vm.DismissUpdateCommand.Execute(null);
+    }
+
+    private async void ExportDiagnostics_Click(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (!StorageProvider.CanSave)
+            {
+                _vm.ShowStatusMessage("Saving diagnostics is unavailable on this platform.");
+                return;
+            }
+
+            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Save BrightSync diagnostics",
+                SuggestedFileName = "BrightSync-diagnostics.json",
+                DefaultExtension = "json",
+                FileTypeChoices =
+                [
+                    new FilePickerFileType("JSON diagnostics")
+                    {
+                        Patterns = ["*.json"],
+                        MimeTypes = ["application/json"]
+                    }
+                ]
+            });
+
+            if (file == null)
+                return;
+
+            var report = Encoding.UTF8.GetBytes(_vm.CreateDiagnosticsJson());
+            await using var stream = await file.OpenWriteAsync();
+            await stream.WriteAsync(report);
+            await stream.FlushAsync();
+            _vm.ShowStatusMessage("Redacted diagnostics report saved.");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to save diagnostics report");
+            _vm.ShowStatusMessage("Diagnostics export failed. Nothing was uploaded.");
+        }
     }
 
     private void SidebarButton_Click(object sender, RoutedEventArgs e)

@@ -6,6 +6,7 @@ using System.Windows.Input;
 using Avalonia.Threading;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
+using BrightSync.Core.Diagnostics;
 using BrightSync.Core.Monitors;
 using BrightSync.Core.Updates;
 using Serilog;
@@ -28,6 +29,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     private readonly AutoBrightnessService _autoBrightness;
     private readonly BrightnessBoostService _brightnessBoost;
     private readonly ConfigManager _config;
+    private readonly DiagnosticsExportService _diagnosticsExport;
     private readonly DdcCiService _ddc;
 
     private readonly BrightSyncEngine _engine;
@@ -102,7 +104,8 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         ConfigManager config,
         DdcCiService ddc,
         UpdateChecker updateChecker,
-        SelfUpdateService selfUpdate)
+        SelfUpdateService selfUpdate,
+        DiagnosticsExportService? diagnosticsExport = null)
     {
         _engine = engine;
         _autoBrightness = autoBrightness;
@@ -110,6 +113,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         _eyeProtection = eyeProtection;
         _brightnessBoost = brightnessBoost;
         _config = config;
+        _diagnosticsExport = diagnosticsExport ?? new DiagnosticsExportService();
         _ddc = ddc;
         _updateChecker = updateChecker;
         _selfUpdate = selfUpdate;
@@ -968,6 +972,12 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         if (!string.IsNullOrWhiteSpace(statusFormat))
             SetStatus(string.Format(statusFormat, Monitors.Count));
     }
+
+    public string CreateDiagnosticsJson()
+        => _diagnosticsExport.CreateJson(_config.Config, _ddc.GetMonitors());
+
+    public void ShowStatusMessage(string message)
+        => SetStatus(message);
 
     private void ResetAll()
     {

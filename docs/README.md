@@ -67,6 +67,7 @@ BrightSync is built around the philosophy of **"Configure once, and never think 
 - Apple display and Apple Studio Display detection with backend diagnostics
 - HDR-aware monitor metadata and safer enforcement behavior
 - Per-monitor detection diagnostics in Settings
+- Redacted, bounded diagnostics export from Settings > About for troubleshooting
 - Optional legacy DDC/CI detection mode for compatibility
 - Refresh monitors from the tray or Settings window
 - Configurable periodic monitor refresh to automatically recover lost DDC/CI connections
@@ -197,6 +198,7 @@ If an external monitor supports DDC/CI capability command probing, expanding its
 - BrightSync uses a layered detection pipeline. It combines DDC/CI enumeration with DisplayConfig and WMI-based metadata fallbacks to improve monitor naming and connection detection.
 - BrightSync also uses layered external brightness control detection. If a low-level DDC/CI brightness read fails, it can fall back to the Windows high-level monitor API or a write-only capabilities path when supported by the display.
 - Apple displays, including Apple Studio Display when Windows exposes a usable brightness backend, are identified in diagnostics.
+- Use `Settings > About > Advanced Diagnostics > Export` to save a bounded JSON report. It includes allowlisted app, runtime, configuration-mode, monitor backend, support, connection, and capability summaries; it does not upload data or include raw logs, native handles, tokens, or configuration file contents.
 - HDR-capable displays are detected through DisplayConfig. When HDR is active, BrightSync avoids aggressive brightness readback enforcement on that display.
 - Open a monitor row in `Settings` to see which detection backend was used and what fallback path BrightSync took.
 - If monitor detection is unreliable, enable `Legacy DDC/CI detection`, then refresh monitors or restart the app.
