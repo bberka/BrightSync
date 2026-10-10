@@ -1,22 +1,33 @@
 # Architecture
 
-BrightSync is one Avalonia app that runs on Windows and Linux. All operating-system code sits behind contracts in per-OS projects. The app project has no `DllImport`, registry, WMI, or D-Bus code.
+BrightSync is one Avalonia app that runs on Windows and Linux. It is split by responsibility, and every dependency points toward the contracts:
 
 ```
-platform/BrightSync.Platform.Abstractions   net10.0                        contracts, DdcMonitor model, VCP parsing, PlatformServices
-platform/BrightSync.Platform.Windows        net10.0-windows10.0.19041.0    Win32, WMI, dxva2, registry, WinRT media, Win32 tray
-platform/BrightSync.Platform.Linux          net10.0                        sysfs/DRM/EDID, i2c-dev, D-Bus, X11, XDG
-src/BrightSync.App/BrightSync.App.csproj                       follows the target OS          UI, CLI, engine, config, updates
-tests/BrightSync.Tests.csproj               follows the target OS          all of the above; Linux code is tested on every host
+platform/BrightSync.Platform.Abstractions   net10.0                       OS contracts, DdcMonitor model, VCP parsing, PlatformServices
+platform/BrightSync.Platform.Windows        net10.0-windows10.0.19041.0   Win32, WMI, dxva2, registry, WinRT media, Win32 tray
+platform/BrightSync.Platform.Linux          net10.0                       sysfs/DRM/EDID, i2c-dev, D-Bus, X11, XDG
+src/BrightSync.Core                         net10.0                       sync engine, services, config, CLI, updates, diagnostics (no UI, no OS API)
+src/BrightSync.UI                           net10.0                       Avalonia views, view models, tray manager, App
+src/BrightSync.App                          follows the target OS         executable: Program, platform selection, AOT/trim/publish settings
+tests/BrightSync.Tests                      follows the target OS         Core, UI, and both platform projects
 ```
+
+```
+App ──► UI ──► Core ──► Abstractions ◄── Windows | Linux (only one is referenced by the App)
+ └──────────────────────────▲
+```
+
+- **Core** never references Avalonia or an OS project. The two places it needs the UI thread or the tray go through `IUiDispatcher` and `IResidentAppHost` (`UiDispatcher.cs`); the UI installs the Avalonia implementation at startup, and the default runs work inline, which is what tests rely on.
+- **UI** never references an OS project. It reads `PlatformServices.Current` for shell actions and `PlatformCapabilities` for what to show.
+- **App** is the only project that knows which OS project to link. Keep it thin: new behavior belongs in Core, UI, or a platform project.
 
 ## Target selection
 
 `Directory.Build.props` sets `BrightSyncTargetOs` from the `-r` runtime identifier, else from the host OS (override with `-p:BrightSyncTargetOs=windows|linux`). The app and tests then:
 
 - pick the matching TFM (`net10.0-windows10.0.19041.0` or `net10.0`),
-- reference exactly one platform project, so the trimmer and Native AOT never see the other OS's code,
-- define `PLATFORM_WINDOWS` or `PLATFORM_LINUX`, which `src/PlatformBootstrap.cs` uses to pick the factory.
+- reference exactly one platform project (App) or both (tests), so the trimmer and Native AOT never see the other OS's code in a published app,
+- define `PLATFORM_WINDOWS` or `PLATFORM_LINUX` in every project, which `src/BrightSync.App/PlatformBootstrap.cs` and the test initializer use to pick the factory.
 
 The Windows project needs the Windows TFM for the WinRT media API, which is why a single `net10.0` app cannot reference it. The Linux project is plain `net10.0`, so the test project always references it and the Linux suite runs on a Windows machine too.
 
@@ -46,7 +57,9 @@ Core services (`DdcCiService`, `BrightSyncEngine`, `AutoBrightnessService`, `Idl
 
 ## Capabilities
 
-The UI reads `PlatformCapabilities` and hides what an OS cannot do (refresh rate, color profiles, HDR button, automatic update install) and swaps wording (`StartupLabel`, `EnergySaverLabel`). It never shows a control that would silently fail.
+The UI reads `PlatformCapabilities` and hides what an OS cannot do (refresh rate, color profiles, HDR button, automatic update install, legacy detection) and swaps wording (`StartupLabel`, `EnergySaverLabel`). It never shows a control that would silently fail.
+
+On Linux some flags depend on the running desktop, not just the OS. `LinuxPlatform` asks both D-Bus buses which services exist (`LinuxDesktopFeatures.Detect`): the idle-dimming controls need Mutter, the KDE/freedesktop ScreenSaver service, or libXss; the Power Saver controls need power-profiles-daemon; the lock-pause option needs logind or a screensaver service; the media option needs a session bus. A minimal window-manager session therefore hides what it cannot honor.
 
 ## Tray
 

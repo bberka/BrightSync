@@ -2,7 +2,28 @@
 
 BrightSync runs on Linux desktops with X11 or Wayland (through XWayland). It controls external monitors with DDC/CI over `/dev/i2c-N` and laptop panels through `/sys/class/backlight`. No `ddcutil` or other helper program is needed.
 
-> Status: the Linux build is verified by unit tests (EDID, DRM discovery, DDC/CI framing, backlight, autostart) and a CI smoke test that launches the app under a virtual display. Real monitor and tray behavior depends on your hardware and desktop; please report what you see using the diagnostics export (Settings > About).
+> Status: every release is checked by unit tests (EDID, DRM discovery, DDC/CI framing, backlight, autostart), by the whole suite running natively inside six distributions, and by a launch smoke test that starts the app under a virtual display and queries it over the CLI. Real monitor and tray behavior depends on your hardware and desktop; please report what you see using the diagnostics export (Settings > About).
+
+## Verified distributions
+
+The test binary and the app run inside these official cloud images (QEMU, x86-64): all unit tests pass, the app starts under Xvfb, initializes the Avalonia tray, answers `brightsync status`, and exits on `brightsync app exit`.
+
+| Distribution | libc | Result |
+|---|---|---|
+| Ubuntu 24.04 | glibc | pass |
+| Debian 12 | glibc | pass |
+| Fedora 44 | glibc | see table below |
+| Alpine 3.24 | musl | pass |
+| Arch Linux (rolling) | glibc | pass |
+| openSUSE Leap 16.0 | glibc | see table below |
+
+Repeat it yourself (about 10 to 15 minutes per distribution without hardware virtualization):
+
+```bash
+python tools/linux-vm-test/vmtest.py --distros ubuntu,debian,fedora,alpine,arch,opensuse --qemu /path/to/qemu
+```
+
+arm64 and arm builds are cross-published and covered by the same unit tests on the x64 host, but not run natively; the release workflow runs the arm64 `.deb` smoke test on an arm64 runner.
 
 ## Supported systems
 
@@ -16,7 +37,7 @@ BrightSync runs on Linux desktops with X11 or Wayland (through XWayland). It con
 | `.tar.gz` | any distribution, per-user or system install | x64, arm64, arm, and musl variants |
 | `linux-portable.tar.gz` | any distribution with a .NET 10 runtime | riscv64, loongarch64, x86, and everything above |
 
-Needed on the system: `fontconfig`, the usual X11 client libraries (`libX11`, `libXcursor`, `libXi`, `libXrandr`, present on every desktop install), and for Wayland sessions XWayland. Optional: `libXss` (idle detection fallback on X11), `xdg-utils` (opening links), `zenity` or `kdialog` (dialog when a second instance is started).
+Needed on the system (the packages declare these): `fontconfig` and the X11 client libraries `libX11`, `libXext`, `libXcursor`, `libXi`, `libXrandr`, `libICE`, `libSM`; Wayland sessions also need XWayland. Minimal images, such as openSUSE's, often lack `libICE`/`libSM`, which makes startup fail with "Unable to load shared library libICE.so.6"; install them (`libICE6 libSM6` on openSUSE). Optional: `libXss` (idle detection fallback on X11), `xdg-utils` (opening links), `zenity` or `kdialog` (dialog when a second instance is started).
 
 ## Monitor access (DDC/CI)
 

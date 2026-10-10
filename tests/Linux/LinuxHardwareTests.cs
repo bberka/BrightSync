@@ -550,3 +550,19 @@ public sealed class LinuxDesktopFeatureTests
         Assert.False(features.DetectsEnergySaver);
     }
 }
+
+public sealed class InertEnergySaverTests
+{
+    [Fact]
+    public void Inert_NeverReportsActiveOrRaises()
+    {
+        using var source = new InertEnergySaverSource();
+        var raised = false;
+        source.Changed += (_, _) => raised = true;
+
+        source.Start();
+
+        Assert.False(source.IsActive);
+        Assert.False(raised);
+    }
+}

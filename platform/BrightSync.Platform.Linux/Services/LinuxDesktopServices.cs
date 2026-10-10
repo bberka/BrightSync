@@ -61,6 +61,26 @@ internal sealed class LinuxEnergySaverSource : IEnergySaverSource
     }
 }
 
+/// <summary>Stands in when the desktop has no power-profile service, so nothing polls D-Bus for nothing.</summary>
+internal sealed class InertEnergySaverSource : IEnergySaverSource
+{
+    public bool IsActive => false;
+
+    public event EventHandler<bool>? Changed
+    {
+        add { }
+        remove { }
+    }
+
+    public void Start()
+    {
+    }
+
+    public void Dispose()
+    {
+    }
+}
+
 /// <summary>Idle time from Mutter, KDE's ScreenSaver service, or the X11 screensaver extension, in that order.</summary>
 internal sealed class LinuxIdleTimeSource : IIdleTimeSource
 {

@@ -36,7 +36,7 @@ internal sealed class DBusClient(DBusConnection connection, string label)
         }
         catch (Exception ex)
         {
-            Log.Debug(ex, "D-Bus {Bus} call {Interface}.{Member} on {Destination} failed", label, iface, member, destination);
+            Log.Debug("D-Bus {Bus} call {Interface}.{Member} on {Destination} failed: {Reason}", label, iface, member, destination, ex.Message);
             return false;
         }
     }
@@ -65,7 +65,7 @@ internal sealed class DBusClient(DBusConnection connection, string label)
         }
         catch (Exception ex)
         {
-            Log.Debug(ex, "D-Bus {Bus} call {Interface}.{Member} on {Destination} failed", label, iface, member, destination);
+            Log.Debug("D-Bus {Bus} call {Interface}.{Member} on {Destination} failed: {Reason}", label, iface, member, destination, ex.Message);
             return false;
         }
     }

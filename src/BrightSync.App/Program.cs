@@ -50,6 +50,7 @@ internal static class Program
             // catch guarantees a non-zero exit code and a Serilog line so the
             // crash shows up in the rolling log file even when no UI is up.
             Log.Fatal(ex, "BrightSync terminated with an unhandled exception");
+            Console.Error.WriteLine($"BrightSync could not start: {ex.Message}");
             return 2;
         }
         finally

@@ -21,3 +21,6 @@ desktop.ini
 
 # Installer executables
 installer/*.exe
+
+# VM test cache
+.vmtest/

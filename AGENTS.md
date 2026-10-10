@@ -4,9 +4,9 @@ Avalonia tray app for Windows and Linux. Stable facts live in the code; this fil
 
 ## Platform rule
 
-`src/` contains no OS API: no `DllImport`, registry, WMI, D-Bus, `Process.Start` for OS tools, or `OperatingSystem.IsX` branches. OS behavior goes behind a contract in `platform/BrightSync.Platform.Abstractions/Services/PlatformContracts.cs`, with one implementation per OS project and a flag in `PlatformCapabilities` when the UI must adapt. Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) before adding or moving OS behavior.
+`src/` (Core, UI, App) contains no OS API: no `DllImport`, registry, WMI, D-Bus, `Process.Start` for OS tools, or `OperatingSystem.IsX` branches. OS behavior goes behind a contract in `platform/BrightSync.Platform.Abstractions/Services/PlatformContracts.cs`, with one implementation per OS project and a flag in `PlatformCapabilities` when the UI must adapt. Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) before adding or moving OS behavior.
 
-Hardware code on Linux reads sysfs through `ISysfs` and talks to I2C through `II2cBus`; tests use `FakeSysfs` and `FakeDisplayBus` in `tests/Linux`. This machine cannot run Linux, so the fakes and the CI smoke job are the only runtime evidence.
+Hardware code on Linux reads sysfs through `ISysfs` and talks to I2C through `II2cBus`; tests use `FakeSysfs` and `FakeDisplayBus` in `tests/Linux`. Windows machines cannot run Linux natively, so `python tools/linux-vm-test/vmtest.py --qemu <dir>` boots real distributions under QEMU (no admin, no WSL, no hypervisor needed) and runs the whole suite plus a launch smoke test in each. Run it after changing anything in `platform/BrightSync.Platform.Linux`, the packaging dependencies, or startup code. See [docs/LINUX.md](docs/LINUX.md).
 
 ## Verify
 

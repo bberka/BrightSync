@@ -227,6 +227,27 @@ jobs:
 
           dotnet @publishArgs
 
+      - name: Smoke test published executable
+        # Launches the AOT build, asks it for status over the CLI, then exits it. Informational only:
+        # hosted runners have no guaranteed notification area, so a failure here must not block a release.
+        if: ${{ matrix.rid != 'win-arm64' }}
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $exe = Join-Path $env:RUNNER_TEMP "${{ matrix.suffix }}\BrightSync.exe"
+          $app = Start-Process -FilePath $exe -ArgumentList '--autostart' -PassThru
+          $ok = $false
+          for ($i = 0; $i -lt 30 -and -not $ok; $i++) {
+            Start-Sleep -Seconds 2
+            $status = Start-Process -FilePath $exe -ArgumentList 'status' -Wait -PassThru
+            $ok = ($status.ExitCode -eq 0)
+          }
+          Start-Process -FilePath $exe -ArgumentList 'app', 'exit' -Wait | Out-Null
+          $app | Wait-Process -Timeout 20 -ErrorAction SilentlyContinue
+          if (-not $app.HasExited) { $app | Stop-Process -Force }
+          Get-Content "$env:APPDATA\BrightSync\Logs\*.log" -Tail 40 -ErrorAction SilentlyContinue
+          if (-not $ok) { throw "The published executable did not answer 'status'." }
+
       - name: Optional Authenticode signing hook for published executable
         if: ${{ env.WINDOWS_SIGNING_CERTIFICATE_BASE64 != '' }}
         shell: pwsh

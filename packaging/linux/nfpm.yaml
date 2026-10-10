@@ -42,30 +42,60 @@ scripts:
   postinstall: packaging/linux/postinstall.sh
   postremove: packaging/linux/postremove.sh
 
-# Only libraries every desktop already has are required. Tray support is optional (see docs/LINUX.md).
+# Runtime libraries Avalonia loads on X11 (verified on Ubuntu, Debian, Fedora, Alpine, Arch and openSUSE
+# with tools/linux-vm-test). Optional ones only improve idle detection and link handling.
 overrides:
   deb:
     depends:
       - libc6
       - libfontconfig1
+      - libice6
+      - libsm6
+      - libx11-6
+      - libxcursor1
+      - libxext6
+      - libxi6
+      - libxrandr2
     recommends:
+      - libgl1
       - libxss1
       - xdg-utils
   rpm:
     depends:
       - fontconfig
+      - libICE
+      - libSM
+      - libX11
+      - libXcursor
+      - libXext
+      - libXi
+      - libXrandr
     recommends:
       - libXScrnSaver
+      - mesa-libGL
       - xdg-utils
   apk:
     depends:
       - fontconfig
       - libgcc
+      - libice
+      - libsm
       - libstdc++
-      - icu-libs
+      - libx11
+      - libxcursor
+      - libxext
+      - libxi
+      - libxrandr
   archlinux:
     depends:
       - fontconfig
+      - libice
+      - libsm
+      - libx11
+      - libxcursor
+      - libxext
+      - libxi
+      - libxrandr
     optdepends:
       - 'libxss: idle detection on X11'
       - 'xdg-utils: open links from the settings window'

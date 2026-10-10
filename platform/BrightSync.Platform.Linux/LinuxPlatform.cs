@@ -44,7 +44,9 @@ public static class LinuxPlatform
             DisplaySettings = new LinuxDisplaySettings(),
             ColorProfiles = new LinuxColorProfiles(),
             Shell = new LinuxShellIntegration(),
-            CreateEnergySaverSource = () => new LinuxEnergySaverSource(),
+            CreateEnergySaverSource = () => features.DetectsEnergySaver
+                ? new LinuxEnergySaverSource()
+                : new InertEnergySaverSource(),
             CreateSingleInstanceGuard = () => new LinuxSingleInstanceGuard(),
             CreateNativeTrayIcon = null,
             UpdateInstaller = null
