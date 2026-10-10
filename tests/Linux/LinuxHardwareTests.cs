@@ -511,3 +511,42 @@ public sealed class LinuxServiceTests
         Assert.False(detector.Check(start.AddHours(1).AddSeconds(5), 15_000));
     }
 }
+
+public sealed class LinuxDesktopFeatureTests
+{
+    [Fact]
+    public void Detect_ReportsFullGnomeSession()
+    {
+        var features = BrightSync.Platform.Linux.LinuxDesktopFeatures.Detect(
+            ["org.freedesktop.login1", "net.hadess.PowerProfiles"],
+            ["org.gnome.Mutter.IdleMonitor", "org.gnome.ScreenSaver", "org.mpris.MediaPlayer2.vlc"],
+            x11IdleAvailable: false);
+
+        Assert.True(features.DetectsEnergySaver);
+        Assert.True(features.DetectsMediaPlayback);
+        Assert.True(features.DetectsIdleTime);
+        Assert.True(features.DetectsSessionLock);
+    }
+
+    [Fact]
+    public void Detect_HidesEverythingWithoutBuses()
+    {
+        var features = BrightSync.Platform.Linux.LinuxDesktopFeatures.Detect([], [], x11IdleAvailable: false);
+
+        Assert.False(features.DetectsEnergySaver);
+        Assert.False(features.DetectsMediaPlayback);
+        Assert.False(features.DetectsIdleTime);
+        Assert.False(features.DetectsSessionLock);
+    }
+
+    [Fact]
+    public void Detect_UsesX11FallbackForIdleAndLogindForLock()
+    {
+        var features = BrightSync.Platform.Linux.LinuxDesktopFeatures.Detect(
+            ["org.freedesktop.login1"], ["org.freedesktop.DBus"], x11IdleAvailable: true);
+
+        Assert.True(features.DetectsIdleTime);
+        Assert.True(features.DetectsSessionLock);
+        Assert.False(features.DetectsEnergySaver);
+    }
+}

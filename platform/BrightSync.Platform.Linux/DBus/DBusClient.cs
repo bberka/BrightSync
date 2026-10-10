@@ -101,6 +101,20 @@ internal sealed class DBusClient(DBusConnection connection, string label)
             ? names
             : [];
 
+    /// <summary>Names of services that can be started on demand, such as power-profiles-daemon.</summary>
+    public string[] ListActivatableNames()
+        => TryCall(
+            "org.freedesktop.DBus",
+            "/org/freedesktop/DBus",
+            "org.freedesktop.DBus",
+            "ListActivatableNames",
+            null,
+            null,
+            static reader => reader.ReadArrayOfString(),
+            out string[]? names) && names is not null
+            ? names
+            : [];
+
     /// <summary>Subscribes to a signal and keeps it alive until the connection closes.</summary>
     public void Subscribe(
         string sender,

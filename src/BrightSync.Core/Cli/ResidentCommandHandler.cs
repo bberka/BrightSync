@@ -1,6 +1,5 @@
-using Avalonia.Threading;
+using BrightSync.Core;
 using BrightSync.Core.Brightness;
-using BrightSync.UI;
 using Serilog;
 
 namespace BrightSync.Cli;
@@ -22,18 +21,17 @@ public sealed class ResidentCommandHandler
         AutoBrightnessService autoBrightnessService,
         EyeProtectionService eyeProtectionService,
         BrightnessBoostService brightnessBoostService,
-        TrayManager trayManager,
+        IResidentAppHost appHost,
         Action requestAppExit)
         : this(
             new BrightnessEngineOperations(engine),
             autoBrightnessService,
             eyeProtectionService,
             brightnessBoostService,
-            trayManager.ShowSettings,
-            trayManager.RefreshMonitorsFromCommand,
+            appHost.ShowSettings,
+            appHost.RefreshMonitorsFromCommand,
             requestAppExit,
-            static async (handler, cancellationToken) =>
-                await Dispatcher.UIThread.InvokeAsync(handler, DispatcherPriority.Normal, cancellationToken),
+            static (handler, cancellationToken) => UiDispatcher.Current.InvokeAsync(handler, cancellationToken),
             () => CliStatusSnapshotFactory.Create(
                 engine,
                 autoBrightnessService,

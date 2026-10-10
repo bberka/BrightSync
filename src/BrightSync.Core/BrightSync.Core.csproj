@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Platform-neutral application logic: sync engine, services, config, CLI, updates, diagnostics.
+       No UI framework and no OS API; both arrive through BrightSync.Platform.Abstractions. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>BrightSync</RootNamespace>
+    <AssemblyName>BrightSync.Core</AssemblyName>
+    <IsAotCompatible>true</IsAotCompatible>
+    <!-- Reflection-free JSON: only the source-generated contexts supply type metadata. -->
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Serilog" Version="4.4.0"/>
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\platform\BrightSync.Platform.Abstractions\BrightSync.Platform.Abstractions.csproj"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BrightSync.Tests"/>
+    <InternalsVisibleTo Include="BrightSync.UI"/>
+    <InternalsVisibleTo Include="BrightSync"/>
+  </ItemGroup>
+
+</Project>

@@ -732,6 +732,10 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     /// <summary>Capabilities and wording of the running operating system.</summary>
     public PlatformCapabilities Platform => PlatformServices.Current.Capabilities;
 
+    public bool HasCompatibilityOptions => Platform.HasLegacyDetection || Platform.DetectsSessionLock;
+
+    public bool ShowsCompatibilitySeparator => Platform.HasLegacyDetection && Platform.DetectsSessionLock;
+
     public bool CanSelfInstallUpdates => PlatformServices.Current.Capabilities.CanSelfInstallUpdates;
 
     public bool IsAutoInstallSectionVisible => CanSelfInstallUpdates && _autoCheckUpdates;

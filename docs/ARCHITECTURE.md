@@ -6,7 +6,7 @@ BrightSync is one Avalonia app that runs on Windows and Linux. All operating-sys
 platform/BrightSync.Platform.Abstractions   net10.0                        contracts, DdcMonitor model, VCP parsing, PlatformServices
 platform/BrightSync.Platform.Windows        net10.0-windows10.0.19041.0    Win32, WMI, dxva2, registry, WinRT media, Win32 tray
 platform/BrightSync.Platform.Linux          net10.0                        sysfs/DRM/EDID, i2c-dev, D-Bus, X11, XDG
-src/BrightSync.csproj                       follows the target OS          UI, CLI, engine, config, updates
+src/BrightSync.App/BrightSync.App.csproj                       follows the target OS          UI, CLI, engine, config, updates
 tests/BrightSync.Tests.csproj               follows the target OS          all of the above; Linux code is tested on every host
 ```
 

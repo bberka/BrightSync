@@ -13,6 +13,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="BrightSync" />
+    <InternalsVisibleTo Include="BrightSync.Core" />
+    <InternalsVisibleTo Include="BrightSync.UI" />
     <InternalsVisibleTo Include="BrightSync.Tests" />
     <InternalsVisibleTo Include="BrightSync.Platform.Windows" />
     <InternalsVisibleTo Include="BrightSync.Platform.Linux" />

@@ -32,7 +32,7 @@ The Windows updater only accepts `BrightSync-Setup-*` assets whose name contains
 Windows (PowerShell, in a Developer prompt or with `vswhere` on `PATH` for Native AOT):
 
 ```powershell
-dotnet publish src/BrightSync.csproj -c Release -r win-x64 -p:PublishSingleFile=true -o out
+dotnet publish src/BrightSync.App/BrightSync.App.csproj -c Release -r win-x64 -p:PublishSingleFile=true -o out
 iscc /dAppVersion=0.19.0 /dPublishDir=out /dAppArch=x64 installer/installer.iss
 ```
 
@@ -44,7 +44,7 @@ BS_AOT=false packaging/build-linux.sh linux-arm 0.19.0 out        # cross build,
 packaging/build-linux.sh linux-portable 0.19.0 out
 ```
 
-`build-linux.sh` skips formats whose tool is missing and says so. Cross-publishing a Linux target from Windows works without AOT: `dotnet publish src/BrightSync.csproj -c Release -r linux-x64 -p:PublishAot=false -p:SelfContained=true -p:PublishSingleFile=true`.
+`build-linux.sh` skips formats whose tool is missing and says so. Cross-publishing a Linux target from Windows works without AOT: `dotnet publish src/BrightSync.App/BrightSync.App.csproj -c Release -r linux-x64 -p:PublishAot=false -p:SelfContained=true -p:PublishSingleFile=true`.
 
 ## Linux package contents
 

@@ -1,5 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- Thin executable: entry point, platform selection, and everything publish-specific (AOT, manifest,
+       trimming roots). Application code lives in BrightSync.Core and BrightSync.UI. -->
   <PropertyGroup>
     <OutputType Condition="'$(BrightSyncTargetOs)' == 'windows'">WinExe</OutputType>
     <OutputType Condition="'$(BrightSyncTargetOs)' != 'windows'">Exe</OutputType>
@@ -13,12 +15,7 @@
 
   <PropertyGroup Condition="'$(BrightSyncTargetOs)' == 'windows'">
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
-    <DefineConstants>$(DefineConstants);PLATFORM_WINDOWS</DefineConstants>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(BrightSyncTargetOs)' == 'linux'">
-    <DefineConstants>$(DefineConstants);PLATFORM_LINUX</DefineConstants>
+    <ApplicationIcon>..\BrightSync.UI\Resources\app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -58,33 +55,28 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Avalonia.Desktop supplies the platform backends (Win32, X11) behind UsePlatformDetect. -->
     <PackageReference Include="Avalonia" Version="12.1.4"/>
     <PackageReference Include="Avalonia.Desktop" Version="12.1.4"/>
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4"/>
     <PackageReference Include="Serilog" Version="4.4.0"/>
-    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0"/>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\platform\BrightSync.Platform.Abstractions\BrightSync.Platform.Abstractions.csproj"/>
+    <ProjectReference Include="..\BrightSync.Core\BrightSync.Core.csproj"/>
+    <ProjectReference Include="..\BrightSync.UI\BrightSync.UI.csproj"/>
+    <ProjectReference Include="..\..\platform\BrightSync.Platform.Abstractions\BrightSync.Platform.Abstractions.csproj"/>
   </ItemGroup>
 
   <ItemGroup Condition="'$(BrightSyncTargetOs)' == 'windows'">
-    <ProjectReference Include="..\platform\BrightSync.Platform.Windows\BrightSync.Platform.Windows.csproj"/>
+    <ProjectReference Include="..\..\platform\BrightSync.Platform.Windows\BrightSync.Platform.Windows.csproj"/>
   </ItemGroup>
 
   <ItemGroup Condition="'$(BrightSyncTargetOs)' == 'linux'">
-    <ProjectReference Include="..\platform\BrightSync.Platform.Linux\BrightSync.Platform.Linux.csproj"/>
+    <ProjectReference Include="..\..\platform\BrightSync.Platform.Linux\BrightSync.Platform.Linux.csproj"/>
   </ItemGroup>
 
-  <ItemGroup>
-    <AvaloniaResource Include="Resources/app.ico" />
-    <AvaloniaResource Include="Resources/app.png" />
-  </ItemGroup>
-
-  <!-- Root every Avalonia assembly the app uses so the trimmer/AOT compiler
-       keeps the reflection entry points (XAML, Render, Themes, NativeMenu, etc.).
-       Without these, Native AOT will silently strip required code paths. -->
+  <!-- Root every assembly the UI reaches by reflection (XAML loader, bindings, themes) so the
+       trimmer/AOT compiler keeps them. Without these, Native AOT silently strips required code paths. -->
   <ItemGroup>
     <TrimmerRootAssembly Include="Avalonia" />
     <TrimmerRootAssembly Include="Avalonia.Base" />
@@ -100,6 +92,8 @@
     <TrimmerRootAssembly Include="Avalonia.Skia" />
     <TrimmerRootAssembly Include="Avalonia.Themes.Fluent" />
     <TrimmerRootAssembly Include="MicroCom.Runtime" />
+    <TrimmerRootAssembly Include="BrightSync.UI" />
+    <TrimmerRootAssembly Include="BrightSync.Core" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(BrightSyncTargetOs)' == 'windows'">
@@ -113,12 +107,6 @@
     <TrimmerRootAssembly Include="Avalonia.X11" />
     <TrimmerRootAssembly Include="BrightSync.Platform.Linux" />
     <TrimmerRootAssembly Include="Tmds.DBus.Protocol" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="BrightSync.Tests\**" />
-    <EmbeddedResource Remove="BrightSync.Tests\**" />
-    <None Remove="BrightSync.Tests\**" />
   </ItemGroup>
 
 </Project>

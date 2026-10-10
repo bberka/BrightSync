@@ -62,6 +62,18 @@ internal static unsafe partial class X11Native
         }
     }
 
+    /// <summary>True when an X display is set and libXss can be loaded, so idle time can be read.</summary>
+    public static bool IsIdleQueryAvailable()
+        => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")) &&
+           NativeLibrary.TryLoad("libXss.so.1", out var handle) &&
+           Release(handle);
+
+    private static bool Release(nint handle)
+    {
+        NativeLibrary.Free(handle);
+        return true;
+    }
+
     private static nint GetDisplay()
     {
         if (_opened)

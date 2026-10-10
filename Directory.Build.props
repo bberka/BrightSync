@@ -20,6 +20,14 @@
     <BrightSyncAppTfm Condition="'$(BrightSyncTargetOs)' != 'windows'">net10.0</BrightSyncAppTfm>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(BrightSyncTargetOs)' == 'windows'">
+    <DefineConstants>$(DefineConstants);PLATFORM_WINDOWS</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(BrightSyncTargetOs)' == 'linux'">
+    <DefineConstants>$(DefineConstants);PLATFORM_LINUX</DefineConstants>
+  </PropertyGroup>
+
   <PropertyGroup>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>

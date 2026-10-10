@@ -7,7 +7,7 @@
 #define AppExeName "BrightSync.exe"
 
 #ifndef PublishDir
-  #define PublishDir "..\src\bin\Release\net10.0-windows\win-x64\publish"
+  #define PublishDir "..\src\BrightSync.App\bin\Release\net10.0-windows10.0.19041.0\win-x64\publish"
 #endif
 
 #ifndef AppArch
@@ -42,7 +42,7 @@ ArchitecturesAllowed=x64compatible
 ; Output configuration
 OutputDir=.
 OutputBaseFilename={#AppName}-Setup-v{#AppVersion}-win-{#AppArch}
-SetupIconFile=..\src\Resources\app.ico
+SetupIconFile=..\src\BrightSync.UI\Resources\app.ico
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern

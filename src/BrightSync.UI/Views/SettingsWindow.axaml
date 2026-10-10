@@ -324,10 +324,10 @@
                             </Border>
 
                             <!-- Monitor Compatibility -->
-                            <Border Background="#252525" BorderBrush="#353535" BorderThickness="1" CornerRadius="8"
+                            <Border IsVisible="{Binding HasCompatibilityOptions}" Background="#252525" BorderBrush="#353535" BorderThickness="1" CornerRadius="8"
                                     Padding="12,10">
                                 <StackPanel Spacing="8">
-                                    <Grid>
+                                    <Grid IsVisible="{Binding Platform.HasLegacyDetection}">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
@@ -342,9 +342,9 @@
                                                       OnContent="" OffContent="" VerticalAlignment="Center" />
                                     </Grid>
 
-                                    <Border Height="1" Background="#353535" />
+                                    <Border Height="1" Background="#353535" IsVisible="{Binding ShowsCompatibilitySeparator}" />
 
-                                    <Grid>
+                                    <Grid IsVisible="{Binding Platform.DetectsSessionLock}">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
@@ -665,7 +665,7 @@
                         <StackPanel x:Name="SavingPanel" Spacing="10" Margin="16,12" IsVisible="False">
                             <TextBlock Text="Power Saving" FontSize="16" FontWeight="SemiBold" Foreground="White" />
 
-                            <Border Background="#252525" BorderBrush="#353535" BorderThickness="1" CornerRadius="8"
+                            <Border IsVisible="{Binding Platform.DetectsEnergySaver}" Background="#252525" BorderBrush="#353535" BorderThickness="1" CornerRadius="8"
                                     Padding="12,10">
                                 <StackPanel Spacing="8">
                                     <Grid>
@@ -703,7 +703,7 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Background="#252525" BorderBrush="#353535" BorderThickness="1" CornerRadius="8"
+                            <Border IsVisible="{Binding Platform.DetectsIdleTime}" Background="#252525" BorderBrush="#353535" BorderThickness="1" CornerRadius="8"
                                     Padding="12,10">
                                 <StackPanel Spacing="8">
                                     <Grid>
@@ -778,7 +778,7 @@
                                             </StackPanel>
                                         </Grid>
 
-                                        <Grid>
+                                        <Grid IsVisible="{Binding Platform.DetectsMediaPlayback}">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />

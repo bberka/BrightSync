@@ -18,6 +18,7 @@ public static class WindowsPlatform
                 StartupLabel = "Start with Windows",
                 EnergySaverLabel = "Windows Energy Saver",
                 DisplaySettingsLabel = "Windows Display settings",
+                HasLegacyDetection = true,
                 CanSetRefreshRate = true,
                 CanManageColorProfiles = true,
                 CanOpenDisplaySettings = true,

@@ -29,7 +29,7 @@ contents:
     type: symlink
   - src: packaging/linux/brightsync.desktop
     dst: /usr/share/applications/brightsync.desktop
-  - src: src/Resources/app.png
+  - src: src/BrightSync.UI/Resources/app.png
     dst: /usr/share/icons/hicolor/128x128/apps/brightsync.png
   - src: packaging/linux/99-brightsync-i2c.rules
     dst: /usr/lib/udev/rules.d/99-brightsync-i2c.rules

@@ -27,9 +27,14 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\src\BrightSync.csproj" />
+        <ProjectReference Include="..\src\BrightSync.Core\BrightSync.Core.csproj" />
+        <ProjectReference Include="..\src\BrightSync.UI\BrightSync.UI.csproj" />
         <!-- Linux platform code is plain net10.0 and is unit-tested on every host. -->
         <ProjectReference Include="..\platform\BrightSync.Platform.Linux\BrightSync.Platform.Linux.csproj" />
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(BrightSyncTargetOs)' == 'windows'">
+        <ProjectReference Include="..\platform\BrightSync.Platform.Windows\BrightSync.Platform.Windows.csproj" />
     </ItemGroup>
 
 </Project>

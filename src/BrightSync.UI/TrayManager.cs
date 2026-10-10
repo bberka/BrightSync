@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Platform;
 using Avalonia.Threading;
+using BrightSync.Core;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
 using BrightSync.Platform;
@@ -27,7 +28,7 @@ public sealed class TrayManager(
     DdcCiService ddc,
     UpdateChecker updateChecker,
     SelfUpdateService selfUpdate)
-    : IDisposable
+    : IDisposable, IResidentAppHost
 {
     private const int QuickPopupCloseCooldownMilliseconds = 100;
 

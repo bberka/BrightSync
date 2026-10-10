@@ -48,7 +48,7 @@ case "$host_arch" in x86_64) host=x64 ;; aarch64|arm64) host=arm64 ;; armv7l|arm
 publish="$work/publish"
 if [ "$portable" = true ]; then
     echo "==> Publishing portable framework-dependent build $version"
-    dotnet publish "$root/src/BrightSync.csproj" \
+    dotnet publish "$root/src/BrightSync.App/BrightSync.App.csproj" \
         -c Release \
         -p:BrightSyncTargetOs=linux -p:BrightSyncPortable=true \
         -p:PublishAot=false -p:UseAppHost=false \
@@ -70,7 +70,7 @@ else
     fi
 
     echo "==> Publishing $rid $version (AOT=$aot)"
-    dotnet publish "$root/src/BrightSync.csproj" \
+    dotnet publish "$root/src/BrightSync.App/BrightSync.App.csproj" \
         -c Release -r "$rid" \
         -p:PublishAot="$aot" \
         -p:SelfContained=true \
@@ -92,7 +92,7 @@ mkdir -p "$stage/app"
 cp -a "$publish/." "$stage/app/"
 cp "$root/packaging/linux/install.sh" "$root/packaging/linux/brightsync.desktop" \
     "$root/packaging/linux/99-brightsync-i2c.rules" "$root/packaging/linux/brightsync-i2c.conf" "$stage/"
-cp "$root/src/Resources/app.png" "$stage/brightsync.png"
+cp "$root/src/BrightSync.UI/Resources/app.png" "$stage/brightsync.png"
 cp "$root/LICENSE" "$stage/"
 cat >"$stage/README.txt" <<EOF
 BrightSync $version ($rid)
@@ -136,7 +136,7 @@ exec "$here/usr/lib/brightsync/BrightSync" "$@"
 EOF
     chmod 0755 "$appdir/AppRun"
     cp "$root/packaging/linux/brightsync.desktop" "$appdir/brightsync.desktop"
-    cp "$root/src/Resources/app.png" "$appdir/brightsync.png"
+    cp "$root/src/BrightSync.UI/Resources/app.png" "$appdir/brightsync.png"
     ARCH=$appimage_arch "$APPIMAGETOOL" --appimage-extract-and-run "$appdir" "$out/$base.AppImage" 2>&1 \
         || ARCH=$appimage_arch "$APPIMAGETOOL" "$appdir" "$out/$base.AppImage"
 else

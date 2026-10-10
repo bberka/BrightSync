@@ -289,11 +289,11 @@ dotnet test --project tests/BrightSync.Tests.csproj --filter-not-trait "Category
 The target OS follows the host, or the `-r` runtime identifier when given. To compile the other platform's graph without running it:
 
 ```bash
-dotnet build src/BrightSync.csproj -r linux-x64      # from Windows
-dotnet build src/BrightSync.csproj -r win-x64 -p:EnableWindowsTargeting=true   # from Linux
+dotnet build src/BrightSync.App/BrightSync.App.csproj -r linux-x64      # from Windows
+dotnet build src/BrightSync.App/BrightSync.App.csproj -r win-x64 -p:EnableWindowsTargeting=true   # from Linux
 ```
 
-Publish (Native AOT): `dotnet publish src/BrightSync.csproj -c Release -r <rid>`. Linux packages: `packaging/build-linux.sh <rid> <version> <out>` (see [PACKAGING.md](PACKAGING.md)).
+Publish (Native AOT): `dotnet publish src/BrightSync.App/BrightSync.App.csproj -c Release -r <rid>`. Linux packages: `packaging/build-linux.sh <rid> <version> <out>` (see [PACKAGING.md](PACKAGING.md)).
 
 ## Release Automation
 

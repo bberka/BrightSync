@@ -91,7 +91,7 @@ internal sealed class AvaloniaTrayIcon : ITrayIcon
 
     private static WindowIcon LoadIcon()
     {
-        using var stream = AssetLoader.Open(new Uri("avares://BrightSync/Resources/app.png"));
+        using var stream = AssetLoader.Open(new Uri("avares://BrightSync.UI/Resources/app.png"));
         return new WindowIcon(stream);
     }
 

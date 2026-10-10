@@ -74,7 +74,7 @@ jobs:
 
       - name: Build Windows graph
         run: >
-          dotnet build src/BrightSync.csproj -c Debug -r win-x64 -p:EnableWindowsTargeting=true
+          dotnet build src/BrightSync.App/BrightSync.App.csproj -c Debug -r win-x64 -p:EnableWindowsTargeting=true
 
       - name: Build Linux graph
-        run: dotnet build src/BrightSync.csproj -c Debug -r linux-x64
+        run: dotnet build src/BrightSync.App/BrightSync.App.csproj -c Debug -r linux-x64

@@ -4,6 +4,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using BrightSync.Cli;
+using BrightSync.Core;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;
@@ -38,6 +39,8 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            UiDispatcher.Current = new AvaloniaUiDispatcher();
+
             // Set shutdown mode to explicit since this is a tray application
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
 

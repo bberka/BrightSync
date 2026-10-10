@@ -14,7 +14,7 @@ Hardware code on Linux reads sysfs through `ISysfs` and talks to I2C through `II
 dotnet build BrightSync.sln
 dotnet test --project tests/BrightSync.Tests.csproj --filter-not-trait "Category=Hardware" --filter-not-trait "Category=Integration"
 dotnet test --project tests/BrightSync.Tests.csproj -p:BrightSyncTargetOs=linux ...   # same suite against the Linux services
-dotnet build src/BrightSync.csproj -r linux-x64                                       # compile the other platform's graph
+dotnet build src/BrightSync.App/BrightSync.App.csproj -r linux-x64                                       # compile the other platform's graph
 ```
 
 `global.json` selects Microsoft.Testing.Platform for xunit v3, so `dotnet test` needs `--project` and `--filter-not-trait` (the VSTest `--filter` fails). Native AOT publish on Windows needs `vswhere.exe` on `PATH` (`C:\Program Files (x86)\Microsoft Visual Studio\Installer`). A BrightSync instance running on the machine holds the single-instance mutex, so a launch smoke test shows the "already running" dialog; use `BrightSync.exe status` against it, or ask before closing it.

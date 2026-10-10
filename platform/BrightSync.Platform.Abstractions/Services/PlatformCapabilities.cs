@@ -8,6 +8,9 @@ public sealed record PlatformCapabilities
     public required string EnergySaverLabel { get; init; }
     public required string DisplaySettingsLabel { get; init; }
 
+    /// <summary>Windows-only older monitor enumeration path; the toggle is hidden elsewhere.</summary>
+    public bool HasLegacyDetection { get; init; }
+
     public bool CanSetRefreshRate { get; init; }
     public bool CanManageColorProfiles { get; init; }
     public bool CanOpenDisplaySettings { get; init; }

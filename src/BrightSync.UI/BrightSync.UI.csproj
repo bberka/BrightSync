@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Avalonia views, view models, tray manager. Talks to the app only through BrightSync.Core and
+       to the OS only through BrightSync.Platform.Abstractions. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>BrightSync</RootNamespace>
+    <AssemblyName>BrightSync.UI</AssemblyName>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.4"/>
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BrightSync.Core\BrightSync.Core.csproj"/>
+    <ProjectReference Include="..\..\platform\BrightSync.Platform.Abstractions\BrightSync.Platform.Abstractions.csproj"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Resources/app.ico"/>
+    <AvaloniaResource Include="Resources/app.png"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BrightSync.Tests"/>
+    <InternalsVisibleTo Include="BrightSync"/>
+  </ItemGroup>
+
+</Project>
