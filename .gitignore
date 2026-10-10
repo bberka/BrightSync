@@ -20,7 +20,15 @@ desktop.ini
 .DS_Store
 
 # Installer executables
-installer/*.exe
+packaging/windows/*.exe
 
 # VM test cache
 .vmtest/
+
+# Tooling output
+TestResults/
+__pycache__/
+*.pyc
+node_modules/
+website/dist/
+website/.astro/

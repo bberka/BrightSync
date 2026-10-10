@@ -7,7 +7,7 @@
 #define AppExeName "BrightSync.exe"
 
 #ifndef PublishDir
-  #define PublishDir "..\src\BrightSync.App\bin\Release\net10.0-windows10.0.19041.0\win-x64\publish"
+  #define PublishDir "..\..\src\BrightSync.App\bin\Release\net10.0-windows10.0.19041.0\win-x64\publish"
 #endif
 
 #ifndef AppArch
@@ -27,7 +27,7 @@ AppUpdatesURL={#AppURL}
 AppMutex=BrightSync-SingleInstance-Mutex-Guid-9b3d-098c86e194a9
 DefaultDirName={autopf}\{#AppName}
 DisableProgramGroupPage=yes
-LicenseFile=..\LICENSE
+LicenseFile=..\..\LICENSE
 ; Use appropriate install path based on architecture
 #if AppArch == "arm64"
 ArchitecturesInstallIn64BitMode=arm64
@@ -42,7 +42,7 @@ ArchitecturesAllowed=x64compatible
 ; Output configuration
 OutputDir=.
 OutputBaseFilename={#AppName}-Setup-v{#AppVersion}-win-{#AppArch}
-SetupIconFile=..\src\BrightSync.UI\Resources\app.ico
+SetupIconFile=..\..\src\BrightSync.UI\Resources\app.ico
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
@@ -56,7 +56,7 @@ Name: "addtopath"; Description: "Add BrightSync to the PATH environment variable
 
 [Files]
 Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pdb,Logs,Logs\*"
-Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}"

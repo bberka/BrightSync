@@ -324,7 +324,7 @@ jobs:
             "/dPublishDir=$publishDir" `
             /dAppArch=${{ matrix.arch }} `
             /O"$env:RUNNER_TEMP" `
-            installer/installer.iss
+            packaging/windows/installer.iss
 
           $setupPath = Join-Path $env:RUNNER_TEMP "BrightSync-Setup-v$version-win-${{ matrix.arch }}.exe"
           if (!(Test-Path -LiteralPath $setupPath)) {

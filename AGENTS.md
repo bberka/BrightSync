@@ -4,9 +4,9 @@ Avalonia tray app for Windows and Linux. Stable facts live in the code; this fil
 
 ## Platform rule
 
-`src/` (Core, UI, App) contains no OS API: no `DllImport`, registry, WMI, D-Bus, `Process.Start` for OS tools, or `OperatingSystem.IsX` branches. OS behavior goes behind a contract in `platform/BrightSync.Platform.Abstractions/Services/PlatformContracts.cs`, with one implementation per OS project and a flag in `PlatformCapabilities` when the UI must adapt. Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) before adding or moving OS behavior.
+`src/` (Core, UI, App) contains no OS API: no `DllImport`, registry, WMI, D-Bus, `Process.Start` for OS tools, or `OperatingSystem.IsX` branches. OS behavior goes behind a contract in `src/BrightSync.Platform.Abstractions/Services/PlatformContracts.cs`, with one implementation per OS project and a flag in `PlatformCapabilities` when the UI must adapt. Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) before adding or moving OS behavior.
 
-Hardware code on Linux reads sysfs through `ISysfs` and talks to I2C through `II2cBus`; tests use `FakeSysfs` and `FakeDisplayBus` in `tests/Linux`. Windows machines cannot run Linux natively, so `python tools/linux-vm-test/vmtest.py --qemu <dir>` boots real distributions under QEMU (no admin, no WSL, no hypervisor needed) and runs the whole suite plus a launch smoke test in each. Run it after changing anything in `platform/BrightSync.Platform.Linux`, the packaging dependencies, or startup code. See [docs/LINUX.md](docs/LINUX.md).
+Hardware code on Linux reads sysfs through `ISysfs` and talks to I2C through `II2cBus`; tests use `FakeSysfs` and `FakeDisplayBus` in `tests/Linux`. Windows machines cannot run Linux natively, so `python tools/linux-vm-test/vmtest.py --qemu <dir>` boots real distributions under QEMU (no admin, no WSL, no hypervisor needed) and runs the whole suite plus a launch smoke test in each. Run it after changing anything in `src/BrightSync.Platform.Linux`, the packaging dependencies, or startup code. See [docs/LINUX.md](docs/LINUX.md).
 
 ## Verify
 
@@ -18,6 +18,10 @@ dotnet build src/BrightSync.App/BrightSync.App.csproj -r linux-x64              
 ```
 
 `global.json` selects Microsoft.Testing.Platform for xunit v3, so `dotnet test` needs `--project` and `--filter-not-trait` (the VSTest `--filter` fails). Native AOT publish on Windows needs `vswhere.exe` on `PATH` (`C:\Program Files (x86)\Microsoft Visual Studio\Installer`). A BrightSync instance running on the machine holds the single-instance mutex, so a launch smoke test shows the "already running" dialog; use `BrightSync.exe status` against it, or ask before closing it.
+
+## Website
+
+`website/` is an Astro static site (Node 22.12+, `npm ci`, `npm run build`) deployed to GitHub Pages by `.github/workflows/website.yml`. Links must go through `url()` in `website/src/data/site.ts` because the site lives under `/BrightSync`. When you add or rename release assets or change supported platforms, update the Platforms and Download sections there too. Details: [website/README.md](website/README.md).
 
 ## Gotchas
 

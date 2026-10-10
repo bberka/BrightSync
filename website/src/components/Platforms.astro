@@ -1,0 +1,89 @@
+---
+import Icon from './Icon.astro';
+
+type Cell = 'yes' | 'no';
+const rows: { feature: string; windows: Cell; linux: Cell; note?: string }[] = [
+  { feature: 'External monitors over DDC/CI', windows: 'yes', linux: 'yes', note: 'Linux needs access to /dev/i2c-N, set up by the packages' },
+  { feature: 'Contrast, volume, RGB gain, presets, input source', windows: 'yes', linux: 'yes' },
+  { feature: 'Laptop panel brightness', windows: 'yes', linux: 'yes' },
+  { feature: 'Tray icon, quick popup, settings window', windows: 'yes', linux: 'yes', note: 'GNOME needs the AppIndicator extension' },
+  { feature: 'Automatic curve, eye protection, boost, enforcement', windows: 'yes', linux: 'yes' },
+  { feature: 'Idle dimming and ignore while media plays', windows: 'yes', linux: 'yes' },
+  { feature: 'Pause while the session is locked', windows: 'yes', linux: 'yes' },
+  { feature: 'Reduce brightness in power saver mode', windows: 'yes', linux: 'yes', note: 'Linux uses power-profiles-daemon' },
+  { feature: 'Start at login', windows: 'yes', linux: 'yes' },
+  { feature: 'Refresh rate, ICC profile and HDR controls', windows: 'yes', linux: 'no' },
+  { feature: 'Automatic update install', windows: 'yes', linux: 'no', note: 'Linux updates through your package manager' },
+];
+
+const windowsArch = ['x64', 'x86', 'arm64'];
+const linuxArch = ['x64', 'arm64', 'arm', 'riscv64*', 'loongarch64*', 'x86*'];
+---
+
+<section class="alt" id="platforms">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow">Platforms</p>
+      <h2>Native on Windows and Linux.</h2>
+      <p class="lead">
+        The same app and the same settings file on both. Controls a platform cannot support are hidden instead of
+        shown disabled.
+      </p>
+    </div>
+
+    <div class="arch-grid">
+      <div class="card">
+        <h3>Windows 10 and 11</h3>
+        <div class="tags">{windowsArch.map((a) => <span class="pill">{a}</span>)}</div>
+        <p class="muted">Installer and portable zip. Native AOT build.</p>
+      </div>
+      <div class="card">
+        <h3>Linux</h3>
+        <div class="tags">{linuxArch.map((a) => <span class="pill">{a}</span>)}</div>
+        <p class="muted">
+          deb, rpm, Arch, Alpine, AppImage and a portable archive. *Portable archive with a .NET 10 runtime.
+        </p>
+      </div>
+      <div class="card">
+        <h3>Tested distributions</h3>
+        <div class="tags">
+          {['Ubuntu', 'Debian', 'Fedora', 'Alpine', 'Arch', 'openSUSE'].map((d) => <span class="pill">{d}</span>)}
+        </div>
+        <p class="muted">The full test suite and a launch test run on each.</p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <caption class="sr-only">Feature support by platform</caption>
+        <thead>
+          <tr>
+            <th scope="col">Feature</th>
+            <th scope="col">Windows</th>
+            <th scope="col">Linux</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            rows.map((row) => (
+              <tr>
+                <th scope="row">
+                  {row.feature}
+                  {row.note && <div class="muted" style="font-weight:400;font-size:.85rem">{row.note}</div>}
+                </th>
+                {(['windows', 'linux'] as const).map((os) => (
+                  <td class={row[os]}>
+                    <span class="mark">
+                      <Icon name={row[os] === 'yes' ? 'check' : 'minus'} size={18} />
+                      <span class="sr-only">{row[os] === 'yes' ? 'Supported' : 'Not available'}</span>
+                    </span>
+                  </td>
+                ))}
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

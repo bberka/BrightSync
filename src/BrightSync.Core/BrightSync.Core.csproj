@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\platform\BrightSync.Platform.Abstractions\BrightSync.Platform.Abstractions.csproj"/>
+    <ProjectReference Include="..\BrightSync.Platform.Abstractions\BrightSync.Platform.Abstractions.csproj"/>
   </ItemGroup>
 
   <ItemGroup>

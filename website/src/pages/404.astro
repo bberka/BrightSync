@@ -1,0 +1,21 @@
+---
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { url } from '../data/site';
+---
+
+<Base title="Page not found | BrightSync">
+  <Header />
+  <main id="main">
+    <section>
+      <div class="container">
+        <p class="eyebrow">404</p>
+        <h2>That page is not here.</h2>
+        <p class="lead">The link may be old. Head back to the start page.</p>
+        <p style="margin-top:1.5rem"><a class="btn btn-primary" href={url()}>Back to BrightSync</a></p>
+      </div>
+    </section>
+  </main>
+  <Footer />
+</Base>

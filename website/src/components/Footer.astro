@@ -1,0 +1,15 @@
+---
+import { ISSUES_URL, REPO_URL, RELEASES_URL, SITE_TITLE } from '../data/site';
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="container">
+    <div>© {year} {SITE_TITLE}. Open source under the MIT license.</div>
+    <nav aria-label="Project links">
+      <a href={REPO_URL} rel="noopener">GitHub</a>
+      <a href={RELEASES_URL} rel="noopener">Releases</a>
+      <a href={ISSUES_URL} rel="noopener">Report an issue</a>
+    </nav>
+  </div>
+</footer>

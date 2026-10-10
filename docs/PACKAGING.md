@@ -33,7 +33,7 @@ Windows (PowerShell, in a Developer prompt or with `vswhere` on `PATH` for Nativ
 
 ```powershell
 dotnet publish src/BrightSync.App/BrightSync.App.csproj -c Release -r win-x64 -p:PublishSingleFile=true -o out
-iscc /dAppVersion=0.19.0 /dPublishDir=out /dAppArch=x64 installer/installer.iss
+iscc /dAppVersion=0.19.0 /dPublishDir=out /dAppArch=x64 packaging/windows/installer.iss
 ```
 
 Linux (needs `dotnet`, `clang`, `zlib1g-dev`; `nfpm` and `appimagetool` for those formats):

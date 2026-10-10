@@ -1,0 +1,38 @@
+---
+import { Image } from 'astro:assets';
+import settings1 from '../assets/screenshots/settings-1.png';
+import settings2 from '../assets/screenshots/settings-2.png';
+import settings3 from '../assets/screenshots/settings-3.png';
+import settings4 from '../assets/screenshots/settings-4.png';
+import settings5 from '../assets/screenshots/settings-5.png';
+import settings6 from '../assets/screenshots/settings-6.png';
+
+const shots = [
+  { src: settings1, caption: 'General', alt: 'BrightSync settings: general options including start at login and update checks' },
+  { src: settings2, caption: 'Brightness', alt: 'BrightSync settings: master brightness and enforcement options' },
+  { src: settings3, caption: 'Automatic curve', alt: 'BrightSync settings: the 24-hour automatic brightness curve editor' },
+  { src: settings4, caption: 'Power saving', alt: 'BrightSync settings: energy saver reduction and idle dimming' },
+  { src: settings5, caption: 'Modes', alt: 'BrightSync settings: timed eye protection and brightness boost modes' },
+  { src: settings6, caption: 'Monitors', alt: 'BrightSync settings: per-monitor limits, multiplier and hardware controls' },
+];
+---
+
+<section id="screenshots">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow">Screenshots</p>
+      <h2>A settings window that stays out of your way.</h2>
+      <p class="lead">Screenshots show the Windows build; Linux uses the same window.</p>
+    </div>
+    <div class="shots">
+      {
+        shots.map((shot) => (
+          <figure>
+            <Image src={shot.src} alt={shot.alt} width={560} loading="lazy" />
+            <figcaption>{shot.caption}</figcaption>
+          </figure>
+        ))
+      }
+    </div>
+  </div>
+</section>

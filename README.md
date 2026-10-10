@@ -2,6 +2,8 @@
 
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/bberka/BrightSync) ![GitHub top language](https://img.shields.io/github/languages/top/bberka/BrightSync) ![GitHub License](https://img.shields.io/github/license/bberka/BrightSync)
 
+**Website: <https://bberka.github.io/BrightSync/>**
+
 BrightSync is a tray app for Windows and Linux that keeps the brightness of your monitors aligned to one shared master brightness value.
 
 | Platform | Architectures | Packages |
@@ -11,7 +13,7 @@ BrightSync is a tray app for Windows and Linux that keeps the brightness of your
 | Linux (musl, Alpine) | x64, arm64, arm | `.apk`, portable `.tar.gz` |
 | Linux (any other architecture) | riscv64, loongarch64, x86, ... | portable framework-dependent `.tar.gz` (needs a .NET 10 runtime) |
 
-Linux setup details, desktop environment notes, and troubleshooting are in [LINUX.md](LINUX.md). Maintainers: [ARCHITECTURE.md](ARCHITECTURE.md) and [PACKAGING.md](PACKAGING.md).
+Linux setup details, desktop environment notes, and troubleshooting are in [LINUX.md](docs/LINUX.md). Maintainers: [ARCHITECTURE.md](docs/ARCHITECTURE.md) and [PACKAGING.md](docs/PACKAGING.md).
 
 BrightSync provides its own master brightness control (available in the tray popup or settings menu) to manage all supported displays from one place, including your laptop's built-in integrated screen and external DDC/CI monitors.
 
@@ -28,20 +30,20 @@ BrightSync is built around the philosophy of **"Configure once, and never think 
 
 ### Quick menu
 
-<img src="assets/quick-menu.png" width="220" alt="Quick menu screenshot">
+<img src="docs/assets/quick-menu.png" width="220" alt="Quick menu screenshot">
 
 ### Settings window
 
 <table>
   <tr>
-    <td><img src="assets/settings-1.png" width="260" alt="Settings Page 1"></td>
-    <td><img src="assets/settings-2.png" width="260" alt="Settings Page 2"></td>
-    <td><img src="assets/settings-3.png" width="260" alt="Settings Page 3"></td>
+    <td><img src="docs/assets/settings-1.png" width="260" alt="Settings Page 1"></td>
+    <td><img src="docs/assets/settings-2.png" width="260" alt="Settings Page 2"></td>
+    <td><img src="docs/assets/settings-3.png" width="260" alt="Settings Page 3"></td>
   </tr>
   <tr>
-    <td><img src="assets/settings-4.png" width="260" alt="Settings Page 4"></td>
-    <td><img src="assets/settings-5.png" width="260" alt="Settings Page 5"></td>
-    <td><img src="assets/settings-6.png" width="260" alt="Settings Page 6"></td>
+    <td><img src="docs/assets/settings-4.png" width="260" alt="Settings Page 4"></td>
+    <td><img src="docs/assets/settings-5.png" width="260" alt="Settings Page 5"></td>
+    <td><img src="docs/assets/settings-6.png" width="260" alt="Settings Page 6"></td>
   </tr>
 </table>
 
@@ -101,7 +103,7 @@ Important notes:
 
 | Feature | Windows | Linux |
 |---|---|---|
-| External monitors (DDC/CI) incl. contrast, volume, RGB gain, presets, input | Yes | Yes (needs `/dev/i2c-N` access, see [LINUX.md](LINUX.md)) |
+| External monitors (DDC/CI) incl. contrast, volume, RGB gain, presets, input | Yes | Yes (needs `/dev/i2c-N` access, see [LINUX.md](docs/LINUX.md)) |
 | Laptop panel brightness | Yes (WMI) | Yes (backlight class, logind fallback) |
 | Tray icon, quick popup, settings window | Yes (Win32 tray) | Yes (StatusNotifierItem tray) |
 | Automatic curve, eye protection, boost, enforcement | Yes | Yes |
@@ -133,7 +135,7 @@ chmod +x BrightSync-<version>-linux-x64.AppImage && ./BrightSync-<version>-linux
 tar xzf BrightSync-<version>-linux-x64.tar.gz && ./BrightSync-*/install.sh  # any distro, per-user
 ```
 
-Replace `x64` with `arm64` or `arm` for ARM devices. See [LINUX.md](LINUX.md) for monitor access setup and tray notes.
+Replace `x64` with `arm64` or `arm` for ARM devices. See [LINUX.md](docs/LINUX.md) for monitor access setup and tray notes.
 
 ## Daily Use
 
@@ -293,15 +295,15 @@ dotnet build src/BrightSync.App/BrightSync.App.csproj -r linux-x64      # from W
 dotnet build src/BrightSync.App/BrightSync.App.csproj -r win-x64 -p:EnableWindowsTargeting=true   # from Linux
 ```
 
-Publish (Native AOT): `dotnet publish src/BrightSync.App/BrightSync.App.csproj -c Release -r <rid>`. Linux packages: `packaging/build-linux.sh <rid> <version> <out>` (see [PACKAGING.md](PACKAGING.md)).
+Publish (Native AOT): `dotnet publish src/BrightSync.App/BrightSync.App.csproj -c Release -r <rid>`. Linux packages: `packaging/build-linux.sh <rid> <version> <out>` (see [PACKAGING.md](docs/PACKAGING.md)).
 
 ## Release Automation
 
 This repository uses GitHub Actions to build and publish releases.
 
-- Workflow: [`.github/workflows/release.yml`](../.github/workflows/release.yml)
+- Workflow: [`.github/workflows/release.yml`](.github/workflows/release.yml)
 - Automatic trigger: update `VERSION` and push to `main` or `master`
 - Manual trigger: run the workflow from the GitHub Actions tab
-- Output packages: Windows `x64`, `x86`, `arm64` (setup installer and portable zip), Linux `x64`, `arm64`, `arm` for glibc and musl (deb, rpm, pacman, AppImage, apk, tar.gz), and the portable framework-dependent Linux archive. Asset names and the checksum manifest are described in [PACKAGING.md](PACKAGING.md).
+- Output packages: Windows `x64`, `x86`, `arm64` (setup installer and portable zip), Linux `x64`, `arm64`, `arm` for glibc and musl (deb, rpm, pacman, AppImage, apk, tar.gz), and the portable framework-dependent Linux archive. Asset names and the checksum manifest are described in [PACKAGING.md](docs/PACKAGING.md).
 
 The workflow reads the version from `VERSION`, publishes every target, smoke-tests the Linux x64 and arm64 packages under a virtual display, and uploads the assets plus `BrightSync-SHA256SUMS.txt` to the matching GitHub release.

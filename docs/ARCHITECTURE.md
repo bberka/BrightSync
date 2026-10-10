@@ -3,9 +3,9 @@
 BrightSync is one Avalonia app that runs on Windows and Linux. It is split by responsibility, and every dependency points toward the contracts:
 
 ```
-platform/BrightSync.Platform.Abstractions   net10.0                       OS contracts, DdcMonitor model, VCP parsing, PlatformServices
-platform/BrightSync.Platform.Windows        net10.0-windows10.0.19041.0   Win32, WMI, dxva2, registry, WinRT media, Win32 tray
-platform/BrightSync.Platform.Linux          net10.0                       sysfs/DRM/EDID, i2c-dev, D-Bus, X11, XDG
+src/BrightSync.Platform.Abstractions   net10.0                       OS contracts, DdcMonitor model, VCP parsing, PlatformServices
+src/BrightSync.Platform.Windows        net10.0-windows10.0.19041.0   Win32, WMI, dxva2, registry, WinRT media, Win32 tray
+src/BrightSync.Platform.Linux          net10.0                       sysfs/DRM/EDID, i2c-dev, D-Bus, X11, XDG
 src/BrightSync.Core                         net10.0                       sync engine, services, config, CLI, updates, diagnostics (no UI, no OS API)
 src/BrightSync.UI                           net10.0                       Avalonia views, view models, tray manager, App
 src/BrightSync.App                          follows the target OS         executable: Program, platform selection, AOT/trim/publish settings
@@ -20,6 +20,26 @@ App ──► UI ──► Core ──► Abstractions ◄── Windows | Linux
 - **Core** never references Avalonia or an OS project. The two places it needs the UI thread or the tray go through `IUiDispatcher` and `IResidentAppHost` (`UiDispatcher.cs`); the UI installs the Avalonia implementation at startup, and the default runs work inline, which is what tests rely on.
 - **UI** never references an OS project. It reads `PlatformServices.Current` for shell actions and `PlatformCapabilities` for what to show.
 - **App** is the only project that knows which OS project to link. Keep it thin: new behavior belongs in Core, UI, or a platform project.
+
+## Repository layout
+
+```
+.github/workflows/   ci.yml, release.yml (packages), website.yml (GitHub Pages)
+src/                 every production project: Core, UI, App, Platform.Abstractions, Platform.Windows, Platform.Linux
+tests/               one xunit v3 project for all of the above, with Linux fakes in tests/Linux
+packaging/           windows/ (Inno Setup script), linux/ (nfpm, desktop, udev, install.sh), build-linux.sh
+tools/               developer tooling, such as linux-vm-test (QEMU distro runs)
+website/             Astro landing page published to GitHub Pages; independent of the .NET build
+docs/                guides (Linux, architecture, packaging, roadmap) and the screenshots the README uses
+tasks/               planning notes for larger changes
+Directory.Build.props, global.json, VERSION, BrightSync.sln at the root
+```
+
+Conventions: production code lives under `src/` and tests under `tests/`; project folders and assemblies share one
+`BrightSync.<Part>` name; platform projects sit beside the code that uses them instead of in a separate tree, because
+they are ordinary dependencies, only selected per OS by `Directory.Build.props`. Release tooling stays out of `src/`
+so publishing concerns never leak into the libraries. The website has its own `package.json` and is never referenced
+by the .NET solution.
 
 ## Target selection
 

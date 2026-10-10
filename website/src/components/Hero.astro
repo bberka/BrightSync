@@ -1,0 +1,40 @@
+---
+import { Image } from 'astro:assets';
+import quickMenu from '../assets/screenshots/quick-menu.png';
+import { REPO_URL } from '../data/site';
+import Icon from './Icon.astro';
+---
+
+<section class="hero">
+  <div class="container">
+    <div>
+      <p class="eyebrow">Free and open source</p>
+      <h1>One brightness for <em>every</em> monitor.</h1>
+      <p class="lead">
+        BrightSync lives in your tray and keeps all your displays, including the laptop panel, at one shared
+        brightness. Set limits per monitor once, add an automatic day curve, and stop reaching for monitor buttons.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#download" data-download-primary>
+          <Icon name="download" size={20} /> <span data-download-label>Download</span>
+        </a>
+        <a class="btn" href={REPO_URL} rel="noopener"><Icon name="github" size={20} /> View on GitHub</a>
+      </div>
+      <p class="muted" data-download-note hidden></p>
+      <div class="hero-meta">
+        <span class="pill">Windows 10/11</span>
+        <span class="pill">Linux</span>
+        <span class="pill">x64 · arm64 · x86 · arm</span>
+        <span class="pill">MIT license</span>
+      </div>
+    </div>
+    <div class="hero-shot">
+      <Image
+        src={quickMenu}
+        alt="The BrightSync quick popup with a master brightness slider and Automatic Brightness, Eye Protection and Brightness Boost toggles"
+        width={360}
+        loading="eager"
+      />
+    </div>
+  </div>
+</section>

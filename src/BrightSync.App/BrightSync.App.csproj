@@ -64,15 +64,15 @@
   <ItemGroup>
     <ProjectReference Include="..\BrightSync.Core\BrightSync.Core.csproj"/>
     <ProjectReference Include="..\BrightSync.UI\BrightSync.UI.csproj"/>
-    <ProjectReference Include="..\..\platform\BrightSync.Platform.Abstractions\BrightSync.Platform.Abstractions.csproj"/>
+    <ProjectReference Include="..\BrightSync.Platform.Abstractions\BrightSync.Platform.Abstractions.csproj"/>
   </ItemGroup>
 
   <ItemGroup Condition="'$(BrightSyncTargetOs)' == 'windows'">
-    <ProjectReference Include="..\..\platform\BrightSync.Platform.Windows\BrightSync.Platform.Windows.csproj"/>
+    <ProjectReference Include="..\BrightSync.Platform.Windows\BrightSync.Platform.Windows.csproj"/>
   </ItemGroup>
 
   <ItemGroup Condition="'$(BrightSyncTargetOs)' == 'linux'">
-    <ProjectReference Include="..\..\platform\BrightSync.Platform.Linux\BrightSync.Platform.Linux.csproj"/>
+    <ProjectReference Include="..\BrightSync.Platform.Linux\BrightSync.Platform.Linux.csproj"/>
   </ItemGroup>
 
   <!-- Root every assembly the UI reaches by reflection (XAML loader, bindings, themes) so the

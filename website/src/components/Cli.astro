@@ -1,0 +1,27 @@
+---
+---
+
+<section class="alt" id="cli">
+  <div class="container two-col">
+    <div>
+      <p class="eyebrow">Command line</p>
+      <h2>Your hotkeys, your rules.</h2>
+      <p class="lead">
+        BrightSync does not ship a hotkey daemon. Bind the CLI in AutoHotkey, PowerToys, your desktop's shortcut
+        settings or a script, and it talks to the running tray app.
+      </p>
+      <p class="muted">On Windows the command is <code>BrightSync.exe</code>; on Linux it is <code>brightsync</code>.</p>
+    </div>
+    <pre><code><span class="c"># one-shot, works even when the tray app is not running</span>
+brightsync brightness set 55
+brightsync brightness up 10
+brightsync brightness down 10
+
+<span class="c"># talk to the running tray app</span>
+brightsync status --json
+brightsync auto on
+brightsync eye-protection on --hours 3
+brightsync boost on --hours 2
+brightsync monitors refresh</code></pre>
+  </div>
+</section>
