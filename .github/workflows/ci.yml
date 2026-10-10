@@ -30,7 +30,9 @@ jobs:
           - ubuntu-latest
           - ubuntu-24.04-arm
     env:
-      SOLUTION_PATH: BrightSync.sln
+      # The test project pulls in the app and exactly the platform projects for this OS. The solution also
+      # lists the Windows project, which a Linux runner has no reason to compile here.
+      SOLUTION_PATH: tests/BrightSync.Tests.csproj
       TEST_PROJECT_PATH: tests/BrightSync.Tests.csproj
       CONFIGURATION: Debug
     steps:
