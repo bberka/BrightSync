@@ -15,6 +15,38 @@ internal readonly record struct TaskbarPositionInfo(TaskbarEdge Edge, PixelRect?
 
 internal static class TaskbarPosition
 {
+    /// <summary>
+    /// Locates the taskbar. Windows reports it directly; when the OS cannot (Linux), the panel is inferred
+    /// from the gap between the screen bounds and its work area.
+    /// </summary>
+    public static TaskbarPositionInfo GetPosition(PixelRect screenBounds, PixelRect workingArea)
+    {
+        return PlatformServices.Current.Shell.TryGetTaskbarBounds(out _)
+            ? GetPosition(screenBounds)
+            : InferFromWorkingArea(screenBounds, workingArea);
+    }
+
+    internal static TaskbarPositionInfo InferFromWorkingArea(PixelRect screenBounds, PixelRect workingArea)
+    {
+        var left = workingArea.X - screenBounds.X;
+        var top = workingArea.Y - screenBounds.Y;
+        var right = screenBounds.Right - workingArea.Right;
+        var bottom = screenBounds.Bottom - workingArea.Bottom;
+
+        var largest = Math.Max(Math.Max(left, top), Math.Max(right, bottom));
+        if (largest <= 0)
+            return new(TaskbarEdge.Bottom, null);
+
+        if (largest == bottom)
+            return new(TaskbarEdge.Bottom, new PixelRect(screenBounds.X, workingArea.Bottom, screenBounds.Width, bottom));
+        if (largest == top)
+            return new(TaskbarEdge.Top, new PixelRect(screenBounds.X, screenBounds.Y, screenBounds.Width, top));
+        if (largest == left)
+            return new(TaskbarEdge.Left, new PixelRect(screenBounds.X, screenBounds.Y, left, screenBounds.Height));
+
+        return new(TaskbarEdge.Right, new PixelRect(workingArea.Right, screenBounds.Y, right, screenBounds.Height));
+    }
+
     public static TaskbarPositionInfo GetPosition(PixelRect screenBounds)
     {
         if (!PlatformServices.Current.Shell.TryGetTaskbarBounds(out var rect))

@@ -6,5 +6,5 @@ public enum MonitorBrightnessBackend
     LowLevelDdcCi = 1,
     HighLevelApi = 2,
     WriteOnlyDdcCi = 3,
-    InternalWmi = 4
+    InternalPanel = 4
 }

@@ -61,7 +61,7 @@ internal sealed class WindowsMonitorBackend(IInternalBrightness internalBrightne
                         MinNativeBrightness = 0,
                         MaxDdcBrightness = 100,
                         LastCommandedPercent = currentBrightness >= 0 ? currentBrightness : 50,
-                        BrightnessBackendType = MonitorBrightnessBackend.InternalWmi,
+                        BrightnessBackendType = MonitorBrightnessBackend.InternalPanel,
                         BrightnessBackend = "WMI (Internal)",
                         IsHdrSupported = internalHdrInfo.IsHdrSupported,
                         IsHdrEnabled = internalHdrInfo.IsHdrEnabled,
@@ -184,7 +184,7 @@ internal sealed class WindowsMonitorBackend(IInternalBrightness internalBrightne
             MonitorBrightnessBackend.HighLevelApi => TrySetHighLevelBrightness(monitor, brightnessPercent),
             MonitorBrightnessBackend.WriteOnlyDdcCi => TrySetVcpBrightness(monitor, brightnessPercent, retryCount: 2),
             MonitorBrightnessBackend.LowLevelDdcCi => TrySetVcpBrightness(monitor, brightnessPercent, retryCount: 2),
-            MonitorBrightnessBackend.InternalWmi => internalBrightness.TrySetBrightness(brightnessPercent),
+            MonitorBrightnessBackend.InternalPanel => internalBrightness.TrySetBrightness(brightnessPercent),
             _ => false
         };
 
@@ -197,7 +197,7 @@ internal sealed class WindowsMonitorBackend(IInternalBrightness internalBrightne
                 return TryGetHighLevelBrightness(monitor, out brightnessPercent);
             case MonitorBrightnessBackend.LowLevelDdcCi:
                 return TryGetVcpBrightness(monitor, out brightnessPercent, retryCount: 2);
-            case MonitorBrightnessBackend.InternalWmi:
+            case MonitorBrightnessBackend.InternalPanel:
                 brightnessPercent = internalBrightness.ReadCurrentBrightness();
                 return brightnessPercent >= 0;
             default:

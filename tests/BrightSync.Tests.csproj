@@ -28,6 +28,8 @@
 
     <ItemGroup>
         <ProjectReference Include="..\src\BrightSync.csproj" />
+        <!-- Linux platform code is plain net10.0 and is unit-tested on every host. -->
+        <ProjectReference Include="..\platform\BrightSync.Platform.Linux\BrightSync.Platform.Linux.csproj" />
     </ItemGroup>
 
 </Project>

@@ -19,13 +19,13 @@ Standing verification after every task: `dotnet build BrightSync.sln` clean, `do
 - [ ] 153+ tests green; `dotnet publish -r win-x64 -c Release` (AOT) succeeds; published exe launches, tray present, CLI `status` works; app csproj has no OS-specific API.
 
 ## Phase 2: Linux platform
-- [ ] T8 Linux factory + minimal services; app starts with tray + settings on Linux (capabilities mostly false). Accept: `dotnet build -r linux-x64` clean, unit tests for factory. (S)
-- [ ] T9 EDID parser + DRM connector scan + monitor identity/connection type (`/sys/class/drm`). Accept: unit tests with fixture EDIDs/sysfs trees. (M)
-- [ ] T10 DDC/CI over i2c-dev: packet codec (checksums, get/set VCP, capabilities fragments), device access, bus↔connector mapping, retry/timing. Accept: codec unit tests against spec vectors; fake device end-to-end test. (L→split)
-- [ ] T11 Internal backlight (`/sys/class/backlight` + logind SetBrightness). Accept: sysfs fixture tests. (S)
-- [ ] T12 Events: logind sleep/lock, UPower, power-profiles-daemon (Energy Saver), timedate, Avalonia `Screens.Changed`; idle (Mutter IdleMonitor → XScreenSaver → logind IdleHint); MPRIS playback. Accept: each source has an injectable transport; unit tests on parsing/mapping. (L→split)
-- [ ] T13 Shell: XDG autostart, `xdg-open`, single instance (flock), already-running notice, taskbar/panel inference from Bounds vs WorkingArea, cursor position (X11 optional). Accept: unit tests (desktop file text, path logic). (M)
-- [ ] T14 Linux tray polish: Avalonia tray menu parity (presets, toggles, quick brightness item for DEs that don't deliver Activate), icon sizes. Accept: build clean; menu model unit test. (S)
+- [x] T8 Linux factory + minimal services; app starts with tray + settings on Linux (capabilities mostly false). Accept: `dotnet build -r linux-x64` clean, unit tests for factory. (S)
+- [x] T9 EDID parser + DRM connector scan + monitor identity/connection type (`/sys/class/drm`). Accept: unit tests with fixture EDIDs/sysfs trees. (M)
+- [x] T10 DDC/CI over i2c-dev: packet codec (checksums, get/set VCP, capabilities fragments), device access, bus↔connector mapping, retry/timing. Accept: codec unit tests against spec vectors; fake device end-to-end test. (L→split)
+- [x] T11 Internal backlight (`/sys/class/backlight` + logind SetBrightness). Accept: sysfs fixture tests. (S)
+- [x] T12 Events: logind sleep/lock, UPower, power-profiles-daemon (Energy Saver), timedate, Avalonia `Screens.Changed`; idle (Mutter IdleMonitor → XScreenSaver → logind IdleHint); MPRIS playback. Accept: each source has an injectable transport; unit tests on parsing/mapping. (L→split)
+- [x] T13 Shell: XDG autostart, `xdg-open`, single instance (flock), already-running notice, taskbar/panel inference from Bounds vs WorkingArea, cursor position (X11 optional). Accept: unit tests (desktop file text, path logic). (M)
+- [x] T14 Linux tray polish: Avalonia tray menu parity (presets, toggles, quick brightness item for DEs that don't deliver Activate), icon sizes. Accept: build clean; menu model unit test. (S)
 
 ### Checkpoint B (Linux builds)
 - [ ] `dotnet publish -r linux-x64` and `-r linux-arm64` (non-AOT, cross from Windows) succeed; Linux unit tests pass on Windows host; no Windows API reachable from Linux graph.

@@ -24,7 +24,9 @@ internal sealed class AvaloniaTrayIcon : ITrayIcon
     private bool _disposed;
 
     public event EventHandler? Clicked;
+#pragma warning disable CS0067 // Middle click is not delivered by the StatusNotifierItem protocol.
     public event EventHandler? MiddleClicked;
+#pragma warning restore CS0067
     public event EventHandler? SettingsRequested;
     public event EventHandler? RefreshRequested;
     public event EventHandler? ExitRequested;
