@@ -32,6 +32,9 @@ LicenseFile=..\LICENSE
 #if AppArch == "arm64"
 ArchitecturesInstallIn64BitMode=arm64
 ArchitecturesAllowed=arm64
+#elif AppArch == "x86"
+; 32-bit build: installs under Program Files (x86) and runs on 32-bit and 64-bit x86 Windows.
+ArchitecturesAllowed=x86compatible
 #else
 ArchitecturesInstallIn64BitMode=x64compatible
 ArchitecturesAllowed=x64compatible

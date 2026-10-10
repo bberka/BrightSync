@@ -18,19 +18,27 @@ concurrency:
 
 jobs:
   build-and-test:
-    runs-on: windows-latest
+    name: build-and-test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-latest
+          - ubuntu-24.04-arm
     env:
       SOLUTION_PATH: BrightSync.sln
       TEST_PROJECT_PATH: tests/BrightSync.Tests.csproj
       CONFIGURATION: Debug
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup .NET 10
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 10.0.x
 
@@ -41,6 +49,30 @@ jobs:
         run: dotnet build ${{ env.SOLUTION_PATH }} -c ${{ env.CONFIGURATION }} --no-restore
 
       - name: Test hermetic suite
-        # xUnit v2 exposes [Trait("Category", "...")] as the VSTest Category property.
-        # Hardware/Integration tests remain available to developers but are opt-in locally.
-        run: dotnet test ${{ env.TEST_PROJECT_PATH }} -c ${{ env.CONFIGURATION }} --no-build --no-restore --filter "Category!=Hardware&Category!=Integration"
+        # xUnit v3 runs on Microsoft.Testing.Platform (global.json). Hardware and Integration tests
+        # stay available to developers but are opt-in locally.
+        run: >
+          dotnet test --project ${{ env.TEST_PROJECT_PATH }} -c ${{ env.CONFIGURATION }} --no-build
+          --filter-not-trait "Category=Hardware" --filter-not-trait "Category=Integration"
+
+  # Cross-builds both platform graphs on one host so a Windows-only API in shared code, or a Linux-only
+  # one in the Windows project, fails the pull request before it reaches a platform runner.
+  cross-platform-compile:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build Windows graph
+        run: >
+          dotnet build src/BrightSync.csproj -c Debug -r win-x64 -p:EnableWindowsTargeting=true
+
+      - name: Build Linux graph
+        run: dotnet build src/BrightSync.csproj -c Debug -r linux-x64

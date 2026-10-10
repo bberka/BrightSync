@@ -9,7 +9,7 @@ namespace BrightSync.Core.Updates;
 
 public sealed class UpdateChecker : IDisposable
 {
-    private const string DefaultAssetOsToken = "win";
+    internal const string DefaultAssetOsToken = "win";
 
     internal const string LatestReleaseApiUrl = "https://api.github.com/repos/bberka/BrightSync/releases/latest";
 
@@ -86,7 +86,10 @@ public sealed class UpdateChecker : IDisposable
                 return null;
 
             var releaseAssets = GetReleaseAssets(root);
-            var installer = SelectInstallerAsset(releaseAssets, RuntimeInformation.ProcessArchitecture);
+            var installer = SelectInstallerAsset(
+                releaseAssets,
+                RuntimeInformation.ProcessArchitecture,
+                PlatformServices.Current.UpdateInstaller?.AssetOsToken);
             var checksumManifest = releaseAssets.FirstOrDefault(asset =>
                 asset.Name.Equals(UpdateArtifactSecurity.ChecksumManifestAssetName, StringComparison.OrdinalIgnoreCase));
 
@@ -128,9 +131,14 @@ public sealed class UpdateChecker : IDisposable
         return SelectInstallerAsset(assets, processArchitecture)?.DownloadUrl ?? string.Empty;
     }
 
+    /// <param name="osToken">
+    /// Asset-name OS token (<c>win</c>). Null means this platform installs updates through other means and
+    /// no installer asset applies.
+    /// </param>
     internal static GitHubReleaseAsset? SelectInstallerAsset(
         IReadOnlyList<GitHubReleaseAsset> assets,
-        Architecture processArchitecture)
+        Architecture processArchitecture,
+        string? osToken = DefaultAssetOsToken)
     {
         if (assets.Count == 0)
         {
@@ -149,9 +157,6 @@ public sealed class UpdateChecker : IDisposable
             return null;
         }
 
-        var osToken = PlatformServices.IsConfigured
-            ? PlatformServices.Current.UpdateInstaller?.AssetOsToken
-            : DefaultAssetOsToken;
         if (osToken is null)
             return null;
 

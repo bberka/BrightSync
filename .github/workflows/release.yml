@@ -32,7 +32,7 @@ jobs:
       commit: ${{ steps.version.outputs.commit }}
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -110,41 +110,51 @@ jobs:
           exit 1
 
   validate:
+    name: validate (${{ matrix.os }})
     needs:
       - prepare
       - wait-for-ci
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+          - os: ubuntu-latest
+            rid: linux-x64
     env:
       SOLUTION_PATH: BrightSync.sln
       TEST_PROJECT_PATH: tests/BrightSync.Tests.csproj
       CONFIGURATION: Release
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup .NET 10
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 10.0.x
 
       - name: Restore
-        run: dotnet restore ${{ env.SOLUTION_PATH }} -r win-x64
+        run: dotnet restore ${{ env.SOLUTION_PATH }} -r ${{ matrix.rid }}
 
       - name: Build
         run: dotnet build ${{ env.SOLUTION_PATH }} -c ${{ env.CONFIGURATION }} --no-restore
 
       - name: Test hardware-safe suite
         if: ${{ inputs.run_hardware_tests != true }}
-        # Keep release validation aligned with the repository's verified hosted-runner filter.
-        run: dotnet test ${{ env.TEST_PROJECT_PATH }} -c ${{ env.CONFIGURATION }} --no-build --no-restore --filter "Category!=Hardware&Category!=Integration"
+        run: >
+          dotnet test --project ${{ env.TEST_PROJECT_PATH }} -c ${{ env.CONFIGURATION }} --no-build
+          --filter-not-trait "Category=Hardware" --filter-not-trait "Category=Integration"
 
       - name: Test full suite (manual hardware opt-in)
         if: ${{ inputs.run_hardware_tests == true }}
-        run: dotnet test ${{ env.TEST_PROJECT_PATH }} -c ${{ env.CONFIGURATION }} --no-build --no-restore
+        run: dotnet test --project ${{ env.TEST_PROJECT_PATH }} -c ${{ env.CONFIGURATION }} --no-build
 
-  package:
+  package-windows:
     needs:
       - prepare
       - validate
@@ -160,6 +170,9 @@ jobs:
           - rid: win-arm64
             suffix: win-arm64
             arch: arm64
+          - rid: win-x86
+            suffix: win-x86
+            arch: x86
     env:
       PROJECT_PATH: src/BrightSync.csproj
       CONFIGURATION: Release
@@ -168,10 +181,10 @@ jobs:
       WINDOWS_SIGNING_TIMESTAMP_URL: ${{ secrets.WINDOWS_SIGNING_TIMESTAMP_URL }}
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup .NET 10
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 10.0.x
 
@@ -329,24 +342,169 @@ jobs:
           Copy-Item -LiteralPath $setupPath -Destination $packageDir -Force
 
       - name: Upload package artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: BrightSync-package-${{ matrix.suffix }}
           path: ${{ runner.temp }}/package/*
           if-no-files-found: error
           retention-days: 7
 
+  package-linux:
+    name: package-linux (${{ matrix.rid }})
+    needs:
+      - prepare
+      - validate
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Native AOT on a runner of the same architecture.
+          - rid: linux-x64
+            runner: ubuntu-latest
+            appimagetool: x86_64
+          - rid: linux-arm64
+            runner: ubuntu-24.04-arm
+            appimagetool: aarch64
+          # Self-contained single file, cross-published from x64 (no AOT toolchain for these targets).
+          - rid: linux-arm
+            runner: ubuntu-latest
+            appimagetool: x86_64
+          - rid: linux-musl-x64
+            runner: ubuntu-latest
+            appimagetool: x86_64
+          - rid: linux-musl-arm64
+            runner: ubuntu-latest
+            appimagetool: x86_64
+          - rid: linux-musl-arm
+            runner: ubuntu-latest
+            appimagetool: x86_64
+          # Framework-dependent build for riscv64, loongarch64, x86 and any other architecture with .NET 10.
+          - rid: linux-portable
+            runner: ubuntu-latest
+            appimagetool: x86_64
+    env:
+      NFPM_VERSION: 2.47.0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install native AOT prerequisites
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      - name: Install nfpm
+        shell: bash
+        run: |
+          set -euo pipefail
+          arch="$(uname -m)"
+          case "$arch" in
+            x86_64) nfpm_arch=x86_64 ;;
+            aarch64) nfpm_arch=arm64 ;;
+            *) echo "Unsupported runner architecture $arch" >&2; exit 1 ;;
+          esac
+          base="https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}"
+          archive="nfpm_${NFPM_VERSION}_Linux_${nfpm_arch}.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$archive" "$base/$archive"
+          curl -fsSL -o "$RUNNER_TEMP/nfpm-checksums.txt" "$base/nfpm_${NFPM_VERSION}_checksums.txt"
+          (cd "$RUNNER_TEMP" && grep " $archive\$" nfpm-checksums.txt | sha256sum --check -)
+          mkdir -p "$RUNNER_TEMP/nfpm"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/nfpm" nfpm
+          echo "NFPM=$RUNNER_TEMP/nfpm/nfpm" >> "$GITHUB_ENV"
+
+      - name: Install appimagetool
+        if: ${{ !contains(matrix.rid, 'musl') && matrix.rid != 'linux-portable' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tool="$RUNNER_TEMP/appimagetool"
+          curl -fsSL -o "$tool"             "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${{ matrix.appimagetool }}.AppImage"
+          chmod +x "$tool"
+          echo "APPIMAGETOOL=$tool" >> "$GITHUB_ENV"
+
+      - name: Build packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          packaging/build-linux.sh "${{ matrix.rid }}" "${{ needs.prepare.outputs.version }}" "$RUNNER_TEMP/package"
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: BrightSync-package-${{ matrix.rid }}
+          path: ${{ runner.temp }}/package/*
+          if-no-files-found: error
+          retention-days: 7
+
+  smoke-linux:
+    name: smoke-linux (${{ matrix.rid }})
+    needs:
+      - prepare
+      - package-linux
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: linux-x64
+            runner: ubuntu-latest
+          - rid: linux-arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Download package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: BrightSync-package-${{ matrix.rid }}
+          path: package
+
+      - name: Install the .deb with a virtual display
+        run: sudo apt-get update && sudo apt-get install -y xvfb dbus-x11 ./package/BrightSync-${{ needs.prepare.outputs.version }}-${{ matrix.rid }}.deb
+
+      - name: Package contents
+        run: |
+          set -euo pipefail
+          dpkg -L brightsync
+          test -x /usr/bin/brightsync
+          test -f /usr/lib/udev/rules.d/99-brightsync-i2c.rules
+          test -f /usr/share/applications/brightsync.desktop
+
+      - name: Launch the tray app and query it over the CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          xvfb-run -a dbus-run-session -- bash -c '
+            brightsync --autostart > "$RUNNER_TEMP/brightsync.out" 2>&1 &
+            app=$!
+            for _ in $(seq 1 30); do
+              if brightsync status; then ok=1; break; fi
+              sleep 1
+            done
+            kill -0 "$app"
+            kill "$app"
+            [ "${ok:-0}" = 1 ]
+          ' || { cat "$RUNNER_TEMP/brightsync.out" || true; ls ~/.config/BrightSync/Logs 2>/dev/null && tail -n 80 ~/.config/BrightSync/Logs/*.log; exit 1; }
+
   release:
     needs:
       - prepare
-      - package
+      - package-windows
+      - package-linux
+      - smoke-linux
     runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: write
     steps:
       - name: Download package artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: BrightSync-package-*
           path: release-assets
@@ -362,9 +520,22 @@ jobs:
           expected=(
             "BrightSync-${RELEASE_VERSION}-win-x64.zip"
             "BrightSync-${RELEASE_VERSION}-win-arm64.zip"
+            "BrightSync-${RELEASE_VERSION}-win-x86.zip"
             "BrightSync-Setup-v${RELEASE_VERSION}-win-x64.exe"
             "BrightSync-Setup-v${RELEASE_VERSION}-win-arm64.exe"
+            "BrightSync-Setup-v${RELEASE_VERSION}-win-x86.exe"
+            "BrightSync-${RELEASE_VERSION}-linux-portable.tar.gz"
           )
+          for rid in linux-x64 linux-arm64 linux-arm; do
+            for ext in tar.gz deb rpm pkg.tar.zst AppImage; do
+              expected+=("BrightSync-${RELEASE_VERSION}-${rid}.${ext}")
+            done
+          done
+          for rid in linux-musl-x64 linux-musl-arm64 linux-musl-arm; do
+            for ext in tar.gz apk; do
+              expected+=("BrightSync-${RELEASE_VERSION}-${rid}.${ext}")
+            done
+          done
           shopt -s nullglob
           assets=(*)
           if (( ${#assets[@]} != ${#expected[@]} )); then

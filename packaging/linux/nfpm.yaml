@@ -1,0 +1,71 @@
+# nfpm definition for deb / rpm / apk / archlinux packages.
+# Rendered by packaging/build-linux.sh, which exports:
+#   NFPM_ARCH     amd64 | arm64 | arm7
+#   NFPM_VERSION  release version, e.g. 0.19.0
+#   BS_PUBLISH    directory holding the published BrightSync binary and native libraries
+name: brightsync
+arch: ${NFPM_ARCH}
+platform: linux
+version: ${NFPM_VERSION}
+section: utils
+priority: optional
+maintainer: BrightSync <https://github.com/bberka/BrightSync>
+description: |
+  Keep the brightness of every monitor aligned to one master value.
+  DDC/CI for external monitors, backlight control for laptop panels, automatic
+  brightness curve, idle dimming, eye protection and a command line interface.
+vendor: BrightSync
+homepage: https://github.com/bberka/BrightSync
+license: MIT
+
+contents:
+  - src: ${BS_PUBLISH}/
+    dst: /opt/brightsync/
+    type: tree
+    file_info:
+      mode: 0755
+  - src: /opt/brightsync/BrightSync
+    dst: /usr/bin/brightsync
+    type: symlink
+  - src: packaging/linux/brightsync.desktop
+    dst: /usr/share/applications/brightsync.desktop
+  - src: src/Resources/app.png
+    dst: /usr/share/icons/hicolor/128x128/apps/brightsync.png
+  - src: packaging/linux/99-brightsync-i2c.rules
+    dst: /usr/lib/udev/rules.d/99-brightsync-i2c.rules
+  - src: packaging/linux/brightsync-i2c.conf
+    dst: /usr/lib/modules-load.d/brightsync-i2c.conf
+  - src: LICENSE
+    dst: /usr/share/licenses/brightsync/LICENSE
+
+scripts:
+  postinstall: packaging/linux/postinstall.sh
+  postremove: packaging/linux/postremove.sh
+
+# Only libraries every desktop already has are required. Tray support is optional (see docs/LINUX.md).
+overrides:
+  deb:
+    depends:
+      - libc6
+      - libfontconfig1
+    recommends:
+      - libxss1
+      - xdg-utils
+  rpm:
+    depends:
+      - fontconfig
+    recommends:
+      - libXScrnSaver
+      - xdg-utils
+  apk:
+    depends:
+      - fontconfig
+      - libgcc
+      - libstdc++
+      - icu-libs
+  archlinux:
+    depends:
+      - fontconfig
+    optdepends:
+      - 'libxss: idle detection on X11'
+      - 'xdg-utils: open links from the settings window'

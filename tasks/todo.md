@@ -34,13 +34,13 @@ Standing verification after every task: `dotnet build BrightSync.sln` clean, `do
 - [x] T15 Gate UI by `PlatformCapabilities` (refresh rate, ICC, HDR info, auto-install); neutral wording ("Start with system", "System brightness", "Energy Saver / Power Saver"); `OpenDisplaySettings` per OS. Accept: view-model tests; Windows text unchanged where Windows-specific. (M)
 
 ## Phase 4: Packaging + CI
-- [ ] T16 Windows: add win-x86 (installer arch, release manifest); keep zip + Inno for x64/x86/arm64; try AOT win-x86 locally. (M)
-- [ ] T17 Linux assets: `packaging/linux/` (desktop file, icons, udev rule, modules-load, nfpm.yaml, AppImage recipe, install.sh/uninstall.sh, tar.gz layout, scripts `build-linux-packages.sh`). Accept: scripts shellcheck-clean; package layout reviewed. (L→split)
-- [ ] T18 CI: matrix build/test windows+ubuntu; release matrix for all RIDs (AOT on native runners, trimmed single-file otherwise); nfpm + AppImage jobs; checksum manifest + expected asset list updated. Accept: workflow YAML lint (actionlint) clean. (L)
-- [ ] T19 Runtime asset naming contract shared by workflows and `UpdateChecker` (document in `docs/PACKAGING.md`). (S)
+- [x] T16 Windows: add win-x86 (installer arch, release manifest); keep zip + Inno for x64/x86/arm64; try AOT win-x86 locally. (M)
+- [x] T17 Linux assets: `packaging/linux/` (desktop file, icons, udev rule, modules-load, nfpm.yaml, AppImage recipe, install.sh/uninstall.sh, tar.gz layout, scripts `build-linux-packages.sh`). Accept: scripts shellcheck-clean; package layout reviewed. (L→split)
+- [x] T18 CI: matrix build/test windows+ubuntu; release matrix for all RIDs (AOT on native runners, trimmed single-file otherwise); nfpm + AppImage jobs; checksum manifest + expected asset list updated. Accept: workflow YAML lint (actionlint) clean. (L)
+- [x] T19 Runtime asset naming contract shared by workflows and `UpdateChecker` (document in `docs/PACKAGING.md`). (S)
 
 ## Phase 5: Docs
-- [ ] T20 `docs/README.md` (platforms, install per distro, tray notes), `docs/LINUX.md`, `docs/ARCHITECTURE.md`, `docs/PACKAGING.md`, `docs/TODO.md`; root `AGENTS.md` (writing-for-agents style: only non-discoverable conventions). (M)
+- [x] T20 `docs/README.md` (platforms, install per distro, tray notes), `docs/LINUX.md`, `docs/ARCHITECTURE.md`, `docs/PACKAGING.md`, `docs/TODO.md`; root `AGENTS.md` (writing-for-agents style: only non-discoverable conventions). (M)
 
 ## Phase 6: Verification
 - [ ] T21 Full pass: build matrix, tests, Windows AOT publish + launch, CLI smoke, review diff for Windows regressions, final report with unverified-on-hardware list. (M)

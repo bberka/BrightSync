@@ -1,0 +1,5 @@
+# Scripts and Linux packaging files must keep LF endings or they fail on Linux.
+*.sh text eol=lf
+packaging/linux/** text eol=lf
+packaging/linux/*.png binary
+*.iss text eol=crlf

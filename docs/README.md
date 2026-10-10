@@ -2,7 +2,16 @@
 
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/bberka/BrightSync) ![GitHub top language](https://img.shields.io/github/languages/top/bberka/BrightSync) ![GitHub License](https://img.shields.io/github/license/bberka/BrightSync)
 
-BrightSync is a Windows tray app that keeps the brightness of your monitors aligned to one shared master brightness value.
+BrightSync is a tray app for Windows and Linux that keeps the brightness of your monitors aligned to one shared master brightness value.
+
+| Platform | Architectures | Packages |
+|---|---|---|
+| Windows 10/11 | x64, x86, arm64 | Setup installer, portable zip |
+| Linux (glibc) | x64, arm64, arm | `.deb`, `.rpm`, Arch `.pkg.tar.zst`, AppImage, portable `.tar.gz` |
+| Linux (musl, Alpine) | x64, arm64, arm | `.apk`, portable `.tar.gz` |
+| Linux (any other architecture) | riscv64, loongarch64, x86, ... | portable framework-dependent `.tar.gz` (needs a .NET 10 runtime) |
+
+Linux setup details, desktop environment notes, and troubleshooting are in [LINUX.md](LINUX.md). Maintainers: [ARCHITECTURE.md](ARCHITECTURE.md) and [PACKAGING.md](PACKAGING.md).
 
 BrightSync provides its own master brightness control (available in the tray popup or settings menu) to manage all supported displays from one place, including your laptop's built-in integrated screen and external DDC/CI monitors.
 
@@ -40,7 +49,7 @@ BrightSync is built around the philosophy of **"Configure once, and never think 
 
 - Uses one global master brightness value as the source for all enabled monitors.
 - Supports independent master brightness control that does not rely on Windows' native slider.
-- Treats the internal display (laptops) as a standard controllable target using a WMI backend.
+- Treats the internal display (laptops) as a standard controllable target (WMI on Windows, the backlight class on Linux).
 - Applies brightness to external monitors through DDC/CI.
 - Lets you adjust each monitor (both internal and external) with its own enable flag, minimum, maximum, and multiplier (ratio).
 - Supports advanced monitor hardware controls (Contrast, Volume, RGB Gains, Color Presets, and Input Source) for compatible DDC/CI external monitors.
@@ -60,10 +69,10 @@ BrightSync is built around the philosophy of **"Configure once, and never think 
 - Per-monitor minimum brightness, maximum brightness, and multiplier (ratios)
 - Per-monitor hardware controls for external displays, allowing you to configure Contrast, Volume, RGB Color Gains (Red, Green, Blue), Color Presets, and active Input Source directly from the UI
 - Optional idle dimming after inactivity
-- Optional pause while Windows is locked
+- Optional pause while the session is locked
 - Optional brightness enforcement to re-apply values if a monitor changes them
-- Layered monitor detection with WMI and DisplayConfig fallbacks
-- Layered brightness backends: WMI (Internal), low-level DDC/CI, Windows high-level monitor APIs, and write-only capability fallbacks
+- Layered monitor detection: WMI and DisplayConfig fallbacks on Windows, DRM/EDID on Linux
+- Layered brightness backends: internal panel (WMI or backlight), low-level DDC/CI (dxva2 on Windows, `/dev/i2c-N` on Linux), Windows high-level monitor APIs, and write-only capability fallbacks
 - Apple display and Apple Studio Display detection with backend diagnostics
 - HDR-aware monitor metadata and safer enforcement behavior
 - Per-monitor detection diagnostics in Settings
@@ -72,30 +81,59 @@ BrightSync is built around the philosophy of **"Configure once, and never think 
 - Refresh monitors from the tray or Settings window
 - Configurable periodic monitor refresh to automatically recover lost DDC/CI connections
 - CLI command routing for brightness and resident app actions
-- Dynamic Windows system theme syncing (style changes apply automatically without restarting)
+- Dynamic system theme syncing on Windows (style changes apply automatically without restarting)
 - Compiled with Native AOT for single-file, zero-dependency execution with low memory footprint and instant startup
-- Start with Windows
-- GitHub release update checks
+- Start with Windows / start at login (XDG autostart on Linux)
+- GitHub release update checks (installed automatically on Windows; Linux updates come from your package manager or a new download)
 
 ## Requirements
 
-- Windows
+- Windows 10 (19041) or newer, or a Linux desktop with X11 or XWayland
 - One or more DDC/CI-compatible external monitors for external brightness control
 
 Important notes:
 
 - BrightSync controls external monitors through DDC/CI or high-level monitor APIs.
-- Built-in laptop panels are controlled via WMI (WmiSetBrightness) and treated as a normal monitor target.
+- Built-in laptop panels are controlled via WMI (Windows) or `/sys/class/backlight` (Linux) and treated as a normal monitor target.
 - A monitor may still appear in the app even if BrightSync cannot change its brightness.
+
+### Feature support by platform
+
+| Feature | Windows | Linux |
+|---|---|---|
+| External monitors (DDC/CI) incl. contrast, volume, RGB gain, presets, input | Yes | Yes (needs `/dev/i2c-N` access, see [LINUX.md](LINUX.md)) |
+| Laptop panel brightness | Yes (WMI) | Yes (backlight class, logind fallback) |
+| Tray icon, quick popup, settings window | Yes (Win32 tray) | Yes (StatusNotifierItem tray) |
+| Automatic curve, eye protection, boost, enforcement | Yes | Yes |
+| Idle dimming, ignore while media plays | Yes | Yes (Mutter, KDE or X11 idle; MPRIS media) |
+| Pause while locked | Yes | Yes (logind, GNOME and KDE screensavers) |
+| Energy Saver / Power Saver reduction | Yes | Yes (power-profiles-daemon) |
+| Start at login | Yes (registry) | Yes (XDG autostart) |
+| Refresh rate switching, ICC color profile, HDR info | Yes | Not available |
+| Automatic update install | Yes | No, update notice only |
 
 ## Install
 
-1. Open the [latest release](https://github.com/bberka/BrightSync/releases/latest).
-2. Download the `.zip` file you want.
-3. Extract it anywhere.
-4. Run `BrightSync.exe`.
+### Windows
 
-If you are unsure which package to pick, start with the installer (e.g. `BrightSync-Setup-v0.16.2-win-x64.exe`).
+1. Open the [latest release](https://github.com/bberka/BrightSync/releases/latest).
+2. Download the installer for your CPU (`BrightSync-Setup-v<version>-win-x64.exe`, `-win-arm64.exe`, or `-win-x86.exe`), or the matching portable `.zip`.
+3. Run the installer, or extract the zip anywhere and run `BrightSync.exe`.
+
+### Linux
+
+Download the package for your distribution and CPU from the [latest release](https://github.com/bberka/BrightSync/releases/latest):
+
+```bash
+sudo apt install ./BrightSync-<version>-linux-x64.deb        # Debian, Ubuntu, Mint
+sudo dnf install ./BrightSync-<version>-linux-x64.rpm        # Fedora, RHEL, openSUSE (zypper)
+sudo pacman -U ./BrightSync-<version>-linux-x64.pkg.tar.zst  # Arch, Manjaro
+sudo apk add --allow-untrusted ./BrightSync-<version>-linux-musl-x64.apk  # Alpine
+chmod +x BrightSync-<version>-linux-x64.AppImage && ./BrightSync-<version>-linux-x64.AppImage
+tar xzf BrightSync-<version>-linux-x64.tar.gz && ./BrightSync-*/install.sh  # any distro, per-user
+```
+
+Replace `x64` with `arm64` or `arm` for ARM devices. See [LINUX.md](LINUX.md) for monitor access setup and tray notes.
 
 ## Daily Use
 
@@ -113,7 +151,7 @@ Behavior to know:
 
 ## Command Line
 
-BrightSync also supports command-line commands through `BrightSync.exe`.
+BrightSync also supports command-line commands through `BrightSync.exe` on Windows and `brightsync` on Linux. Examples below use `BrightSync.exe`.
 
 Resident-aware behavior:
 
@@ -158,7 +196,7 @@ source-generated machine-readable form.
 Startup behavior:
 
 - `BrightSync.exe` starts the normal tray app.
-- `BrightSync.exe --autostart` starts the resident tray app hidden, the same way Windows startup uses it.
+- `BrightSync.exe --autostart` starts the resident tray app hidden, the same way Windows startup and the Linux autostart entry use it.
 
 ## Settings Overview
 
@@ -212,10 +250,10 @@ If an external monitor supports DDC/CI capability command probing, expanding its
 - Open a monitor row in `Settings` to see which detection backend was used and what fallback path BrightSync took.
 - If monitor detection is unreliable, enable `Legacy DDC/CI detection`, then refresh monitors or restart the app.
 - `Legacy DDC/CI detection` uses a compatibility-focused enumeration path and may help on systems where richer metadata detection is unreliable.
-- **Advanced Hardware Controls & Presets**: Some monitors lock or disable physical RGB gain adjustment controls on the hardware side when a specific Color Preset (e.g., sRGB) or picture mode is selected. If you find the Red, Green, or Blue sliders disabled or unresponsive, try changing the Color Preset dropdown to *User Defined* or *Display Native*. Additionally, internal laptop panels controlled via WMI do not support DDC/CI VCP features and will not show the Advanced Hardware Controls section.
-- If `Disable on lock screen` is enabled, BrightSync pauses external monitor reads and writes while Windows is locked and refreshes monitors after unlock.
+- **Advanced Hardware Controls & Presets**: Some monitors lock or disable physical RGB gain adjustment controls on the hardware side when a specific Color Preset (e.g., sRGB) or picture mode is selected. If you find the Red, Green, or Blue sliders disabled or unresponsive, try changing the Color Preset dropdown to *User Defined* or *Display Native*. Additionally, internal laptop panels do not support DDC/CI VCP features and will not show the Advanced Hardware Controls section.
+- If `Disable on lock screen` is enabled, BrightSync pauses external monitor reads and writes while the session is locked and refreshes monitors after unlock.
 - Idle dimming can either scale targets down by a percentage or reduce each monitor (including the internal display) to its configured minimum brightness.
-- Energy saver reduction automatically dims all monitors when Windows is in power saving mode.
+- Energy saver reduction automatically dims all monitors when the OS power saver is on (Windows Energy Saver, Linux `power-saver` profile).
 - Eye protection mode provides temporary manual dimming by subtracting a fixed number of brightness points from all monitors.
 - Brightness boost mode provides a temporary brightness increase by adding a fixed number of brightness points to all monitors.
 - Eye protection mode and Brightness boost mode are mutually exclusive. Enabling one turns the other off.
@@ -224,41 +262,46 @@ If an external monitor supports DDC/CI capability command probing, expanding its
 
 ## Configuration
 
-BrightSync stores its configuration at:
+BrightSync stores its files at:
 
-`%APPDATA%\BrightSync\config.json`
+| | Windows | Linux |
+|---|---|---|
+| Config | `%APPDATA%\BrightSync\config.json` | `~/.config/BrightSync/config.json` |
+| Logs | `%APPDATA%\BrightSync\Logs` | `~/.config/BrightSync/Logs` |
+| Command server metadata (while running) | `%LOCALAPPDATA%\BrightSync\command-server.json` | `~/.local/share/BrightSync/command-server.json` |
 
-While the resident app is running, BrightSync also writes localhost command-server metadata at:
-
-`%LOCALAPPDATA%\BrightSync\command-server.json`
+The config format is identical on both platforms.
 
 ## Updates
 
-BrightSync can check GitHub releases for updates. If a newer version is found, it opens the releases page.
+BrightSync checks GitHub releases for updates. On Windows it can download, verify (SHA-256), and install the matching installer. On Linux it shows an update notice and opens the releases page; install the new package with your package manager.
 
 ## Build Locally
 
-Requirements:
+Requirements: .NET 10 SDK. Native AOT publishing also needs the platform C++ toolchain (Visual Studio C++ tools on Windows, `clang` and `zlib1g-dev` on Linux).
 
-- Windows
-- .NET 10 SDK
-
-Build:
-
-```powershell
+```bash
 dotnet restore
-dotnet publish BrightSync.csproj -c Release
+dotnet build BrightSync.sln
+dotnet test --project tests/BrightSync.Tests.csproj --filter-not-trait "Category=Hardware" --filter-not-trait "Category=Integration"
 ```
+
+The target OS follows the host, or the `-r` runtime identifier when given. To compile the other platform's graph without running it:
+
+```bash
+dotnet build src/BrightSync.csproj -r linux-x64      # from Windows
+dotnet build src/BrightSync.csproj -r win-x64 -p:EnableWindowsTargeting=true   # from Linux
+```
+
+Publish (Native AOT): `dotnet publish src/BrightSync.csproj -c Release -r <rid>`. Linux packages: `packaging/build-linux.sh <rid> <version> <out>` (see [PACKAGING.md](PACKAGING.md)).
 
 ## Release Automation
 
 This repository uses GitHub Actions to build and publish releases.
 
-- Workflow: [`.github/workflows/release.yml`](.github/workflows/release.yml)
+- Workflow: [`.github/workflows/release.yml`](../.github/workflows/release.yml)
 - Automatic trigger: update `VERSION` and push to `main` or `master`
 - Manual trigger: run the workflow from the GitHub Actions tab
-- Output packages:
-  - `win-x64` (portable zip and setup installer)
-  - `win-arm64` (portable zip and setup installer)
+- Output packages: Windows `x64`, `x86`, `arm64` (setup installer and portable zip), Linux `x64`, `arm64`, `arm` for glibc and musl (deb, rpm, pacman, AppImage, apk, tar.gz), and the portable framework-dependent Linux archive. Asset names and the checksum manifest are described in [PACKAGING.md](PACKAGING.md).
 
-The workflow reads the version from `VERSION`, publishes the app, creates zip archives, and uploads them to the matching GitHub release.
+The workflow reads the version from `VERSION`, publishes every target, smoke-tests the Linux x64 and arm64 packages under a virtual display, and uploads the assets plus `BrightSync-SHA256SUMS.txt` to the matching GitHub release.

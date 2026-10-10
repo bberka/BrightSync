@@ -45,7 +45,9 @@
          (linux-arm, linux-musl-*) publish with -p:PublishAot=false and use trimmed single-file instead. -->
     <PublishAot Condition="'$(PublishAot)' == ''">true</PublishAot>
     <!-- Default runtime identifier: win-x64 on Windows, linux-<host arch> elsewhere. -->
-    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">$(BrightSyncDefaultRid)</RuntimeIdentifier>
+    <!-- BrightSyncPortable=true publishes a framework-dependent, RID-agnostic Linux build that carries the
+         native assets of every architecture Skia and HarfBuzz support (riscv64, loongarch64, x86, ...). -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' And '$(BrightSyncPortable)' != 'true'">$(BrightSyncDefaultRid)</RuntimeIdentifier>
     <!-- Disable debug symbol generation to keep binary size clean -->
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>

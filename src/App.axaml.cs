@@ -103,8 +103,16 @@ public partial class App : Application
                     "BrightSync Update"));
             _selfUpdateService.InstallFailed += (_, error) =>
                 Dispatcher.UIThread.Post(() => _trayManager?.ShowUpdateNotification(error, "Update Failed"));
-            _selfUpdateService.Start();
-            Log.Information("Self-update service started");
+            if (PlatformServices.Current.Capabilities.CanSelfInstallUpdates)
+            {
+                _selfUpdateService.Start();
+                Log.Information("Self-update service started");
+            }
+            else
+            {
+                Log.Information("Self-update disabled: {Os} updates are installed through the package manager",
+                    PlatformServices.Current.Capabilities.OsName);
+            }
 
             // Initialize Tray Manager
             _trayManager = new TrayManager(

@@ -3,7 +3,6 @@ using System.Security.Cryptography;
 using System.Text;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
-using BrightSync.Platform;
 using Serilog;
 using Timer = System.Threading.Timer;
 
@@ -157,13 +156,6 @@ public sealed class SelfUpdateService : IDisposable
 
     public void Start()
     {
-        if (PlatformServices.IsConfigured && !PlatformServices.Current.Capabilities.CanSelfInstallUpdates)
-        {
-            Log.Information("Self-update service disabled: {Os} installs updates through the package manager",
-                PlatformServices.Current.Capabilities.OsName);
-            return;
-        }
-
         ReportPreviousInstallResult();
         if (_updateChecker is not null)
         {

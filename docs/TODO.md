@@ -21,6 +21,13 @@ This document tracks planned features and design decisions for BrightSync.
 - **HDR Policies**: Configurable behavior and brightness scaling when a monitor has HDR enabled.
 - **Wider Connection Topology Support**: Improve handling of complex MST hubs, daisy chains, and USB-C docks.
 
+### Linux
+- **Refresh rate and ICC profiles**: Needs per-compositor backends (xrandr/XWayland, wlr-output-management, KDE and GNOME D-Bus). Currently hidden on Linux.
+- **Native Wayland window backend**: Avalonia runs through XWayland today; revisit when Avalonia's Wayland backend is stable.
+- **Panel-aware popup placement**: Reads the work-area gap today; could use layer-shell or the SNI icon geometry.
+- **HDR state**: Not reported on Linux.
+- **macOS**: Not planned; the platform contracts would allow it (IOKit/CoreDisplay DDC, `NSStatusItem` through Avalonia).
+
 ### UI / UX
 - **Localization**: Resource-based UI translation capabilities for multi-language support (Lower Priority).
 
