@@ -294,7 +294,8 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         _multiplier = profile.Multiplier;
 
         _supportedRefreshRates = PlatformServices.Current.DisplaySettings.GetSupportedRefreshRates(DeviceName).ToList();
-        if (_supportedRefreshRates.Count == 0 && monitor.RefreshRateHz > 0)
+        if (_supportedRefreshRates.Count == 0 && monitor.RefreshRateHz > 0 &&
+            PlatformServices.Current.Capabilities.CanSetRefreshRate)
         {
             _supportedRefreshRates.Add(monitor.RefreshRateHz);
         }

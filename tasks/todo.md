@@ -13,7 +13,7 @@ Standing verification after every task: `dotnet build BrightSync.sln` clean, `do
 - [x] T4 Windows project: move `NativeMethods`, monitor resolvers, WMI internal brightness, display settings, color profiles verbatim; implement `WindowsMonitorBackend`; `DdcCiService` uses `IMonitorBackend`. Accept: 153 tests green. (L→split in 2 commits)
 - [x] T5 Windows events/power/idle/media/autostart/shell/single-instance impls; services take interfaces (optional ctor param defaulting to `PlatformServices.Current`). Accept: 153 tests green; no `Microsoft.Win32`/`DllImport` left in app project. (L→split)
 - [x] T6 Tray abstraction: `ITrayIcon`, move `WindowsTrayIcon`, write `AvaloniaTrayIcon`, `TrayManager` uses interface + positioning via `IShellIntegration`. Accept: Windows launch smoke shows Win32 tray; tests green. (M)
-- [ ] T7 Update flow platform-aware: asset selection (`win-*`, `linux-*`), `IUpdateInstaller` (Windows = existing; Linux = notify only), capability flags. Accept: UpdateChecker/SelfUpdate tests updated and green. (M)
+- [x] T7 Update flow platform-aware: asset selection (`win-*`, `linux-*`), `IUpdateInstaller` (Windows = existing; Linux = notify only), capability flags. Accept: UpdateChecker/SelfUpdate tests updated and green. (M)
 
 ### Checkpoint A (Windows parity)
 - [ ] 153+ tests green; `dotnet publish -r win-x64 -c Release` (AOT) succeeds; published exe launches, tray present, CLI `status` works; app csproj has no OS-specific API.
@@ -31,7 +31,7 @@ Standing verification after every task: `dotnet build BrightSync.sln` clean, `do
 - [ ] `dotnet publish -r linux-x64` and `-r linux-arm64` (non-AOT, cross from Windows) succeed; Linux unit tests pass on Windows host; no Windows API reachable from Linux graph.
 
 ## Phase 3: UI
-- [ ] T15 Gate UI by `PlatformCapabilities` (refresh rate, ICC, HDR info, auto-install); neutral wording ("Start with system", "System brightness", "Energy Saver / Power Saver"); `OpenDisplaySettings` per OS. Accept: view-model tests; Windows text unchanged where Windows-specific. (M)
+- [x] T15 Gate UI by `PlatformCapabilities` (refresh rate, ICC, HDR info, auto-install); neutral wording ("Start with system", "System brightness", "Energy Saver / Power Saver"); `OpenDisplaySettings` per OS. Accept: view-model tests; Windows text unchanged where Windows-specific. (M)
 
 ## Phase 4: Packaging + CI
 - [ ] T16 Windows: add win-x86 (installer arch, release manifest); keep zip + Inno for x64/x86/arm64; try AOT win-x86 locally. (M)

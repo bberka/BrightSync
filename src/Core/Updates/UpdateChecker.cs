@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using BrightSync.Core.Config;
+using BrightSync.Platform;
 using Serilog;
 using Timer = System.Threading.Timer;
 
@@ -8,6 +9,8 @@ namespace BrightSync.Core.Updates;
 
 public sealed class UpdateChecker : IDisposable
 {
+    private const string DefaultAssetOsToken = "win";
+
     internal const string LatestReleaseApiUrl = "https://api.github.com/repos/bberka/BrightSync/releases/latest";
 
     private static readonly HttpClient HttpClient = CreateHttpClient();
@@ -146,9 +149,15 @@ public sealed class UpdateChecker : IDisposable
             return null;
         }
 
-        static bool MatchesArchitecture(GitHubReleaseAsset asset, string architectureToken)
+        var osToken = PlatformServices.IsConfigured
+            ? PlatformServices.Current.UpdateInstaller?.AssetOsToken
+            : DefaultAssetOsToken;
+        if (osToken is null)
+            return null;
+
+        bool MatchesArchitecture(GitHubReleaseAsset asset, string architectureToken)
             => !string.IsNullOrWhiteSpace(architectureToken)
-               && asset.Name.Contains($"-win-{architectureToken}.", StringComparison.OrdinalIgnoreCase);
+               && asset.Name.Contains($"-{osToken}-{architectureToken}.", StringComparison.OrdinalIgnoreCase);
 
         return installers.FirstOrDefault(asset => MatchesArchitecture(asset, architectureToken));
     }

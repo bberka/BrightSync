@@ -263,7 +263,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
 
     public string AutoBrightnessLockDescription => AutoBrightnessLockEnabled
         ? "Manual brightness changes will not turn off automatic brightness. Disable it from the app when needed."
-        : "When enabled, BrightSync turns off automatic brightness after a manual Windows brightness change.";
+        : $"When enabled, BrightSync turns off automatic brightness after a manual {Platform.OsName} brightness change.";
 
     public IReadOnlyList<AutoBrightnessControlPoint> AutoBrightnessCurvePoints => _config.Config.AutoBrightness.Curve;
 
@@ -413,7 +413,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
                 return "Energy saver reduction is off.";
 
             return
-                $"Brightness will decrease by {EnergySaverReductionPercent} percentage points when Windows Energy Saver is active.";
+                $"Brightness will decrease by {EnergySaverReductionPercent} percentage points when {Platform.EnergySaverLabel} is active.";
         }
     }
 
@@ -705,6 +705,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             _config.Config.AutoCheckUpdates = value;
             OnChanged();
             OnChanged(nameof(IsAutoInstallModeVisible));
+            OnChanged(nameof(IsAutoInstallSectionVisible));
             RequestAutoSave();
         }
     }
@@ -724,6 +725,16 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             RequestAutoSave();
         }
     }
+
+    private const string ReleasesPageUrl = "https://github.com/bberka/BrightSync/releases/latest";
+
+    /// <summary>False on platforms that update through the package manager (Linux).</summary>
+    /// <summary>Capabilities and wording of the running operating system.</summary>
+    public PlatformCapabilities Platform => PlatformServices.Current.Capabilities;
+
+    public bool CanSelfInstallUpdates => PlatformServices.Current.Capabilities.CanSelfInstallUpdates;
+
+    public bool IsAutoInstallSectionVisible => CanSelfInstallUpdates && _autoCheckUpdates;
 
     public bool IsAutoInstallModeVisible => _autoCheckUpdates && _autoInstallUpdates;
 
@@ -1188,6 +1199,13 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         if (_isUpdateDownloading)
             return;
 
+        if (!CanSelfInstallUpdates)
+        {
+            OpenBrowser(ReleasesPageUrl);
+            IsUpdateDialogVisible = false;
+            return;
+        }
+
         _isUpdateDownloading = true;
         IsUpdateDownloading = true;
         UpdateStatusText = "Downloading update...";
@@ -1241,7 +1259,8 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         UpdateStatusText = $"BrightSync v{result.LatestVersion} is available (current: v{result.CurrentVersion}).";
         IsUpdateDialogVisible = true;
 
-        if (AutoCheckUpdates && AutoInstallUpdates && AutoInstallMode == AutoInstallMode.Instantly)
+        if (CanSelfInstallUpdates && AutoCheckUpdates && AutoInstallUpdates &&
+            AutoInstallMode == AutoInstallMode.Instantly)
         {
             InstallUpdate();
         }

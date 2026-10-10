@@ -313,7 +313,7 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
-                                            <TextBlock Text="Start with Windows" FontSize="13" Foreground="White" />
+                                            <TextBlock Text="{Binding Platform.StartupLabel}" FontSize="13" Foreground="White" />
                                             <TextBlock Text="Launch BrightSync automatically when you sign in"
                                                        FontSize="11" Foreground="#a0a0a0" />
                                         </StackPanel>
@@ -351,7 +351,7 @@
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
                                             <TextBlock Text="Disable on lock screen" FontSize="13" Foreground="White" />
-                                            <TextBlock Text="Pause monitor reads and writes while Windows is locked"
+                                            <TextBlock Text="{Binding Platform.OsName, StringFormat='Pause monitor reads and writes while {0} is locked'}"
                                                        FontSize="11" Foreground="#a0a0a0" />
                                         </StackPanel>
                                         <ToggleSwitch Grid.Column="1"
@@ -381,7 +381,7 @@
                                                       OnContent="" OffContent="" VerticalAlignment="Center" />
                                     </Grid>
 
-                                    <StackPanel IsVisible="{Binding AutoCheckUpdates}"
+                                    <StackPanel IsVisible="{Binding IsAutoInstallSectionVisible}"
                                                 IsEnabled="{Binding AutoCheckUpdates}" Spacing="10">
                                         <Border Height="1" Background="#353535" />
 
@@ -1095,7 +1095,7 @@
                                                                       </Grid.ColumnDefinitions>
                                                                       <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                                                           <TextBlock Text="HDR Control" FontSize="13" Foreground="White" />
-                                                                          <TextBlock Text="Manage Windows High Dynamic Range settings" FontSize="11" Foreground="#a0a0a0" />
+                                                                          <TextBlock Text="Manage High Dynamic Range display settings" FontSize="11" Foreground="#a0a0a0" />
                                                                       </StackPanel>
                                                                       <Button Grid.Column="1" Content="HDR Settings"
                                                                               Command="{Binding OpenHdrSettingsCommand}"
@@ -1519,7 +1519,7 @@
                                     <TextBlock
                                         Text="{Binding Title, RelativeSource={RelativeSource AncestorType=Window}}"
                                         FontSize="15" FontWeight="SemiBold" Foreground="White" />
-                                    <TextBlock Text="Monitor brightness synchronization for Windows"
+                                    <TextBlock Text="{Binding Platform.OsName, StringFormat='Monitor brightness synchronization for {0}'}"
                                                FontSize="12" Foreground="#a0a0a0" TextWrapping="Wrap" />
 
                                     <Border Height="1" Background="#353535" Margin="0,4" />

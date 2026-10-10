@@ -182,7 +182,8 @@ public sealed class TrayManager(
     {
         Dispatcher.UIThread.Post(() =>
         {
-            var isAutoInstallInstant = config.Config.AutoInstallUpdates &&
+            var isAutoInstallInstant = PlatformServices.Current.Capabilities.CanSelfInstallUpdates &&
+                                       config.Config.AutoInstallUpdates &&
                                        config.Config.AutoInstallMode == AutoInstallMode.Instantly;
             if (isAutoInstallInstant)
             {
