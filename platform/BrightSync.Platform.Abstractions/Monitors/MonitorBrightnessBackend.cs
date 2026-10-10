@@ -1,6 +1,6 @@
 namespace BrightSync.Core.Monitors;
 
-internal enum MonitorBrightnessBackend
+public enum MonitorBrightnessBackend
 {
     None = 0,
     LowLevelDdcCi = 1,

@@ -1,21 +1,18 @@
-using System.Runtime.InteropServices;
 using Avalonia;
 using BrightSync.Cli;
 using BrightSync.Core.Logging;
+using BrightSync.Platform;
 using Serilog;
 
 namespace BrightSync;
 
 internal static class Program
 {
-    private const string SingleInstanceMutexName = "BrightSync-SingleInstance-Mutex-Guid-9b3d-098c86e194a9";
-
-    [DllImport("user32.dll", EntryPoint = "MessageBoxW", CharSet = CharSet.Unicode)]
-    private static extern int MessageBox(IntPtr hWnd, string text, string caption, uint type);
-
     [STAThread]
     public static int Main(string[] args)
     {
+        PlatformServices.Current = PlatformBootstrap.Create();
+
         var parseResult = CliParser.Parse(args);
         if (!parseResult.IsSuccess)
         {
@@ -33,44 +30,31 @@ internal static class Program
 
         LoggingSetup.Initialize();
 
-        // The mutex guards against a second BrightSync instance starting.
-        // It is acquired up front so a duplicate launch can show a single
-        // native dialog and exit before any Avalonia/Win32 state is created.
-        var singleInstance = new Mutex(initiallyOwned: true,
-            name: SingleInstanceMutexName,
-            createdNew: out var createdNew);
+        // The guard stops a second BrightSync instance. It is acquired up front so a duplicate
+        // launch can show a single native message and exit before any Avalonia state is created.
+        using var singleInstance = PlatformServices.Current.CreateSingleInstanceGuard();
+        if (!singleInstance.TryAcquire())
+        {
+            PlatformServices.Current.Shell.ShowMessage("BrightSync", "BrightSync is already running.");
+            return 1;
+        }
 
         try
         {
-            if (!createdNew)
-            {
-                MessageBox(IntPtr.Zero, "BrightSync is already running.", "BrightSync",
-                    0x00000040 /* MB_OK | MB_ICONINFORMATION */);
-                return 1;
-            }
-
-            try
-            {
-                BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
-                return 0;
-            }
-            catch (Exception ex)
-            {
-                // Avalonia surfaces fatal startup errors through the dispatcher; this
-                // catch guarantees a non-zero exit code and a Serilog line so the
-                // crash shows up in the rolling log file even when no UI is up.
-                Log.Fatal(ex, "BrightSync terminated with an unhandled exception");
-                return 2;
-            }
-            finally
-            {
-                Log.CloseAndFlush();
-                singleInstance.ReleaseMutex();
-            }
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            // Avalonia surfaces fatal startup errors through the dispatcher; this
+            // catch guarantees a non-zero exit code and a Serilog line so the
+            // crash shows up in the rolling log file even when no UI is up.
+            Log.Fatal(ex, "BrightSync terminated with an unhandled exception");
+            return 2;
         }
         finally
         {
-            singleInstance.Dispose();
+            Log.CloseAndFlush();
         }
     }
 

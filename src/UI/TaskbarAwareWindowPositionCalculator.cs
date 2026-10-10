@@ -1,6 +1,5 @@
-using System.Runtime.InteropServices;
 using Avalonia;
-using BrightSync.Core.Interop;
+using BrightSync.Platform;
 
 namespace BrightSync.UI;
 
@@ -18,19 +17,14 @@ internal static class TaskbarPosition
 {
     public static TaskbarPositionInfo GetPosition(PixelRect screenBounds)
     {
-        var appBarData = new NativeMethods.APPBARDATA
-        {
-            cbSize = (uint)Marshal.SizeOf<NativeMethods.APPBARDATA>()
-        };
-
-        if (NativeMethods.SHAppBarMessage(NativeMethods.ABM_GETTASKBARPOS, ref appBarData) == UIntPtr.Zero)
+        if (!PlatformServices.Current.Shell.TryGetTaskbarBounds(out var rect))
             return new(TaskbarEdge.Bottom, null);
 
         var taskbarBounds = new PixelRect(
-            appBarData.rc.Left,
-            appBarData.rc.Top,
-            appBarData.rc.Right - appBarData.rc.Left,
-            appBarData.rc.Bottom - appBarData.rc.Top);
+            rect.Left,
+            rect.Top,
+            rect.Right - rect.Left,
+            rect.Bottom - rect.Top);
 
         return new(
             GetEdge(screenBounds, taskbarBounds),

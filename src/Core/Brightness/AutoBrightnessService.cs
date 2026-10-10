@@ -1,5 +1,5 @@
 using BrightSync.Core.Config;
-using Microsoft.Win32;
+using BrightSync.Platform;
 using Serilog;
 using Timer = System.Threading.Timer;
 
@@ -83,6 +83,7 @@ public sealed class AutoBrightnessService : IDisposable
     private readonly IBrightnessEngineOperations _engine;
     private readonly ConfigManager _config;
     private readonly Timer _timer;
+    private readonly ISystemEvents _events = PlatformServices.Current.Events;
     private bool _disposed;
     private int _lastAppliedBrightness = -1;
 
@@ -108,8 +109,8 @@ public sealed class AutoBrightnessService : IDisposable
     public void Start()
     {
         _config.Config.AutoBrightness.EnsureDefaults();
-        SystemEvents.PowerModeChanged += OnPowerModeChanged;
-        SystemEvents.TimeChanged += OnTimeChanged;
+        _events.Resumed += OnResumed;
+        _events.TimeChanged += OnTimeChanged;
         _timer.Change(TimeSpan.Zero, TimeSpan.FromSeconds(30));
         RecalculateNow();
         RaiseStateChanged();
@@ -181,11 +182,8 @@ public sealed class AutoBrightnessService : IDisposable
         }
     }
 
-    private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
+    private void OnResumed(object? sender, EventArgs e)
     {
-        if (e.Mode != PowerModes.Resume)
-            return;
-
         Log.Information("Auto brightness recalculating after resume");
         Task.Delay(1500).ContinueWith(_ => SafeRecalculate());
     }
@@ -207,8 +205,8 @@ public sealed class AutoBrightnessService : IDisposable
             return;
 
         _disposed = true;
-        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
-        SystemEvents.TimeChanged -= OnTimeChanged;
+        _events.Resumed -= OnResumed;
+        _events.TimeChanged -= OnTimeChanged;
         _timer.Dispose();
     }
 }

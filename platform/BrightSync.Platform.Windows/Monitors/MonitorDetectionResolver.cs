@@ -12,9 +12,9 @@ internal static class MonitorDetectionResolver
         var hardwareDeviceId = MonitorNameResolver.GetDeviceIdForAdapter(deviceName);
 
         var identity = useLegacyDetection
-            ? MonitorNameResolver.MonitorIdentity.Unknown
+            ? MonitorIdentity.Unknown
             : MonitorNameResolver.ResolveIdentity(deviceName);
-        var desktopIdentity = MonitorNameResolver.MonitorIdentity.Unknown;
+        var desktopIdentity = MonitorIdentity.Unknown;
 
         if (HasFriendlyIdentity(identity))
         {
@@ -43,7 +43,7 @@ internal static class MonitorDetectionResolver
             ? identity
             : HasFriendlyIdentity(desktopIdentity)
                 ? desktopIdentity
-                : MonitorNameResolver.MonitorIdentity.Unknown;
+                : MonitorIdentity.Unknown;
 
         var displayConfig = useLegacyDetection
             ? DisplayConfigInfo.Empty
@@ -102,7 +102,7 @@ internal static class MonitorDetectionResolver
             string.Join(" ", details));
     }
 
-    private static bool HasFriendlyIdentity(MonitorNameResolver.MonitorIdentity identity)
+    private static bool HasFriendlyIdentity(MonitorIdentity identity)
         => !string.IsNullOrWhiteSpace(identity.ManufacturerName)
            || !string.IsNullOrWhiteSpace(identity.ModelName)
            || !string.IsNullOrWhiteSpace(identity.FriendlyName) &&
@@ -112,7 +112,7 @@ internal static class MonitorDetectionResolver
         => !string.IsNullOrWhiteSpace(info.ConnectionType) || info.IsInternal;
 
     private static string BuildFriendlyName(
-        MonitorNameResolver.MonitorIdentity identity,
+        MonitorIdentity identity,
         DisplayConfigInfo displayConfig,
         string physicalDescription,
         string deviceName)

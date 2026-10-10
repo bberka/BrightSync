@@ -1,3 +1,4 @@
+using BrightSync.Platform;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;

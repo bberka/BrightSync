@@ -5,14 +5,14 @@ Standing verification after every task: `dotnet build BrightSync.sln` clean, `do
 
 ## Phase 0: Baseline
 - [x] T0 Branch `feat/cross-platform-linux`, baseline 153 tests green.
-- [ ] T1 Update packages (Avalonia 12.1.4, xunit.runner.visualstudio, SystemEvents, Serilog, WmiLight, test SDK, coverlet; GitHub Actions pins). Accept: restore+build+tests green; `dotnet list package --outdated` empty for direct refs. (S)
+- [x] T1 Update packages (Avalonia 12.1.4, xunit.runner.visualstudio, SystemEvents, Serilog, WmiLight, test SDK, coverlet; GitHub Actions pins). Accept: restore+build+tests green; `dotnet list package --outdated` empty for direct refs. (S)
 
 ## Phase 1: Foundation (no behavior change on Windows)
-- [ ] T2 `Directory.Build.props` (target OS, TFM, `PLATFORM_*` defines, shared warnings) + 3 new csproj skeletons in `BrightSync.sln`; app/test conditional references. Accept: build passes on Windows for `-r win-x64` and `-r linux-x64` (restore+build, no AOT). (M)
-- [ ] T3 Abstractions: contracts (`IMonitorBackend`, `ISystemEventSource`, `IPowerStatusSource`, `IIdleTimeSource`, `IMediaPlaybackSource`, `IAutoStartManager`, `IShellIntegration`, `ISingleInstanceGuard`, `ITrayIcon`, `IDisplaySettingsService`, `IColorProfileService`, `PlatformCapabilities`, `PlatformServices`); move `DdcMonitor`, `MonitorBrightnessBackend`, `HdrDisplayInfo`, VCP constants, capability-string parser/probe. Accept: compiles; unit tests for parser moved/added. (M)
-- [ ] T4 Windows project: move `NativeMethods`, monitor resolvers, WMI internal brightness, display settings, color profiles verbatim; implement `WindowsMonitorBackend`; `DdcCiService` uses `IMonitorBackend`. Accept: 153 tests green. (L→split in 2 commits)
-- [ ] T5 Windows events/power/idle/media/autostart/shell/single-instance impls; services take interfaces (optional ctor param defaulting to `PlatformServices.Current`). Accept: 153 tests green; no `Microsoft.Win32`/`DllImport` left in app project. (L→split)
-- [ ] T6 Tray abstraction: `ITrayIcon`, move `WindowsTrayIcon`, write `AvaloniaTrayIcon`, `TrayManager` uses interface + positioning via `IShellIntegration`. Accept: Windows launch smoke shows Win32 tray; tests green. (M)
+- [x] T2 `Directory.Build.props` (target OS, TFM, `PLATFORM_*` defines, shared warnings) + 3 new csproj skeletons in `BrightSync.sln`; app/test conditional references. Accept: build passes on Windows for `-r win-x64` and `-r linux-x64` (restore+build, no AOT). (M)
+- [x] T3 Abstractions: contracts (`IMonitorBackend`, `ISystemEventSource`, `IPowerStatusSource`, `IIdleTimeSource`, `IMediaPlaybackSource`, `IAutoStartManager`, `IShellIntegration`, `ISingleInstanceGuard`, `ITrayIcon`, `IDisplaySettingsService`, `IColorProfileService`, `PlatformCapabilities`, `PlatformServices`); move `DdcMonitor`, `MonitorBrightnessBackend`, `HdrDisplayInfo`, VCP constants, capability-string parser/probe. Accept: compiles; unit tests for parser moved/added. (M)
+- [x] T4 Windows project: move `NativeMethods`, monitor resolvers, WMI internal brightness, display settings, color profiles verbatim; implement `WindowsMonitorBackend`; `DdcCiService` uses `IMonitorBackend`. Accept: 153 tests green. (L→split in 2 commits)
+- [x] T5 Windows events/power/idle/media/autostart/shell/single-instance impls; services take interfaces (optional ctor param defaulting to `PlatformServices.Current`). Accept: 153 tests green; no `Microsoft.Win32`/`DllImport` left in app project. (L→split)
+- [x] T6 Tray abstraction: `ITrayIcon`, move `WindowsTrayIcon`, write `AvaloniaTrayIcon`, `TrayManager` uses interface + positioning via `IShellIntegration`. Accept: Windows launch smoke shows Win32 tray; tests green. (M)
 - [ ] T7 Update flow platform-aware: asset selection (`win-*`, `linux-*`), `IUpdateInstaller` (Windows = existing; Linux = notify only), capability flags. Accept: UpdateChecker/SelfUpdate tests updated and green. (M)
 
 ### Checkpoint A (Windows parity)

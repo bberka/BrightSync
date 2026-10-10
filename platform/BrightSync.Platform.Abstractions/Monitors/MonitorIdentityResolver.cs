@@ -5,7 +5,7 @@ namespace BrightSync.Core.Monitors;
 /// DisplayConfig's monitor device path is preferred because it is derived from the
 /// physical target rather than the volatile Windows DISPLAYn alias.
 /// </summary>
-internal static class MonitorIdentityResolver
+public static class MonitorIdentityResolver
 {
     internal const string DisplayConfigPrefix = "edid:";
     internal const string HardwarePrefix = "hardware:";
@@ -98,7 +98,7 @@ internal static class MonitorIdentityResolver
     /// The ordinal is deliberately a conservative fallback: continuity is not promised
     /// for duplicate identities because no existing metadata can identify them safely.
     /// </summary>
-    internal static void EnsureUniqueIdentities(IList<DdcMonitor> monitors)
+    public static void EnsureUniqueIdentities(IList<DdcMonitor> monitors)
     {
         foreach (var group in monitors
                      .Where(monitor => !string.IsNullOrWhiteSpace(monitor.StableIdentity))

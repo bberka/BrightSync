@@ -34,7 +34,7 @@ public static class MonitorNameResolver
             return identity;
 
         // Fallback: decode the PnP ID itself (first 3 chars = EISA manufacturer)
-        return DecodePnpId(hwId);
+        return MonitorNames.DecodePnpId(hwId);
     }
 
     internal static string GetHardwareIdForAdapter(string adapterDeviceName)
@@ -44,10 +44,10 @@ public static class MonitorNameResolver
         => GetDeviceId(adapterDeviceName);
 
     internal static MonitorIdentity DecodeHardwareId(string hardwareId)
-        => DecodePnpId(hardwareId);
+        => MonitorNames.DecodePnpId(hardwareId);
 
     internal static MonitorIdentity BuildIdentityFromParts(string manufacturer, string model)
-        => BuildIdentity(manufacturer, model);
+        => MonitorNames.BuildIdentity(manufacturer, model);
 
     // --- Private ---
 
@@ -98,9 +98,9 @@ public static class MonitorNameResolver
                     var hwId = parts[1];
                     var model = DecodeUshorts(ConvertToUshortArray(obj["UserFriendlyName"]));
                     var manufacturerCode = DecodeUshorts(ConvertToUshortArray(obj["ManufacturerName"]));
-                    var manufacturer = DecodeManufacturerCode(manufacturerCode);
+                    var manufacturer = MonitorNames.DecodeManufacturerCode(manufacturerCode);
 
-                    var identity = BuildIdentity(manufacturer, model);
+                    var identity = MonitorNames.BuildIdentity(manufacturer, model);
                     if (!string.IsNullOrWhiteSpace(identity.FriendlyName))
                         _wmiCache[hwId] = identity;
                 }
@@ -143,86 +143,6 @@ public static class MonitorNameResolver
         }
 
         return sb.ToString().Trim();
-    }
-
-    /// <summary>
-    /// Decodes a PnP vendor ID (first 3 chars of HW ID) to manufacturer name.
-    /// The remaining chars are the model hex code — kept as-is.
-    /// </summary>
-    private static MonitorIdentity DecodePnpId(string hwId)
-    {
-        if (hwId.Length < 3) return new MonitorIdentity(string.Empty, hwId, hwId);
-
-        // 3-char EISA/PnP vendor codes (ISA Plug and Play standard)
-        var vendor = hwId[..3].ToUpperInvariant();
-        var model = hwId.Length > 3 ? hwId[3..] : string.Empty;
-
-        return BuildIdentity(DecodeManufacturerCode(vendor), model);
-    }
-
-    private static MonitorIdentity BuildIdentity(string manufacturer, string model)
-    {
-        manufacturer = manufacturer.Trim();
-        model = model.Trim();
-
-        if (string.IsNullOrWhiteSpace(manufacturer) && string.IsNullOrWhiteSpace(model))
-            return MonitorIdentity.Unknown;
-
-        if (string.IsNullOrWhiteSpace(manufacturer))
-            return new MonitorIdentity(string.Empty, model, model);
-
-        var cleanedModel = RemoveDuplicatedManufacturerPrefix(model, manufacturer);
-        var friendly = string.IsNullOrWhiteSpace(cleanedModel)
-            ? manufacturer
-            : $"{manufacturer} {cleanedModel}";
-        return new MonitorIdentity(manufacturer, cleanedModel, friendly);
-    }
-
-    private static string RemoveDuplicatedManufacturerPrefix(string model, string manufacturer)
-    {
-        if (string.IsNullOrWhiteSpace(model) || string.IsNullOrWhiteSpace(manufacturer))
-            return model;
-
-        if (model.StartsWith(manufacturer, StringComparison.OrdinalIgnoreCase))
-            return model[manufacturer.Length..].TrimStart(' ', '-', '_');
-
-        return model;
-    }
-
-    private static string DecodeManufacturerCode(string code)
-        => code.Trim().ToUpperInvariant() switch
-        {
-            "ACR" => "Acer",
-            "ACI" => "Asus",
-            "APP" => "Apple",
-            "DEL" => "Dell",
-            "EIZ" => "EIZO",
-            "GSM" => "LG",
-            "HPN" or "HWP" => "HP",
-            "HIC" => "Hisense",
-            "HSD" => "HannStar",
-            "IBM" => "IBM",
-            "LEN" => "Lenovo",
-            "MAX" => "Maxdata",
-            "MEI" => "Panasonic",
-            "MSI" => "MSI",
-            "NEC" => "NEC",
-            "PHL" => "Philips",
-            "SAM" => "Samsung",
-            "SHP" => "Sharp",
-            "SNY" => "Sony",
-            "VSC" => "ViewSonic",
-            "BNQ" => "BenQ",
-            "AOC" => "AOC",
-            _ => code.Trim()
-        };
-
-    public readonly record struct MonitorIdentity(
-        string ManufacturerName,
-        string ModelName,
-        string FriendlyName)
-    {
-        public static MonitorIdentity Unknown => new(string.Empty, "Unknown Monitor", "Unknown Monitor");
     }
 
     /// <summary>Clears the WMI cache so the next call re-queries (useful after Refresh).</summary>

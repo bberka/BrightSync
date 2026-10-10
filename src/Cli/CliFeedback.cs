@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+using BrightSync.Platform;
 
 namespace BrightSync.Cli;
 
@@ -11,7 +11,7 @@ public sealed class CliFeedback
         if (_consoleAttached)
             return;
 
-        _consoleAttached = AttachConsole(AttachParentProcess);
+        _consoleAttached = PlatformServices.Current.Shell.TryAttachParentConsole();
     }
 
     public void WriteInfo(string message)
@@ -29,9 +29,4 @@ public sealed class CliFeedback
 
         Console.Error.WriteLine(message);
     }
-
-    private const uint AttachParentProcess = 0xFFFFFFFF;
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool AttachConsole(uint dwProcessId);
 }

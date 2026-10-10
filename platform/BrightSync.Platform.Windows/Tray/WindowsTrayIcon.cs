@@ -1,15 +1,16 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
+using BrightSync.Platform;
 using Serilog;
 
-namespace BrightSync.UI;
+namespace BrightSync.Core.Services;
 
 /// <summary>
 /// There is some bug with native menu tray icon with recommended avalonia UI however it is path dependant somehow and does not work properly when published into a different location. So we had to use default WinAPI.
 /// If you wish to later refactor this and dump usage of this class. Ensure that it is nativeaot safe and after publishing the application move the publish files to another location like C ProgramFiles and run the app to check if tray icon is still showed.
 /// </summary>
-internal sealed class WindowsTrayIcon : IDisposable
+public sealed class WindowsTrayIcon : ITrayIcon
 {
     private const int IconId = 1;
     private const int CallbackMessage = NativeMethods.WmApp + 42;

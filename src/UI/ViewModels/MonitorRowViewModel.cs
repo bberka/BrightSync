@@ -5,9 +5,8 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Windows.Input;
 using BrightSync.Core.Brightness;
-using BrightSync.Core.Colors;
 using BrightSync.Core.Config;
-using BrightSync.Core.Interop;
+using BrightSync.Platform;
 using BrightSync.Core.Monitors;
 using BrightSync.UI;
 using Serilog;
@@ -294,12 +293,12 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         _max = profile.MaxBrightness;
         _multiplier = profile.Multiplier;
 
-        _supportedRefreshRates = DisplaySettingsService.GetSupportedRefreshRates(DeviceName);
+        _supportedRefreshRates = PlatformServices.Current.DisplaySettings.GetSupportedRefreshRates(DeviceName).ToList();
         if (_supportedRefreshRates.Count == 0 && monitor.RefreshRateHz > 0)
         {
             _supportedRefreshRates.Add(monitor.RefreshRateHz);
         }
-        _installedColorProfiles = ColorProfileManager.GetInstalledColorProfiles();
+        _installedColorProfiles = PlatformServices.Current.ColorProfiles.GetInstalledColorProfiles().ToList();
 
         ReloadCustomActions();
 
@@ -455,7 +454,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
             _tempContrast = val;
             _profile.Contrast = val;
             OnChanged();
-            DebounceVcpWrite(ref _contrastDebounce, NativeMethods.VCP_CONTRAST, val);
+            DebounceVcpWrite(ref _contrastDebounce, VcpCodes.Contrast, val);
             _onSettingsChanged?.Invoke(true);
         }
     }
@@ -473,7 +472,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
             _tempVolume = val;
             _profile.Volume = val;
             OnChanged();
-            DebounceVcpWrite(ref _volumeDebounce, NativeMethods.VCP_VOLUME, val);
+            DebounceVcpWrite(ref _volumeDebounce, VcpCodes.Volume, val);
             _onSettingsChanged?.Invoke(true);
         }
     }
@@ -491,7 +490,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
             _tempRedGain = val;
             _profile.RedGain = val;
             OnChanged();
-            DebounceVcpWrite(ref _redGainDebounce, NativeMethods.VCP_RED_GAIN, val);
+            DebounceVcpWrite(ref _redGainDebounce, VcpCodes.RedGain, val);
             _onSettingsChanged?.Invoke(true);
         }
     }
@@ -506,7 +505,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
             _tempGreenGain = val;
             _profile.GreenGain = val;
             OnChanged();
-            DebounceVcpWrite(ref _greenGainDebounce, NativeMethods.VCP_GREEN_GAIN, val);
+            DebounceVcpWrite(ref _greenGainDebounce, VcpCodes.GreenGain, val);
             _onSettingsChanged?.Invoke(true);
         }
     }
@@ -521,7 +520,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
             _tempBlueGain = val;
             _profile.BlueGain = val;
             OnChanged();
-            DebounceVcpWrite(ref _blueGainDebounce, NativeMethods.VCP_BLUE_GAIN, val);
+            DebounceVcpWrite(ref _blueGainDebounce, VcpCodes.BlueGain, val);
             _onSettingsChanged?.Invoke(true);
         }
     }
@@ -535,7 +534,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         {
             if (ColorPreset == value) return;
             _profile.ColorPreset = value;
-            _engine.Ddc.SetVcpFeature(_monitor, NativeMethods.VCP_COLOR_PRESET, (uint)value);
+            _engine.Ddc.SetVcpFeature(_monitor, VcpCodes.ColorPreset, (uint)value);
             OnChanged();
             _onSettingsChanged?.Invoke(false);
         }
@@ -563,7 +562,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         {
             if (InputSource == value) return;
             _profile.InputSource = value;
-            _engine.Ddc.SetVcpFeature(_monitor, NativeMethods.VCP_INPUT_SOURCE, (uint)value);
+            _engine.Ddc.SetVcpFeature(_monitor, VcpCodes.InputSource, (uint)value);
             OnChanged();
             _onSettingsChanged?.Invoke(false);
         }
@@ -633,7 +632,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
             if (value == null) return;
             if (_profile.RefreshRate == value) return;
             _profile.RefreshRate = value;
-            DisplaySettingsService.SetRefreshRate(DeviceName, value.Value);
+            PlatformServices.Current.DisplaySettings.SetRefreshRate(DeviceName, value.Value);
             OnChanged();
             _onSettingsChanged?.Invoke(false);
         }
@@ -643,13 +642,13 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
 
     public string? SelectedColorProfile
     {
-        get => _profile.AssociatedColorProfile ?? ColorProfileManager.GetActiveColorProfile(DeviceName);
+        get => _profile.AssociatedColorProfile ?? PlatformServices.Current.ColorProfiles.GetActiveColorProfile(DeviceName);
         set
         {
             if (string.IsNullOrWhiteSpace(value)) return;
             if (_profile.AssociatedColorProfile == value) return;
             _profile.AssociatedColorProfile = value;
-            ColorProfileManager.SetActiveColorProfile(DeviceName, value);
+            PlatformServices.Current.ColorProfiles.SetActiveColorProfile(DeviceName, value);
             OnChanged();
             _onSettingsChanged?.Invoke(false);
         }
@@ -668,7 +667,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
             _tempSharpness = val;
             _profile.Sharpness = val;
             OnChanged();
-            DebounceVcpWrite(ref _sharpnessDebounce, NativeMethods.VCP_SHARPNESS, val);
+            DebounceVcpWrite(ref _sharpnessDebounce, VcpCodes.Sharpness, val);
             _onSettingsChanged?.Invoke(true);
         }
     }
@@ -686,7 +685,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
             _tempSaturation = val;
             _profile.Saturation = val;
             OnChanged();
-            DebounceVcpWrite(ref _saturationDebounce, NativeMethods.VCP_SATURATION, val);
+            DebounceVcpWrite(ref _saturationDebounce, VcpCodes.Saturation, val);
             _onSettingsChanged?.Invoke(true);
         }
     }
@@ -700,7 +699,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         {
             if (Gamma == value) return;
             _profile.Gamma = value;
-            _engine.Ddc.SetVcpFeature(_monitor, NativeMethods.VCP_GAMMA, (uint)value);
+            _engine.Ddc.SetVcpFeature(_monitor, VcpCodes.Gamma, (uint)value);
             OnChanged();
             _onSettingsChanged?.Invoke(false);
         }
@@ -715,7 +714,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         {
             if (PowerState == value) return;
             _profile.PowerState = value;
-            _engine.Ddc.SetVcpFeature(_monitor, NativeMethods.VCP_POWER_CONTROL, (uint)value);
+            _engine.Ddc.SetVcpFeature(_monitor, VcpCodes.PowerControl, (uint)value);
             OnChanged();
             _onSettingsChanged?.Invoke(false);
         }
@@ -987,22 +986,7 @@ public sealed class MonitorRowViewModel : INotifyPropertyChanged
         CustomVcpLastResult = $"Deleted shortcut '{action.Name}'";
     }
 
-    private void OpenHdrSettings()
-    {
-        try
-        {
-            var psi = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = "ms-settings:display",
-                UseShellExecute = true
-            };
-            System.Diagnostics.Process.Start(psi);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to open Windows Display settings");
-        }
-    }
+    private void OpenHdrSettings() => PlatformServices.Current.Shell.OpenDisplaySettings();
 
     public bool AdvancedFeaturesEnabled
     {

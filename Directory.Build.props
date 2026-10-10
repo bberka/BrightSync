@@ -1,0 +1,29 @@
+<Project>
+
+  <!--
+    Target OS selection.
+    The app and its tests compile against exactly one platform project. The target OS comes from the
+    RuntimeIdentifier when one is passed (-r), otherwise from the host OS. Override with
+    -p:BrightSyncTargetOs=windows|linux.
+  -->
+  <PropertyGroup>
+    <BrightSyncTargetOs Condition="'$(BrightSyncTargetOs)' == '' And '$(RuntimeIdentifier)' != '' And $(RuntimeIdentifier.StartsWith('win'))">windows</BrightSyncTargetOs>
+    <BrightSyncTargetOs Condition="'$(BrightSyncTargetOs)' == '' And '$(RuntimeIdentifier)' != '' And $(RuntimeIdentifier.StartsWith('linux'))">linux</BrightSyncTargetOs>
+    <BrightSyncTargetOs Condition="'$(BrightSyncTargetOs)' == '' And $([MSBuild]::IsOSPlatform('Windows'))">windows</BrightSyncTargetOs>
+    <BrightSyncTargetOs Condition="'$(BrightSyncTargetOs)' == ''">linux</BrightSyncTargetOs>
+
+    <BrightSyncHostArch>$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant())</BrightSyncHostArch>
+    <BrightSyncDefaultRid Condition="'$(BrightSyncTargetOs)' == 'windows'">win-x64</BrightSyncDefaultRid>
+    <BrightSyncDefaultRid Condition="'$(BrightSyncTargetOs)' == 'linux'">linux-$(BrightSyncHostArch)</BrightSyncDefaultRid>
+
+    <BrightSyncAppTfm Condition="'$(BrightSyncTargetOs)' == 'windows'">net10.0-windows10.0.19041.0</BrightSyncAppTfm>
+    <BrightSyncAppTfm Condition="'$(BrightSyncTargetOs)' != 'windows'">net10.0</BrightSyncAppTfm>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>

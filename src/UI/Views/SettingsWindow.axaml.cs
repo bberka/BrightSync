@@ -126,9 +126,9 @@ public partial class SettingsWindow : Window
     public void PositionBottomRight(bool useCursorScreen = true, bool preferPrimaryScreen = false)
     {
         Screen? screen = preferPrimaryScreen ? Screens.Primary : null;
-        if (screen == null && useCursorScreen && BrightSync.Core.Interop.NativeMethods.GetCursorPos(out var p))
+        if (screen == null && useCursorScreen && BrightSync.Platform.PlatformServices.Current.Shell.TryGetCursorPosition(out var cursorX, out var cursorY))
         {
-            screen = Screens.ScreenFromPoint(new PixelPoint(p.x, p.y));
+            screen = Screens.ScreenFromPoint(new PixelPoint(cursorX, cursorY));
         }
 
         screen ??= _targetScreen ?? Screens.ScreenFromPoint(Position) ?? Screens.ScreenFromVisual(this) ?? Screens.Primary;

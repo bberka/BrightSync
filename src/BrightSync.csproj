@@ -1,17 +1,24 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <OutputType Condition="'$(BrightSyncTargetOs)' == 'windows'">WinExe</OutputType>
+    <OutputType Condition="'$(BrightSyncTargetOs)' != 'windows'">Exe</OutputType>
+    <TargetFramework>$(BrightSyncAppTfm)</TargetFramework>
     <RootNamespace>BrightSync</RootNamespace>
     <AssemblyName>BrightSync</AssemblyName>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
     <!-- Project is Native AOT compatible in all configurations. Build-time AOT
          analyzer warnings are surfaced during both Debug and Release builds. -->
     <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(BrightSyncTargetOs)' == 'windows'">
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+    <DefineConstants>$(DefineConstants);PLATFORM_WINDOWS</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(BrightSyncTargetOs)' == 'linux'">
+    <DefineConstants>$(DefineConstants);PLATFORM_LINUX</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -27,18 +34,18 @@
 
   <!-- MicroCom.Runtime (Avalonia's COM interop runtime) emits IL3053 AOT
        analysis warnings; the affected code paths are dynamic COM activation
-       Avalonia does not exercise on Windows at runtime. The warnings are
-       false positives on this platform and have no functional impact, so
-       suppress them so the publish log stays clean. -->
+       Avalonia does not exercise at runtime. The warnings are false positives
+       and have no functional impact, so suppress them so the publish log stays clean. -->
   <PropertyGroup>
     <NoWarn>$(NoWarn);IL3053</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-    <!-- Native AOT Compilation -->
-    <PublishAot>true</PublishAot>
-    <!-- Target runtime identifier default (Windows 64-bit) -->
-    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
+    <!-- Native AOT is the default. Targets without a native AOT toolchain on their build host
+         (linux-arm, linux-musl-*) publish with -p:PublishAot=false and use trimmed single-file instead. -->
+    <PublishAot Condition="'$(PublishAot)' == ''">true</PublishAot>
+    <!-- Default runtime identifier: win-x64 on Windows, linux-<host arch> elsewhere. -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">$(BrightSyncDefaultRid)</RuntimeIdentifier>
     <!-- Disable debug symbol generation to keep binary size clean -->
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
@@ -49,13 +56,23 @@
   </PropertyGroup>
 
   <ItemGroup>
-      <PackageReference Include="Avalonia" Version="12.1.4"/>
-      <PackageReference Include="Avalonia.Desktop" Version="12.1.4"/>
-      <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4"/>
-      <PackageReference Include="Microsoft.Win32.SystemEvents" Version="10.0.12"/>
-      <PackageReference Include="Serilog" Version="4.4.0"/>
-    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
-      <PackageReference Include="WmiLight" Version="7.3.0"/>
+    <PackageReference Include="Avalonia" Version="12.1.4"/>
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.4"/>
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4"/>
+    <PackageReference Include="Serilog" Version="4.4.0"/>
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\platform\BrightSync.Platform.Abstractions\BrightSync.Platform.Abstractions.csproj"/>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(BrightSyncTargetOs)' == 'windows'">
+    <ProjectReference Include="..\platform\BrightSync.Platform.Windows\BrightSync.Platform.Windows.csproj"/>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(BrightSyncTargetOs)' == 'linux'">
+    <ProjectReference Include="..\platform\BrightSync.Platform.Linux\BrightSync.Platform.Linux.csproj"/>
   </ItemGroup>
 
   <ItemGroup>
@@ -72,7 +89,6 @@
     <TrimmerRootAssembly Include="Avalonia.Controls" />
     <TrimmerRootAssembly Include="Avalonia.Desktop" />
     <TrimmerRootAssembly Include="Avalonia.Dialogs" />
-    <TrimmerRootAssembly Include="Avalonia.FreeDesktop" />
     <TrimmerRootAssembly Include="Avalonia.HarfBuzz" />
     <TrimmerRootAssembly Include="Avalonia.Markup" />
     <TrimmerRootAssembly Include="Avalonia.Markup.Xaml" />
@@ -81,10 +97,20 @@
     <TrimmerRootAssembly Include="Avalonia.OpenGL" />
     <TrimmerRootAssembly Include="Avalonia.Skia" />
     <TrimmerRootAssembly Include="Avalonia.Themes.Fluent" />
-    <TrimmerRootAssembly Include="Avalonia.Win32" />
-    <TrimmerRootAssembly Include="Avalonia.X11" />
     <TrimmerRootAssembly Include="MicroCom.Runtime" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(BrightSyncTargetOs)' == 'windows'">
+    <TrimmerRootAssembly Include="Avalonia.Win32" />
+    <TrimmerRootAssembly Include="BrightSync.Platform.Windows" />
     <TrimmerRootAssembly Include="WmiLight" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(BrightSyncTargetOs)' == 'linux'">
+    <TrimmerRootAssembly Include="Avalonia.FreeDesktop" />
+    <TrimmerRootAssembly Include="Avalonia.X11" />
+    <TrimmerRootAssembly Include="BrightSync.Platform.Linux" />
+    <TrimmerRootAssembly Include="Tmds.DBus.Protocol" />
   </ItemGroup>
 
   <ItemGroup>

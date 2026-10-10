@@ -4,7 +4,7 @@ namespace BrightSync.Core.Monitors;
 
 /// <summary>
 /// Holds a PHYSICAL_MONITOR array obtained from a single HMONITOR so it can be
-/// properly destroyed via <see cref="System.Windows.Forms.NativeMethods.DestroyPhysicalMonitors"/>.
+/// properly destroyed via <c>DestroyPhysicalMonitors</c>.
 /// </summary>
 internal sealed class PhysicalMonitorGroup : IDisposable
 {

@@ -9,6 +9,7 @@ using BrightSync.Core.Config;
 using BrightSync.Core.Diagnostics;
 using BrightSync.Core.Monitors;
 using BrightSync.Core.Updates;
+using BrightSync.Platform;
 using Serilog;
 
 namespace BrightSync.UI.ViewModels;
@@ -1302,12 +1303,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
     {
         try
         {
-            var psi = new ProcessStartInfo
-            {
-                FileName = url,
-                UseShellExecute = true
-            };
-            Process.Start(psi);
+            PlatformServices.Current.Shell.OpenUrl(url);
         }
         catch (Exception ex)
         {

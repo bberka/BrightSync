@@ -4,7 +4,7 @@ using Avalonia.Platform;
 using Avalonia.Threading;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
-using BrightSync.Core.Interop;
+using BrightSync.Platform;
 using BrightSync.Core.Monitors;
 using BrightSync.Core.Updates;
 using BrightSync.UI.ViewModels;
@@ -40,7 +40,7 @@ public sealed class TrayManager(
     private int _refreshInProgress;
     private SettingsWindow? _settingsWindow;
 
-    private WindowsTrayIcon? _trayIcon;
+    private ITrayIcon? _trayIcon;
 
 
     public void Dispose()
@@ -64,7 +64,7 @@ public sealed class TrayManager(
     public void Initialize()
     {
         updateChecker.UpdateAvailable += OnUpdateAvailable;
-        _trayIcon = new WindowsTrayIcon();
+        _trayIcon = CreateTrayIcon();
         _trayIcon.Clicked += (_, _) => ToggleQuickPopup();
         _trayIcon.MiddleClicked += (_, _) => ShowSettings();
         _trayIcon.SettingsRequested += (_, _) => ShowSettings();
@@ -92,6 +92,20 @@ public sealed class TrayManager(
         };
 
         RefreshTrayToolTip();
+    }
+
+    /// <summary>
+    /// Uses the OS-native tray when the platform provides one (Win32 on Windows), otherwise Avalonia's tray.
+    /// Set BRIGHTSYNC_TRAY=avalonia to force the Avalonia tray, BRIGHTSYNC_TRAY=native to force the native one.
+    /// </summary>
+    private static ITrayIcon CreateTrayIcon()
+    {
+        var preference = Environment.GetEnvironmentVariable("BRIGHTSYNC_TRAY");
+        var native = PlatformServices.Current.CreateNativeTrayIcon;
+        if (native is not null && !string.Equals(preference, "avalonia", StringComparison.OrdinalIgnoreCase))
+            return native();
+
+        return new AvaloniaTrayIcon();
     }
 
     private void RefreshTrayMenu()
@@ -304,9 +318,9 @@ public sealed class TrayManager(
     private void PositionQuickPopup(Window window)
     {
         Screen? screen = null;
-        if (NativeMethods.GetCursorPos(out var p))
+        if (PlatformServices.Current.Shell.TryGetCursorPosition(out var cursorX, out var cursorY))
         {
-            screen = window.Screens.ScreenFromPoint(new PixelPoint(p.x, p.y));
+            screen = window.Screens.ScreenFromPoint(new PixelPoint(cursorX, cursorY));
         }
 
         screen ??= window.Screens.ScreenFromPoint(window.Position) ??

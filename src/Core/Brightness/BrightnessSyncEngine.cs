@@ -1,6 +1,6 @@
 using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;
-using Microsoft.Win32;
+using BrightSync.Platform;
 using Serilog;
 using Timer = System.Timers.Timer;
 
@@ -23,6 +23,7 @@ public sealed partial class BrightSyncEngine : IDisposable
     private readonly Timer _enforcementTimer;
     private readonly Timer _periodicRefreshTimer;
     private readonly InternalBrightnessWatcher _watcher;
+    private readonly ISystemEvents _events = PlatformServices.Current.Events;
     private readonly CancellationTokenSource _lifetimeCts = new();
     private BrightnessBoostService? _brightnessBoost;
     private int _disposed;
@@ -73,8 +74,8 @@ public sealed partial class BrightSyncEngine : IDisposable
 
         Log.Debug("Disposing brightness sync engine");
         _lifetimeCts.Cancel();
-        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
-        SystemEvents.SessionSwitch -= OnSessionSwitch;
+        _events.Resumed -= OnResumed;
+        _events.SessionLockChanged -= OnSessionLockChanged;
         lock (_timerLock)
         {
             _enforcementTimer.Stop();
@@ -133,8 +134,8 @@ public sealed partial class BrightSyncEngine : IDisposable
 
         UpdatePeriodicRefreshTimer();
 
-        SystemEvents.PowerModeChanged += OnPowerModeChanged;
-        SystemEvents.SessionSwitch += OnSessionSwitch;
+        _events.Resumed += OnResumed;
+        _events.SessionLockChanged += OnSessionLockChanged;
 
         // Sync all monitors (including the internal monitor which is now a target) on startup
         if (!_config.Config.AutoBrightness.Enabled)
@@ -195,43 +196,37 @@ public sealed partial class BrightSyncEngine : IDisposable
         TargetsChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
+    private void OnResumed(object? sender, EventArgs e)
     {
         if (IsDisposed)
             return;
 
-        if (e.Mode == PowerModes.Resume)
-        {
-            Log.Information("System resume detected; scheduling monitor refresh");
-            // Give displays a moment to initialise after wake
-            _ = ScheduleRefreshAfterDelay(TimeSpan.FromSeconds(2), "system resume");
-        }
+        Log.Information("System resume detected; scheduling monitor refresh");
+        // Give displays a moment to initialise after wake
+        _ = ScheduleRefreshAfterDelay(TimeSpan.FromSeconds(2), "system resume");
     }
 
-    private void OnSessionSwitch(object sender, SessionSwitchEventArgs e)
+    private void OnSessionLockChanged(object? sender, bool locked)
     {
         if (IsDisposed)
             return;
 
-        switch (e.Reason)
+        if (locked)
         {
-            case SessionSwitchReason.SessionLock:
-                _isSessionLocked = true;
-                if (_config.Config.DisableMonitorAccessWhileLocked)
-                    Log.Information("Windows session locked; pausing external monitor access");
-                break;
-
-            case SessionSwitchReason.SessionUnlock:
-                var wasSuspended = IsMonitorAccessSuspended;
-                _isSessionLocked = false;
-
-                if (!wasSuspended)
-                    return;
-
-                Log.Information("Windows session unlocked; scheduling monitor refresh");
-                _ = ScheduleRefreshAfterDelay(TimeSpan.FromMilliseconds(1500), "session unlock");
-                break;
+            _isSessionLocked = true;
+            if (_config.Config.DisableMonitorAccessWhileLocked)
+                Log.Information("Session locked; pausing external monitor access");
+            return;
         }
+
+        var wasSuspended = IsMonitorAccessSuspended;
+        _isSessionLocked = false;
+
+        if (!wasSuspended)
+            return;
+
+        Log.Information("Session unlocked; scheduling monitor refresh");
+        _ = ScheduleRefreshAfterDelay(TimeSpan.FromMilliseconds(1500), "session unlock");
     }
 
     internal Task ScheduleRefreshAfterDelay(TimeSpan delay)

@@ -1,4 +1,4 @@
-using BrightSync.Core.Interop;
+using BrightSync.Platform;
 using BrightSync.Core.Monitors;
 using Serilog;
 
@@ -65,49 +65,49 @@ public sealed partial class BrightSyncEngine
 
         if (profile.Contrast.HasValue && monitor.SupportsContrast)
         {
-            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_CONTRAST, (uint)profile.Contrast.Value);
+            _ddc.SetVcpFeature(monitor, VcpCodes.Contrast, (uint)profile.Contrast.Value);
         }
         if (profile.Volume.HasValue && monitor.SupportsVolume)
         {
-            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_VOLUME, (uint)profile.Volume.Value);
+            _ddc.SetVcpFeature(monitor, VcpCodes.Volume, (uint)profile.Volume.Value);
         }
         if (profile.ColorPreset.HasValue && monitor.SupportsColorPreset)
         {
-            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_COLOR_PRESET, (uint)profile.ColorPreset.Value);
+            _ddc.SetVcpFeature(monitor, VcpCodes.ColorPreset, (uint)profile.ColorPreset.Value);
         }
         if (profile.InputSource.HasValue && monitor.SupportsInputSource)
         {
-            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_INPUT_SOURCE, (uint)profile.InputSource.Value);
+            _ddc.SetVcpFeature(monitor, VcpCodes.InputSource, (uint)profile.InputSource.Value);
         }
         if (monitor.SupportsRgbGains && profile.RedGain.HasValue && profile.GreenGain.HasValue && profile.BlueGain.HasValue)
         {
-            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_RED_GAIN, (uint)profile.RedGain.Value);
-            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_GREEN_GAIN, (uint)profile.GreenGain.Value);
-            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_BLUE_GAIN, (uint)profile.BlueGain.Value);
+            _ddc.SetVcpFeature(monitor, VcpCodes.RedGain, (uint)profile.RedGain.Value);
+            _ddc.SetVcpFeature(monitor, VcpCodes.GreenGain, (uint)profile.GreenGain.Value);
+            _ddc.SetVcpFeature(monitor, VcpCodes.BlueGain, (uint)profile.BlueGain.Value);
         }
         if (profile.Sharpness.HasValue && monitor.SupportsSharpness)
         {
-            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_SHARPNESS, (uint)profile.Sharpness.Value);
+            _ddc.SetVcpFeature(monitor, VcpCodes.Sharpness, (uint)profile.Sharpness.Value);
         }
         if (profile.Saturation.HasValue && monitor.SupportsSaturation)
         {
-            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_SATURATION, (uint)profile.Saturation.Value);
+            _ddc.SetVcpFeature(monitor, VcpCodes.Saturation, (uint)profile.Saturation.Value);
         }
         if (profile.Gamma.HasValue && monitor.SupportsGamma)
         {
-            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_GAMMA, (uint)profile.Gamma.Value);
+            _ddc.SetVcpFeature(monitor, VcpCodes.Gamma, (uint)profile.Gamma.Value);
         }
         if (profile.PowerState.HasValue && monitor.SupportsPowerControl)
         {
-            _ddc.SetVcpFeature(monitor, NativeMethods.VCP_POWER_CONTROL, (uint)profile.PowerState.Value);
+            _ddc.SetVcpFeature(monitor, VcpCodes.PowerControl, (uint)profile.PowerState.Value);
         }
         if (profile.RefreshRate.HasValue)
         {
-            DisplaySettingsService.SetRefreshRate(monitor.DeviceName, profile.RefreshRate.Value);
+            PlatformServices.Current.DisplaySettings.SetRefreshRate(monitor.DeviceName, profile.RefreshRate.Value);
         }
         if (!string.IsNullOrWhiteSpace(profile.AssociatedColorProfile))
         {
-            Colors.ColorProfileManager.SetActiveColorProfile(monitor.DeviceName, profile.AssociatedColorProfile);
+            PlatformServices.Current.ColorProfiles.SetActiveColorProfile(monitor.DeviceName, profile.AssociatedColorProfile);
         }
     }
 

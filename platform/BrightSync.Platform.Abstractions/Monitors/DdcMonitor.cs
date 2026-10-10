@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace BrightSync.Core.Monitors;
 
 /// <summary>
@@ -7,7 +5,7 @@ namespace BrightSync.Core.Monitors;
 /// </summary>
 public sealed class DdcMonitor
 {
-    /// <summary>Volatile Windows display alias, e.g. \\.\DISPLAY2.</summary>
+    /// <summary>Volatile OS display alias, e.g. DISPLAY2 on Windows or DP-1 on Linux.</summary>
     public string DeviceName { get; init; } = string.Empty;
 
     /// <summary>
@@ -23,7 +21,7 @@ public sealed class DdcMonitor
     /// <summary>Model name without duplicated brand, e.g. "Odyssey G4".</summary>
     public string ModelName { get; init; } = string.Empty;
 
-    /// <summary>Friendly name resolved from WMI (brand + model), e.g. "LG 27GP950-B".</summary>
+    /// <summary>Friendly name resolved from OS metadata (brand + model), e.g. "LG 27GP950-B".</summary>
     public string FriendlyName { get; init; } = string.Empty;
 
     /// <summary>Raw firmware description from the DDC/CI physical monitor struct.</summary>
@@ -41,7 +39,7 @@ public sealed class DdcMonitor
     /// <summary>Display connection type such as HDMI, DisplayPort, or eDP.</summary>
     public string ConnectionType { get; init; } = string.Empty;
 
-    /// <summary>Whether Windows reports this as an internal panel.</summary>
+    /// <summary>Whether the OS reports this as an internal panel.</summary>
     public bool IsInternal { get; init; }
 
     /// <summary>Whether BrightSync can control this display's brightness through any supported backend.</summary>
@@ -60,18 +58,18 @@ public sealed class DdcMonitor
     public int LastCommandedPercent { get; set; } = -1;
 
     /// <summary>Typed backend used for external brightness control.</summary>
-    internal MonitorBrightnessBackend BrightnessBackendType { get; init; }
+    public MonitorBrightnessBackend BrightnessBackendType { get; init; }
 
     /// <summary>Backend used for external brightness control, e.g. DDC/CI or high-level API.</summary>
     public string BrightnessBackend { get; init; } = string.Empty;
 
-    /// <summary>Whether HDR is supported on this display according to DisplayConfig.</summary>
+    /// <summary>Whether HDR is supported on this display according to the OS.</summary>
     public bool IsHdrSupported { get; init; }
 
-    /// <summary>Whether HDR is currently enabled on this display according to DisplayConfig.</summary>
+    /// <summary>Whether HDR is currently enabled on this display according to the OS.</summary>
     public bool IsHdrEnabled { get; init; }
 
-    /// <summary>Current SDR white level in nits when Windows reports it.</summary>
+    /// <summary>Current SDR white level in nits when the OS reports it.</summary>
     public int SdrWhiteLevelNits { get; init; }
 
     /// <summary>Whether this display was identified as an Apple display.</summary>
@@ -125,8 +123,12 @@ public sealed class DdcMonitor
 
     public string RawCapabilitiesString { get; set; } = string.Empty;
 
-    internal IntPtr Handle { get; init; }
+    /// <summary>Opaque native handle owned by the platform backend (HPHYSICAL_MONITOR on Windows, unused on Linux).</summary>
+    public IntPtr Handle { get; init; }
 
-    // Owning group — needed for DestroyPhysicalMonitors cleanup
-    internal PhysicalMonitorGroup? Group { get; init; }
+    /// <summary>Opaque backend state (for example the Linux I2C bus descriptor).</summary>
+    public object? BackendState { get; init; }
+
+    /// <summary>Resource owner released when the monitor set is replaced (native handle group, file descriptor, ...).</summary>
+    public IDisposable? Resource { get; init; }
 }

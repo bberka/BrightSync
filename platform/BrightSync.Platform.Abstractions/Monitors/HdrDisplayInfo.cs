@@ -1,6 +1,6 @@
 namespace BrightSync.Core.Monitors;
 
-internal readonly record struct HdrDisplayInfo(
+public readonly record struct HdrDisplayInfo(
     bool IsHdrSupported,
     bool IsHdrEnabled,
     int SdrWhiteLevelNits)

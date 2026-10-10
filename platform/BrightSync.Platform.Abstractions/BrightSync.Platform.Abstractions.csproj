@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>BrightSync</RootNamespace>
+    <AssemblyName>BrightSync.Platform.Abstractions</AssemblyName>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Serilog" Version="4.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BrightSync" />
+    <InternalsVisibleTo Include="BrightSync.Tests" />
+    <InternalsVisibleTo Include="BrightSync.Platform.Windows" />
+    <InternalsVisibleTo Include="BrightSync.Platform.Linux" />
+  </ItemGroup>
+
+</Project>

@@ -4,11 +4,11 @@ namespace BrightSync.Core.Monitors;
 
 internal static class DesktopMonitorFallbackResolver
 {
-    public static MonitorNameResolver.MonitorIdentity ResolveIdentity(string adapterDeviceName)
+    public static MonitorIdentity ResolveIdentity(string adapterDeviceName)
     {
         var hardwareId = MonitorNameResolver.GetHardwareIdForAdapter(adapterDeviceName);
         if (string.IsNullOrWhiteSpace(hardwareId))
-            return MonitorNameResolver.MonitorIdentity.Unknown;
+            return MonitorIdentity.Unknown;
 
         try
         {
@@ -42,7 +42,7 @@ internal static class DesktopMonitorFallbackResolver
             // Ignore WMI desktop monitor failures and let other fallbacks handle naming.
         }
 
-        return MonitorNameResolver.MonitorIdentity.Unknown;
+        return MonitorIdentity.Unknown;
     }
 
     private static string FirstNonEmpty(params string?[] values)
