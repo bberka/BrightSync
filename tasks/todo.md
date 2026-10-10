@@ -44,3 +44,8 @@ Standing verification after every task: `dotnet build BrightSync.sln` clean, `do
 
 ## Phase 6: Verification
 - [x] T21 Full pass: build matrix, tests, Windows AOT publish + launch, CLI smoke, review diff for Windows regressions, final report with unverified-on-hardware list. (M)
+
+## Phase 7: Layering and distro verification (follow-up request)
+- [x] T22 Split `src/` into `BrightSync.Core` (logic, CLI, updates), `BrightSync.UI` (Avalonia) and a thin `BrightSync.App` host; Core reaches the UI only through `IUiDispatcher` and `IResidentAppHost`. 203 tests green on Windows and against the Linux services.
+- [x] T23 Hide controls the desktop cannot honor: legacy detection (Windows only), lock pause, Power Saver, idle dimming and media options follow `PlatformCapabilities`; Linux flags come from the D-Bus names present at startup.
+- [x] T24 Real-distro verification with `tools/linux-vm-test/vmtest.py` (QEMU, no admin): unit suite plus launch smoke pass on Ubuntu 24.04, Debian 12, Fedora 44, Alpine 3.24, Arch, openSUSE Leap 16. Findings fixed: missing libICE/libSM declared as package dependencies, inert Power Saver poller when no service exists.

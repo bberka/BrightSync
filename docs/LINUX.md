@@ -12,10 +12,10 @@ The test binary and the app run inside these official cloud images (QEMU, x86-64
 |---|---|---|
 | Ubuntu 24.04 | glibc | pass |
 | Debian 12 | glibc | pass |
-| Fedora 44 | glibc | see table below |
+| Fedora 44 | glibc | pass |
 | Alpine 3.24 | musl | pass |
 | Arch Linux (rolling) | glibc | pass |
-| openSUSE Leap 16.0 | glibc | see table below |
+| openSUSE Leap 16.0 | glibc | pass |
 
 Repeat it yourself (about 10 to 15 minutes per distribution without hardware virtualization):
 
