@@ -8,7 +8,8 @@ the right asset from the latest GitHub release, and the page works without it.
 cd website
 npm ci
 npm run dev        # http://localhost:4321/BrightSync/
-npm run build      # astro check (type-check) then astro build into dist/
+npm run check      # tsc type-check of .ts and .astro files
+npm run build      # check, then astro build into dist/
 npm run preview    # serve dist/ exactly as Pages will
 ```
 
@@ -33,3 +34,7 @@ Enable it once under **Settings > Pages > Build and deployment > Source: GitHub 
 
 The site lives under `/BrightSync`, so always build links with `url()` from `src/data/site.ts` instead of a bare `/`.
 Moving to a custom domain means changing `site` and removing `base` in `astro.config.mjs`.
+
+## TypeScript 7
+
+The site uses the native TypeScript 7 compiler. `astro check` does not support it (its peer range is TypeScript 5 or 6), so `.astro` files are type-checked by `tsc --noEmit --runExternalCode` with `@astrojs/ts-content-mapper`, which needs TypeScript 7.1 or newer. 7.1 is only published as a dev build for now, so `typescript` is pinned to an exact `7.1.0-dev` version. When 7.1 ships, change the pin to `^7.1.0`.

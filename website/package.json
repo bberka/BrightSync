@@ -9,16 +9,17 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro check && astro build",
+    "build": "npm run check && astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "check": "tsc --noEmit --runExternalCode"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",
     "astro": "^7.3.8"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.10",
-    "typescript": "^6.0.3"
+    "@astrojs/ts-content-mapper": "^0.2.0",
+    "typescript": "7.1.0-dev.20261011.1"
   }
 }
