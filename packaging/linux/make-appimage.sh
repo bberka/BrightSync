@@ -19,6 +19,8 @@ trap 'rm -rf "$work"' EXIT
 appdir="$work/BrightSync.AppDir"
 mkdir -p "$appdir/usr/lib/brightsync"
 cp -a "$publish/." "$appdir/usr/lib/brightsync/"
+# A publish directory that travelled through a non-POSIX filesystem or archive may have lost the bit.
+chmod 0755 "$appdir/usr/lib/brightsync/BrightSync"
 cat >"$appdir/AppRun" <<'RUN'
 #!/bin/sh
 here=$(dirname "$(readlink -f "$0")")
