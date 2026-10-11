@@ -24,7 +24,7 @@ App ──► UI ──► Core ──► Abstractions ◄── Windows | Linux
 ## Repository layout
 
 ```
-.github/workflows/   ci.yml, release.yml (packages), website.yml (GitHub Pages)
+.github/workflows/   ci.yml (checks + PR packages), pr-packages.yml (PR comment), packages.yml (reusable), release.yml, website.yml
 src/                 every production project: Core, UI, App, Platform.Abstractions, Platform.Windows, Platform.Linux
 tests/               one xunit v3 project for all of the above, with Linux fakes in tests/Linux
 packaging/           windows/ (Inno Setup script), linux/ (nfpm, desktop, udev, install.sh), build-linux.sh

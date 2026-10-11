@@ -61,9 +61,28 @@ packaging/build-linux.sh linux-portable 0.19.0 out
 
 `python tools/linux-vm-test/vmtest.py --qemu <dir> --nfpm <nfpm>` builds the packages with `build-linux.sh`, boots each distribution, installs its native package on a bare system (the package manager must resolve every library), checks the installed files (including that the udev rule sorts before `73-seat-late.rules` and passes `udevadm verify` where available), launches `/usr/bin/brightsync`, uninstalls and checks nothing is left behind. It then runs the unit suite, the portable archive's `install.sh` (per user and `--system`), and on Ubuntu an AppImage build and launch plus the `linux-portable` archive on a freshly installed .NET runtime. Every launch ends with `brightsync app exit`, which has to return 0. See [LINUX.md](LINUX.md).
 
-## Release workflow
+## Workflows
 
-`.github/workflows/release.yml` runs: prepare (version from `VERSION` plus the next patch tag), wait for the matching CI run, validate (build and test on Windows and Ubuntu), package-windows (3 targets), package-linux (7 targets), smoke-linux (installs the x64 and arm64 `.deb` on a runner, starts the app under `xvfb` and `dbus-run-session`, and calls `brightsync status`), then release (verifies the exact asset list, writes `BrightSync-SHA256SUMS.txt`, uploads).
+| Workflow | Runs on | Does |
+|---|---|---|
+| `ci.yml` | pull requests (any branch), pushes to `main`/`master` | Build and test on Windows, Ubuntu x64 and Ubuntu arm64; cross-compile both OS graphs. On a non-draft pull request it then calls `packages.yml` with the version `<VERSION>.0-pr<number>.<run>` and uploads `pr-meta` |
+| `pr-packages.yml` | after `ci.yml` finishes for a pull request | Posts or updates one comment with the package list and a link to the run's artifacts |
+| `packages.yml` | called by the two above | Builds every installer and package as artifacts named `BrightSync-package-<target>` and smoke-tests the Linux `.deb` on x64 and arm64. Publishes nothing |
+| `release.yml` | `VERSION` changes on `main`/`master`, or manual dispatch from the default branch | prepare (version from `VERSION` plus the next patch tag), wait for the matching CI run, validate (build and test on Windows and Ubuntu), call `packages.yml`, then verify the exact asset list, write `BrightSync-SHA256SUMS.txt` and upload to the GitHub Release |
+| `website.yml` | changes under `website/` | Builds the site, deploys it to GitHub Pages from `main`/`master` |
+
+A branch without a pull request runs nothing. Open a draft pull request to get the test legs without the package builds.
+
+### Pull request builds on a public repository
+
+Pull request code is untrusted, so the flow is split in two:
+
+- `ci.yml` and `packages.yml` run on the `pull_request` event with a read-only token and no secrets. From a fork they cannot comment or sign, which is why the Windows signing steps are skipped.
+- `pr-packages.yml` runs from the default branch with `pull-requests: write` after CI finishes. It never checks out or builds pull request code. It reads the `pr-meta` artifact (pull request number and commit), checks the number is digits, the commit is 40 hex characters, and the commit equals the pull request's current head, then renders only artifact names and sizes that match `BrightSync-package-[A-Za-z0-9.-]+`.
+
+Recommended repository settings: Settings > Actions > General > "Require approval for first-time contributors" (or all outside collaborators), and keep the default read-only workflow token. Package artifacts need a GitHub login to download and are kept 14 days.
+
+Do not move package builds to a self-hosted runner on a public repository: a pull request can run arbitrary code there. A self-hosted runner is reasonable only for the `Category=Hardware` tests (real monitors), limited to manual runs and branches in this repository.
 
 Authenticode signing of Windows binaries is optional and unchanged: set `WINDOWS_SIGNING_CERTIFICATE_BASE64`, `WINDOWS_SIGNING_CERTIFICATE_PASSWORD`, and `WINDOWS_SIGNING_TIMESTAMP_URL` together. Linux packages are not signed; verify downloads with the checksum manifest.
 

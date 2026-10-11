@@ -1,10 +1,9 @@
 name: CI
 
+# Pull requests (any base branch) get the full checks and testable packages. Branches without a pull request
+# run nothing; main and master are checked on push because the release workflow waits for that result.
 on:
   pull_request:
-    branches:
-      - main
-      - master
   push:
     branches:
       - main
@@ -82,3 +81,62 @@ jobs:
 
       - name: Build Linux graph
         run: dotnet build src/BrightSync.App/BrightSync.App.csproj -c Debug -r linux-x64
+
+  # Metadata for pr-packages.yml, which posts the comment from a trusted context (a pull request from a
+  # fork cannot comment, and its code must never run with a write token).
+  pr-meta:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Record pull request number and commit
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          mkdir pr-meta
+          echo "$PR_NUMBER" > pr-meta/meta.txt
+          echo "$PR_HEAD_SHA" >> pr-meta/meta.txt
+
+      - name: Upload metadata
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pr-meta
+          path: pr-meta/meta.txt
+          retention-days: 3
+
+  pr-version:
+    if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Compute the pull request build version
+        id: version
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          base="$(tr -d '[:space:]' < VERSION)"
+          echo "version=${base}.0-pr${PR_NUMBER}.${RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
+  # Builds every installer and package so reviewers can try the change. Nothing is published or tagged.
+  # Starts only after the tests pass and skips draft pull requests.
+  packages:
+    needs:
+      - build-and-test
+      - cross-platform-compile
+      - pr-version
+    permissions:
+      contents: read
+    uses: ./.github/workflows/packages.yml
+    with:
+      version: ${{ needs.pr-version.outputs.version }}
+      retention-days: "14"

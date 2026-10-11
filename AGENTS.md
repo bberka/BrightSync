@@ -19,6 +19,10 @@ dotnet build src/BrightSync.App/BrightSync.App.csproj -r linux-x64              
 
 `global.json` selects Microsoft.Testing.Platform for xunit v3, so `dotnet test` needs `--project` and `--filter-not-trait` (the VSTest `--filter` fails). Native AOT publish on Windows needs `vswhere.exe` on `PATH` (`C:\Program Files (x86)\Microsoft Visual Studio\Installer`). A BrightSync instance running on the machine holds the single-instance mutex, so a launch smoke test shows the "already running" dialog; use `BrightSync.exe status` against it, or ask before closing it.
 
+## CI
+
+Branches without a pull request run no workflows. `packages.yml` is the only place packages are built, and only `release.yml` publishes. Pull request workflows must stay free of secrets and write permissions; the PR comment is posted by `pr-packages.yml` from the default branch and must never check out pull request code. Details: [docs/PACKAGING.md](docs/PACKAGING.md).
+
 ## Website
 
 `website/` is an Astro static site (Node 22.12+, `npm ci`, `npm run build`) deployed to GitHub Pages by `.github/workflows/website.yml`. Links must go through `url()` in `website/src/data/site.ts` because the site lives under `/BrightSync`. When you add or rename release assets or change supported platforms, update the Platforms and Download sections there too. Details: [website/README.md](website/README.md).
