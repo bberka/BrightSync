@@ -105,7 +105,7 @@ Important notes:
 |---|---|---|
 | External monitors (DDC/CI) incl. contrast, volume, RGB gain, presets, input | Yes | Yes (needs `/dev/i2c-N` access, see [LINUX.md](docs/LINUX.md)) |
 | Laptop panel brightness | Yes (WMI) | Yes (backlight class, logind fallback) |
-| Tray icon, quick popup, settings window | Yes (Win32 tray) | Yes (StatusNotifierItem tray) |
+| Tray icon, quick popup, settings window | Yes | Yes (StatusNotifierItem tray) |
 | Automatic curve, eye protection, boost, enforcement | Yes | Yes |
 | Idle dimming, ignore while media plays | Yes | Yes (Mutter, KDE or X11 idle; MPRIS media) |
 | Pause while locked | Yes | Yes (logind, GNOME and KDE screensavers) |

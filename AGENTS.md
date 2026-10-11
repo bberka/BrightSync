@@ -25,7 +25,7 @@ dotnet build src/BrightSync.App/BrightSync.App.csproj -r linux-x64              
 
 ## Gotchas
 
-- The Windows tray stays Win32 (`WindowsTrayIcon`). Avalonia's tray lost the icon when the published app ran from another folder. Re-test in `C:\Program Files` after Native AOT before changing the default.
+- Both platforms use Avalonia's `TrayIcon` and themed `NativeMenu` (`AvaloniaTrayIcon`). Avalonia has no balloon API and does not promote the icon on Windows 11, so `IShellIntegration.ShowNotification` and `OnTrayIconShown` cover that. `WindowsTrayIcon` (Win32 shell icon and popup menu) stays as the fallback behind `BRIGHTSYNC_TRAY=native`, and is also the carrier for balloon notifications. After touching the tray, publish with Native AOT into a folder that has never run BrightSync and check `HKCU/Control Panel/NotifyIconSettings` for that path with `IsPromoted=1`.
 - Release asset names are a contract with `UpdateChecker`, the release workflow, and the docs. Read [docs/PACKAGING.md](docs/PACKAGING.md) before renaming or adding assets or touching workflows.
 - Per-user paths come from `AppPaths` (Core), never `Environment.GetFolderPath` directly: on Linux it returns an empty string when `~/.config` does not exist, which silently moves config and logs into the working directory.
 - Shell scripts and `packaging/linux/*` must stay LF (`.gitattributes`).

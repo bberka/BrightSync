@@ -45,9 +45,59 @@ internal sealed class WindowsShellIntegration : IShellIntegration
 
     public void OpenDisplaySettings() => ShellExecute("ms-settings:display");
 
-    // Notifications on Windows go through the tray balloon; there is no separate toast channel.
+    private WindowsTrayIcon? _balloonIcon;
+    private SynchronizationContext? _balloonOwner;
+    private Timer? _balloonTimer;
+
+    // Windows 11 puts the icon of a never-seen executable into the overflow flyout. Promote it once the shell
+    // has created its settings entry, which can lag the icon registration slightly.
+    public void OnTrayIconShown()
+        => _ = Task.Run(() =>
+        {
+            try
+            {
+                WindowsTrayIcon.PromoteCurrentExecutableNotificationIcon();
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Could not promote the notification icon");
+            }
+        });
+
+    // The Avalonia tray has no balloon API, so a short-lived second icon carries the notification. It is
+    // created and destroyed on the calling (UI) thread because the window that owns it needs that thread's
+    // message loop.
     public void ShowNotification(string title, string message)
     {
+        try
+        {
+            DisposeBalloon();
+            var icon = new WindowsTrayIcon();
+            icon.Initialize("BrightSync", false, false, promote: false);
+            icon.ShowNotification(title, message);
+            _balloonIcon = icon;
+            _balloonOwner = SynchronizationContext.Current;
+            _balloonTimer = new Timer(_ =>
+            {
+                if (_balloonOwner is { } owner)
+                    owner.Post(_ => DisposeBalloon(), null);
+                else
+                    DisposeBalloon();
+            }, null, TimeSpan.FromSeconds(12), Timeout.InfiniteTimeSpan);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Could not show the notification balloon");
+            DisposeBalloon();
+        }
+    }
+
+    private void DisposeBalloon()
+    {
+        _balloonTimer?.Dispose();
+        _balloonTimer = null;
+        _balloonIcon?.Dispose();
+        _balloonIcon = null;
     }
 
     public void ShowMessage(string title, string message)

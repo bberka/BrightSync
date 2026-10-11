@@ -4,7 +4,7 @@ BrightSync is one Avalonia app that runs on Windows and Linux. It is split by re
 
 ```
 src/BrightSync.Platform.Abstractions   net10.0                       OS contracts, DdcMonitor model, VCP parsing, PlatformServices
-src/BrightSync.Platform.Windows        net10.0-windows10.0.19041.0   Win32, WMI, dxva2, registry, WinRT media, Win32 tray
+src/BrightSync.Platform.Windows        net10.0-windows10.0.19041.0   Win32, WMI, dxva2, registry, WinRT media, balloon + legacy Win32 tray
 src/BrightSync.Platform.Linux          net10.0                       sysfs/DRM/EDID, i2c-dev, D-Bus, X11, XDG
 src/BrightSync.Core                         net10.0                       sync engine, services, config, CLI, updates, diagnostics (no UI, no OS API)
 src/BrightSync.UI                           net10.0                       Avalonia views, view models, tray manager, App
@@ -67,7 +67,7 @@ The Windows project needs the Windows TFM for the WinRT media API, which is why 
 | `IShellIntegration` (cursor, panel, URLs, notifications, console) | Win32 | X11, `xdg-open`, D-Bus |
 | `ISingleInstanceGuard` | named mutex (matches the Inno Setup `AppMutex`) | exclusive lock file |
 | `IDisplaySettingsService`, `IColorProfileService` | ChangeDisplaySettings, WCS | empty implementations |
-| `ITrayIcon` (optional native tray) | Win32 `Shell_NotifyIcon` | none, Avalonia tray is used |
+| `ITrayIcon` (optional native tray) | Win32 `Shell_NotifyIcon`, opt-in fallback only | none |
 | `IUpdateInstaller` | installer asset token `win` | none |
 | `PlatformCapabilities` | flags and wording the UI reads | same |
 
@@ -83,7 +83,7 @@ On Linux some flags depend on the running desktop, not just the OS. `LinuxPlatfo
 
 ## Tray
 
-`TrayManager` creates the native tray when the platform offers one, otherwise `AvaloniaTrayIcon` (Avalonia `TrayIcon` and `NativeMenu`, StatusNotifierItem on Linux). Windows keeps the Win32 tray by default. The header comment in `WindowsTrayIcon.cs` records an Avalonia tray bug where the icon disappears when the published app runs from a different path. Before changing the Windows default, publish with Native AOT, move the folder to `C:\Program Files`, and confirm the icon appears. `BRIGHTSYNC_TRAY=avalonia` switches Windows to the Avalonia tray for that test.
+`TrayManager` uses `AvaloniaTrayIcon` (Avalonia `TrayIcon` and `NativeMenu`) on every platform, so the menu is themed by Avalonia on Windows and is a dbusmenu over StatusNotifierItem on Linux. Two things the Win32 tray did itself now live behind `IShellIntegration` on Windows: `OnTrayIconShown` promotes the icon out of the Windows 11 overflow flyout (new executable paths start hidden), and `ShowNotification` shows a balloon from a short-lived second icon because Avalonia has no balloon API. The old `WindowsTrayIcon` remains for `BRIGHTSYNC_TRAY=native`. To verify tray changes, publish with Native AOT into a fresh folder, run it, and look for `IsPromoted=1` under `HKCU/Control Panel/NotifyIconSettings` for that path.
 
 ## Updates
 

@@ -7,8 +7,8 @@ using Serilog;
 namespace BrightSync.Core.Services;
 
 /// <summary>
-/// There is some bug with native menu tray icon with recommended avalonia UI however it is path dependant somehow and does not work properly when published into a different location. So we had to use default WinAPI.
-/// If you wish to later refactor this and dump usage of this class. Ensure that it is nativeaot safe and after publishing the application move the publish files to another location like C ProgramFiles and run the app to check if tray icon is still showed.
+/// Legacy Win32 shell icon with a native popup menu. Not the default: Avalonia's tray icon and themed menu are.
+/// Kept for BRIGHTSYNC_TRAY=native and as the carrier for balloon notifications, which Avalonia cannot show.
 /// </summary>
 public sealed class WindowsTrayIcon : ITrayIcon
 {
@@ -88,6 +88,10 @@ public sealed class WindowsTrayIcon : ITrayIcon
     public event EventHandler<int>? BrightnessBoostPresetRequested;
 
     public void Initialize(string toolTip, bool eyeProtectionEnabled, bool brightnessBoostEnabled)
+        => Initialize(toolTip, eyeProtectionEnabled, brightnessBoostEnabled, promote: true);
+
+    /// <param name="promote">Moves the icon out of the Windows 11 overflow flyout. Off for short-lived balloon icons.</param>
+    public void Initialize(string toolTip, bool eyeProtectionEnabled, bool brightnessBoostEnabled, bool promote)
     {
         _toolTip = toolTip;
         _eyeProtectionEnabled = eyeProtectionEnabled;
@@ -114,7 +118,7 @@ public sealed class WindowsTrayIcon : ITrayIcon
             ThrowLastWin32Error("Failed to create tray message window");
 
         _iconHandle = LoadApplicationIcon();
-        AddIcon(toolTip);
+        AddIcon(toolTip, promote);
         Log.Information("Win32 tray icon initialized. WindowHandle={WindowHandle}, HasIcon={HasIcon}",
             _windowHandle,
             _iconHandle != IntPtr.Zero);
@@ -265,7 +269,8 @@ public sealed class WindowsTrayIcon : ITrayIcon
         return chars;
     }
 
-    private static bool PromoteCurrentExecutableNotificationIcon()
+    /// <summary>Marks this executable's notification icon as promoted. Also used for the Avalonia tray icon.</summary>
+    internal static bool PromoteCurrentExecutableNotificationIcon()
     {
         var processPath = Environment.ProcessPath;
         if (string.IsNullOrWhiteSpace(processPath))

@@ -7,11 +7,14 @@ namespace BrightSync.Core.Monitors;
 /// <summary>Reads and writes the internal panel brightness through WMI (AOT compatible).</summary>
 internal sealed class WindowsInternalBrightness : IInternalBrightness
 {
+    /// <summary>Local WMI namespace holding WmiMonitorBrightness. Guarded by a unit test: a mangled path silently disables laptop panels.</summary>
+    internal const string WmiNamespace = @"\\.\root\WMI";
+
     public int ReadCurrentBrightness()
     {
         try
         {
-            using var connection = new WmiConnection(@"\.\root\WMI");
+            using var connection = new WmiConnection(WmiNamespace);
             foreach (var obj in connection.CreateQuery("SELECT CurrentBrightness FROM WmiMonitorBrightness"))
             {
                 return Convert.ToInt32(obj["CurrentBrightness"]);
@@ -31,7 +34,7 @@ internal sealed class WindowsInternalBrightness : IInternalBrightness
 
         try
         {
-            using var connection = new WmiConnection(@"\.\root\WMI");
+            using var connection = new WmiConnection(WmiNamespace);
             var updated = false;
 
             foreach (var obj in connection.CreateQuery("SELECT * FROM WmiMonitorBrightnessMethods"))

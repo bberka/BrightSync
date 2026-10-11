@@ -96,14 +96,14 @@ public sealed class TrayManager(
     }
 
     /// <summary>
-    /// Uses the OS-native tray when the platform provides one (Win32 on Windows), otherwise Avalonia's tray.
-    /// Set BRIGHTSYNC_TRAY=avalonia to force the Avalonia tray, BRIGHTSYNC_TRAY=native to force the native one.
+    /// Uses Avalonia's tray icon and themed native menu on every platform. BRIGHTSYNC_TRAY=native selects the
+    /// OS-specific implementation (the Win32 shell icon and popup menu on Windows) when the platform has one.
     /// </summary>
     private static ITrayIcon CreateTrayIcon()
     {
         var preference = Environment.GetEnvironmentVariable("BRIGHTSYNC_TRAY");
         var native = PlatformServices.Current.CreateNativeTrayIcon;
-        if (native is not null && !string.Equals(preference, "avalonia", StringComparison.OrdinalIgnoreCase))
+        if (native is not null && string.Equals(preference, "native", StringComparison.OrdinalIgnoreCase))
             return native();
 
         return new AvaloniaTrayIcon();

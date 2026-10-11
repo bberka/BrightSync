@@ -51,6 +51,7 @@ internal sealed class AvaloniaTrayIcon : ITrayIcon
 
         TrayIcon.SetIcons(application, new TrayIcons { _trayIcon });
         UpdateMenuState(eyeProtectionEnabled, brightnessBoostEnabled);
+        PlatformServices.Current.Shell.OnTrayIconShown();
         Log.Information("Avalonia tray icon initialized");
     }
 

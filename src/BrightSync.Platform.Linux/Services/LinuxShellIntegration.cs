@@ -25,6 +25,11 @@ internal sealed class LinuxShellIntegration : IShellIntegration
     {
     }
 
+    // StatusNotifierItem hosts place new icons themselves.
+    public void OnTrayIconShown()
+    {
+    }
+
     public void ShowNotification(string title, string message)
     {
         var sent = DBusClient.Session.TryCall(

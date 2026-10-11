@@ -101,7 +101,7 @@ BrightSync uses the StatusNotifierItem protocol through Avalonia.
 
 Left click opens the quick brightness popup on desktops that deliver it. Some desktops only open the menu, so the menu also has a "Quick Brightness" entry. Middle click does not exist in the protocol; use the "Settings" entry.
 
-Set `BRIGHTSYNC_TRAY=avalonia` to force the Avalonia tray on Windows for testing.
+Windows uses the same Avalonia tray and menu. `BRIGHTSYNC_TRAY=native` switches Windows to the legacy Win32 icon and popup menu.
 
 ## Wayland
 

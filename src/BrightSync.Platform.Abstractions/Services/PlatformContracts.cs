@@ -101,6 +101,12 @@ public interface IShellIntegration
     /// <summary>Opens the OS display settings page (HDR, resolution). No-op when the OS has none.</summary>
     void OpenDisplaySettings();
 
+    /// <summary>
+    /// Called after the cross-platform tray icon was added to the shell. Lets the OS layer finish what the
+    /// shell needs for the icon to be visible (Windows 11 hides new icons in the overflow flyout until promoted).
+    /// </summary>
+    void OnTrayIconShown();
+
     /// <summary>Shows a desktop notification. Best effort.</summary>
     void ShowNotification(string title, string message);
 

@@ -170,7 +170,8 @@ internal static class NativeMethods
 
     // --- Color Management (mscms.dll) ---
 
-    [DllImport("mscms.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    // mscms exports GetColorDirectoryW; there is no GetColorProfileDirectory entry point.
+    [DllImport("mscms.dll", EntryPoint = "GetColorDirectoryW", CharSet = CharSet.Unicode, SetLastError = true)]
     public static extern bool GetColorProfileDirectory(
         string? pMachineName,
         System.Text.StringBuilder? pBuffer,
