@@ -91,7 +91,7 @@ stage="$work/$base"
 mkdir -p "$stage/app"
 cp -a "$publish/." "$stage/app/"
 cp "$root/packaging/linux/install.sh" "$root/packaging/linux/brightsync.desktop" \
-    "$root/packaging/linux/99-brightsync-i2c.rules" "$root/packaging/linux/brightsync-i2c.conf" "$stage/"
+    "$root/packaging/linux/60-brightsync-i2c.rules" "$root/packaging/linux/brightsync-i2c.conf" "$stage/"
 cp "$root/src/BrightSync.UI/Resources/app.png" "$stage/brightsync.png"
 cp "$root/LICENSE" "$stage/"
 cat >"$stage/README.txt" <<EOF

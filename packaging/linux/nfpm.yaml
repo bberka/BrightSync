@@ -33,8 +33,8 @@ contents:
     dst: /usr/share/applications/brightsync.desktop
   - src: src/BrightSync.UI/Resources/app.png
     dst: /usr/share/icons/hicolor/128x128/apps/brightsync.png
-  - src: packaging/linux/99-brightsync-i2c.rules
-    dst: /usr/lib/udev/rules.d/99-brightsync-i2c.rules
+  - src: packaging/linux/60-brightsync-i2c.rules
+    dst: /usr/lib/udev/rules.d/60-brightsync-i2c.rules
   - src: packaging/linux/brightsync-i2c.conf
     dst: /usr/lib/modules-load.d/brightsync-i2c.conf
   - src: LICENSE

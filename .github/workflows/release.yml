@@ -504,7 +504,7 @@ jobs:
           set -euo pipefail
           dpkg -L brightsync
           test -x /usr/bin/brightsync
-          test -f /usr/lib/udev/rules.d/99-brightsync-i2c.rules
+          test -f /usr/lib/udev/rules.d/60-brightsync-i2c.rules
           test -f /usr/share/applications/brightsync.desktop
 
       - name: Launch the tray app and query it over the CLI

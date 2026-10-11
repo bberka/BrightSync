@@ -123,7 +123,7 @@ if fetch "$HOST/$pkg" >"/tmp/$pkg" && [ -s "/tmp/$pkg" ]; then
     tail -n 5 /tmp/pkg-install.log
     check_file /usr/bin/brightsync && check_file /opt/brightsync/BrightSync \
         && check_file /usr/share/applications/brightsync.desktop \
-        && check_file /usr/lib/udev/rules.d/99-brightsync-i2c.rules \
+        && check_file /usr/lib/udev/rules.d/60-brightsync-i2c.rules \
         && check_file /usr/lib/modules-load.d/brightsync-i2c.conf \
         && check_file /usr/share/icons/hicolor/128x128/apps/brightsync.png && files_ok=1 || files_ok=0
     run_smoke /usr/bin/brightsync >/tmp/pkg-smoke.log 2>&1
@@ -131,7 +131,7 @@ if fetch "$HOST/$pkg" >"/tmp/$pkg" && [ -s "/tmp/$pkg" ]; then
     grep -q "STATUS-EXIT 0" /tmp/pkg-smoke.log && grep -q "EXIT-CLEAN" /tmp/pkg-smoke.log && smoke_ok=1 || smoke_ok=0
     remove_pkg >/tmp/pkg-remove.log 2>&1 </dev/null
     echo "PKG-REMOVE-EXIT $?"
-    if [ ! -e /usr/bin/brightsync ] && [ ! -e /opt/brightsync/BrightSync ] && [ ! -e /usr/lib/udev/rules.d/99-brightsync-i2c.rules ]; then
+    if [ ! -e /usr/bin/brightsync ] && [ ! -e /opt/brightsync/BrightSync ] && [ ! -e /usr/lib/udev/rules.d/60-brightsync-i2c.rules ]; then
         echo "PKG-REMOVE-CLEAN"; clean_ok=1
     else
         echo "PKG-REMOVE-LEFTOVERS"; clean_ok=0
@@ -177,9 +177,9 @@ if fetch "$HOST/portable-$variant.tar.gz" | tar xz && cd BrightSync-*; then
 
     ./install.sh --system >/tmp/tar-sys.log 2>&1 </dev/null; echo "TARBALL-SYSTEM-INSTALL-EXIT $?"
     check_file /opt/brightsync/BrightSync && check_file /usr/local/bin/brightsync \
-        && check_file /usr/lib/udev/rules.d/99-brightsync-i2c.rules && check_file /usr/lib/modules-load.d/brightsync-i2c.conf || tar_ok=0
+        && check_file /usr/lib/udev/rules.d/60-brightsync-i2c.rules && check_file /usr/lib/modules-load.d/brightsync-i2c.conf || tar_ok=0
     ./install.sh --system --uninstall >/tmp/tar-sys-un.log 2>&1 </dev/null; echo "TARBALL-SYSTEM-UNINSTALL-EXIT $?"
-    [ ! -e /opt/brightsync ] && [ ! -e /usr/local/bin/brightsync ] && [ ! -e /usr/lib/udev/rules.d/99-brightsync-i2c.rules ] \
+    [ ! -e /opt/brightsync ] && [ ! -e /usr/local/bin/brightsync ] && [ ! -e /usr/lib/udev/rules.d/60-brightsync-i2c.rules ] \
         && echo "TARBALL-SYSTEM-CLEAN" || { echo "TARBALL-SYSTEM-LEFTOVERS"; tar_ok=0; }
 else
     echo "TARBALL-DOWNLOAD-FAILED"; tar_ok=0

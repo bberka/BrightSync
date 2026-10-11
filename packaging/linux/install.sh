@@ -42,7 +42,7 @@ need_root() {
 
 setup_i2c() {
     need_root
-    install -D -m 0644 "$here/99-brightsync-i2c.rules" /usr/lib/udev/rules.d/99-brightsync-i2c.rules
+    install -D -m 0644 "$here/60-brightsync-i2c.rules" /usr/lib/udev/rules.d/60-brightsync-i2c.rules
     install -D -m 0644 "$here/brightsync-i2c.conf" /usr/lib/modules-load.d/brightsync-i2c.conf
     modprobe i2c-dev 2>/dev/null || echo "Could not load i2c-dev now; it loads on next boot." >&2
     if command -v udevadm >/dev/null 2>&1; then
@@ -82,7 +82,7 @@ do_uninstall() {
     rm -rf "$app_dir"
     rm -f "$bin_dir/brightsync" "$desktop_dir/brightsync.desktop" "$icon_dir/brightsync.png"
     if [ "$mode" = system ]; then
-        rm -f /usr/lib/udev/rules.d/99-brightsync-i2c.rules /usr/lib/modules-load.d/brightsync-i2c.conf
+        rm -f /usr/lib/udev/rules.d/60-brightsync-i2c.rules /usr/lib/modules-load.d/brightsync-i2c.conf
         command -v udevadm >/dev/null 2>&1 && udevadm control --reload-rules 2>/dev/null || true
     fi
     rm -f "${XDG_CONFIG_HOME:-$HOME/.config}/autostart/brightsync.desktop"
