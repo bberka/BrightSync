@@ -124,8 +124,10 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           RUN_NUMBER: ${{ github.run_number }}
         run: |
-          base="$(tr -d '[:space:]' < VERSION)"
-          echo "version=${base}.0-pr${PR_NUMBER}.${RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          # 0ver: VERSION holds only the minor number, so 19 builds as 0.19.0-pr<number>.<run>.
+          minor="$(tr -d '[:space:]' < VERSION)"
+          [[ "$minor" =~ ^[0-9]+$ ]] || { echo "VERSION must be a number" >&2; exit 1; }
+          echo "version=0.${minor}.0-pr${PR_NUMBER}.${RUN_NUMBER}" >> "$GITHUB_OUTPUT"
 
   # Builds every installer and package so reviewers can try the change. Nothing is published or tagged.
   # Starts only after the tests pass and skips draft pull requests.

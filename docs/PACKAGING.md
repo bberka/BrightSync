@@ -65,10 +65,10 @@ packaging/build-linux.sh linux-portable 0.19.0 out
 
 | Workflow | Runs on | Does |
 |---|---|---|
-| `ci.yml` | pull requests (any branch), pushes to `main`/`master` | Build and test on Windows, Ubuntu x64 and Ubuntu arm64; cross-compile both OS graphs. On a non-draft pull request it then calls `packages.yml` with the version `<VERSION>.0-pr<number>.<run>` and uploads `pr-meta` |
+| `ci.yml` | pull requests (any branch), pushes to `main`/`master` | Build and test on Windows, Ubuntu x64 and Ubuntu arm64; cross-compile both OS graphs. On a non-draft pull request it then calls `packages.yml` with the version `0.<VERSION>.0-pr<number>.<run>` and uploads `pr-meta` |
 | `pr-packages.yml` | after `ci.yml` finishes for a pull request | Posts or updates one comment with the package list and a link to the run's artifacts |
 | `packages.yml` | called by the two above | Builds every installer and package as artifacts named `BrightSync-package-<target>` and smoke-tests the Linux `.deb` on x64 and arm64. Publishes nothing |
-| `release.yml` | `VERSION` changes on `main`/`master`, or manual dispatch from the default branch | prepare (version from `VERSION` plus the next patch tag), wait for the matching CI run, validate (build and test on Windows and Ubuntu), call `packages.yml`, then verify the exact asset list, write `BrightSync-SHA256SUMS.txt` and upload to the GitHub Release |
+| `release.yml` | `VERSION` changes on `main`/`master`, or manual dispatch from the default branch | prepare (version `0.<VERSION>.<next patch>`, 0ver: `VERSION` is only the minor number), wait for the matching CI run, validate (build and test on Windows and Ubuntu), call `packages.yml`, then verify the exact asset list, write `BrightSync-SHA256SUMS.txt` and upload to the GitHub Release |
 | `website.yml` | changes under `website/` | Builds the site, deploys it to GitHub Pages from `main`/`master` |
 
 A branch without a pull request runs nothing. Open a draft pull request to get the test legs without the package builds.

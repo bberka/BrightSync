@@ -38,7 +38,9 @@ public static class AppVersionInfo
         var versionFilePath = Path.Combine(AppContext.BaseDirectory, "VERSION");
         if (File.Exists(versionFilePath))
         {
-            return TryParseVersion(File.ReadAllText(versionFilePath).Trim());
+            // 0ver: the VERSION file holds only the minor number ("19" means 0.19).
+            var text = File.ReadAllText(versionFilePath).Trim();
+            return TryParseVersion(text.All(char.IsAsciiDigit) && text.Length > 0 ? $"0.{text}" : text);
         }
 
         return null;

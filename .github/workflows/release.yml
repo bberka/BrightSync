@@ -43,15 +43,15 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          $baseVersion = (Get-Content VERSION -Raw).Trim()
-          if ([string]::IsNullOrWhiteSpace($baseVersion)) {
-            throw "VERSION file is empty."
+          # 0ver (https://0ver.org): the major version is always 0. VERSION holds only the minor number.
+          $minor = (Get-Content VERSION -Raw).Trim()
+          if ($minor -notmatch '^\d+$') {
+            throw "VERSION must contain only the minor version number (for example 19), found '$minor'."
           }
 
           git fetch --tags --force
 
-          $escapedBase = [regex]::Escape($baseVersion)
-          $pattern = "^v$escapedBase\.(\d+)$"
+          $pattern = "^v0\.$minor\.(\d+)$"
           $maxPatch = -1
           foreach ($tag in (git tag -l)) {
             if ($tag -match $pattern) {
@@ -62,7 +62,7 @@ jobs:
             }
           }
 
-          $fullVersion = "$baseVersion.$($maxPatch + 1)"
+          $fullVersion = "0.$minor.$($maxPatch + 1)"
           $tag = "v$fullVersion"
           Write-Host "Computed release version: $fullVersion"
 

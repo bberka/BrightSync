@@ -302,8 +302,12 @@ Publish (Native AOT): `dotnet publish src/BrightSync.App/BrightSync.App.csproj -
 This repository uses GitHub Actions to build and publish releases.
 
 - Workflow: [`.github/workflows/release.yml`](.github/workflows/release.yml)
-- Automatic trigger: update `VERSION` and push to `main` or `master`
+- Automatic trigger: change `VERSION` (the minor number only, see [Versioning](#versioning)) and push to `main` or `master`
 - Manual trigger: run the workflow from the GitHub Actions tab
 - Output packages: Windows `x64`, `x86`, `arm64` (setup installer and portable zip), Linux `x64`, `arm64`, `arm` for glibc and musl (deb, rpm, pacman, AppImage, apk, tar.gz), and the portable framework-dependent Linux archive. Asset names and the checksum manifest are described in [PACKAGING.md](docs/PACKAGING.md).
 
-The workflow reads the version from `VERSION`, publishes every target, smoke-tests the Linux x64 and arm64 packages under a virtual display, and uploads the assets plus `BrightSync-SHA256SUMS.txt` to the matching GitHub release.
+The workflow builds version `0.<VERSION>.<next patch>`, publishes every target, smoke-tests the Linux x64 and arm64 packages under a virtual display, and uploads the assets plus `BrightSync-SHA256SUMS.txt` to the matching GitHub release.
+
+## Versioning
+
+BrightSync follows [0ver](https://0ver.org): the major version is always 0 and there will never be a 1.0. The `VERSION` file holds only the minor number (`19` means `0.19.x`). Bump it for a new minor release; the patch number is chosen by the release workflow as the next unused `v0.<minor>.<patch>` tag. Pull request builds are versioned `0.<minor>.0-pr<number>.<run>`.

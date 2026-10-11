@@ -61,7 +61,8 @@ def build_payload(work: Path, needed: set[str], nfpm: str | None, portable: bool
     """Publishes the test binary, the app and the Linux packages, and serves them to the guests."""
     serve = work / "serve"
     serve.mkdir(parents=True, exist_ok=True)
-    version = (ROOT / "VERSION").read_text().strip() + ".0"
+    # 0ver: VERSION holds only the minor number.
+    version = "0." + (ROOT / "VERSION").read_text().strip() + ".0"
     bash = shutil.which("bash")
     for rid in needed:
         out = work / f"publish-{rid}"
