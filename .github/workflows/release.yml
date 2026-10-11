@@ -518,9 +518,16 @@ jobs:
               if brightsync status; then ok=1; break; fi
               sleep 1
             done
-            kill -0 "$app"
-            kill "$app"
             [ "${ok:-0}" = 1 ]
+            # The app must shut down on request: exit code 0 and the process gone within 15 seconds.
+            brightsync app exit
+            for _ in $(seq 1 15); do
+              kill -0 "$app" 2>/dev/null || exit 0
+              sleep 1
+            done
+            echo "brightsync did not exit after app exit" >&2
+            kill "$app"
+            exit 1
           ' || { cat "$RUNNER_TEMP/brightsync.out" || true; ls ~/.config/BrightSync/Logs 2>/dev/null && tail -n 80 ~/.config/BrightSync/Logs/*.log; exit 1; }
 
   release:
