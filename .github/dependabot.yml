@@ -29,6 +29,12 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    ignore:
+      # @astrojs/check supports TypeScript 5 and 6 only; 7 breaks the website build (npm ERESOLVE).
+      # Remove this once @astrojs/check lists TypeScript 7 as a supported peer.
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
     groups:
       astro:
         patterns:
