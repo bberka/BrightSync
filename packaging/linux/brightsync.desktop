@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=BrightSync
+GenericName=Monitor brightness sync
+Comment=Keep the brightness of all monitors aligned to one master value
+Exec=brightsync
+Icon=brightsync
+Terminal=false
+Categories=Utility;Settings;HardwareSettings;
+Keywords=brightness;monitor;ddc;display;backlight;
+StartupNotify=false

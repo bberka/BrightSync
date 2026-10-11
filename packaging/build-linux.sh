@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+# Publishes BrightSync for one Linux runtime identifier and builds every package format for it.
+#
+#   packaging/build-linux.sh <rid> <version> <output-dir>
+#
+#   rid      linux-x64 | linux-arm64 | linux-arm | linux-musl-x64 | linux-musl-arm64 | linux-musl-arm
+#            linux-portable: framework-dependent build for any architecture with a .NET 10 runtime
+#            (riscv64, loongarch64, x86, ...). Needs `dotnet` on PATH and ships only the tar.gz.
+#   version  release version, e.g. 0.19.0
+#
+# Environment:
+#   BS_AOT=auto|true|false   Native AOT. auto = on when the build host matches the target architecture,
+#                            the target is x64 or arm64, and the libc is glibc (default). arm, musl
+#                            and cross builds use a self-contained single file instead.
+#   NFPM=nfpm                nfpm binary used for deb, rpm, apk and archlinux packages
+#   APPIMAGETOOL=            path of appimagetool; AppImage is skipped when unset
+#
+# Outputs (naming contract in docs/PACKAGING.md), all written to <output-dir>:
+#   BrightSync-<version>-<rid>.tar.gz        portable archive with install.sh
+#   BrightSync-<version>-<rid>.deb|.rpm|.pkg.tar.zst   glibc targets
+#   BrightSync-<version>-<rid>.apk                      musl targets
+#   BrightSync-<version>-<rid>.AppImage                 glibc targets, when APPIMAGETOOL is set
+set -euo pipefail
+
+rid=${1:?usage: build-linux.sh <rid> <version> <output-dir>}
+version=${2:?usage: build-linux.sh <rid> <version> <output-dir>}
+out=${3:?usage: build-linux.sh <rid> <version> <output-dir>}
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+mkdir -p "$out"
+out=$(cd "$out" && pwd)
+# Assembly and file versions must be numeric; a prerelease suffix (0.18.0-pr12.3) only belongs in Version.
+numeric_version=${version%%-*}
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+portable=false
+case "$rid" in
+    linux-portable) portable=true; arch=any; nfpm_arch=""; appimage_arch=""; rpm_so="" ;;
+    linux-x64|linux-musl-x64) arch=x64; nfpm_arch=amd64; appimage_arch=x86_64; rpm_so="()(64bit)" ;;
+    linux-arm64|linux-musl-arm64) arch=arm64; nfpm_arch=arm64; appimage_arch=aarch64; rpm_so="()(64bit)" ;;
+    linux-arm|linux-musl-arm) arch=arm; nfpm_arch=arm7; appimage_arch=armhf; rpm_so="" ;;
+    *) echo "Unsupported runtime identifier: $rid" >&2; exit 2 ;;
+esac
+case "$rid" in linux-musl-*) musl=true ;; *) musl=false ;; esac
+
+host_arch=$(uname -m)
+case "$host_arch" in x86_64) host=x64 ;; aarch64|arm64) host=arm64 ;; armv7l|armv8l) host=arm ;; *) host=$host_arch ;; esac
+
+publish="$work/publish"
+if [ "$portable" = true ]; then
+    echo "==> Publishing portable framework-dependent build $version"
+    dotnet publish "$root/src/BrightSync.App/BrightSync.App.csproj" \
+        -c Release \
+        -p:BrightSyncTargetOs=linux -p:BrightSyncPortable=true \
+        -p:PublishAot=false -p:UseAppHost=false \
+        -p:DebugType=None -p:DebugSymbols=false \
+        -p:Version="$version" -p:AssemblyVersion="$numeric_version" -p:FileVersion="$numeric_version" \
+        -p:InformationalVersion="$version" \
+        -o "$publish"
+    rm -f "$publish"/*.pdb
+    # Launcher named like the self-contained binary so install.sh and the desktop file work unchanged.
+    cat >"$publish/BrightSync" <<'EOF'
+#!/bin/sh
+here=$(dirname "$(readlink -f "$0")")
+exec dotnet "$here/BrightSync.dll" "$@"
+EOF
+else
+    aot=${BS_AOT:-auto}
+    if [ "$aot" = auto ]; then
+        if [ "$arch" = "$host" ] && [ "$arch" != arm ] && [ "$musl" = false ]; then aot=true; else aot=false; fi
+    fi
+
+    echo "==> Publishing $rid $version (AOT=$aot)"
+    dotnet publish "$root/src/BrightSync.App/BrightSync.App.csproj" \
+        -c Release -r "$rid" \
+        -p:PublishAot="$aot" \
+        -p:SelfContained=true \
+        -p:PublishSingleFile=true \
+        -p:DebugType=None -p:DebugSymbols=false \
+        -p:Version="$version" -p:AssemblyVersion="$numeric_version" -p:FileVersion="$numeric_version" \
+        -p:InformationalVersion="$version" \
+        -o "$publish"
+    rm -f "$publish"/*.pdb
+fi
+test -f "$publish/BrightSync" || { echo "Publish did not produce BrightSync" >&2; exit 1; }
+chmod 0755 "$publish/BrightSync"
+
+base="BrightSync-$version-$rid"
+
+echo "==> Portable archive"
+stage="$work/$base"
+mkdir -p "$stage/app"
+cp -a "$publish/." "$stage/app/"
+cp "$root/packaging/linux/install.sh" "$root/packaging/linux/brightsync.desktop" \
+    "$root/packaging/linux/60-brightsync-i2c.rules" "$root/packaging/linux/brightsync-i2c.conf" "$stage/"
+cp "$root/src/BrightSync.UI/Resources/app.png" "$stage/brightsync.png"
+cp "$root/LICENSE" "$stage/"
+cat >"$stage/README.txt" <<EOF
+BrightSync $version ($rid)
+
+Install for the current user:   ./install.sh
+Install system-wide:            sudo ./install.sh --system
+Run without installing:         ./app/BrightSync
+
+External monitors need DDC/CI access: sudo ./install.sh --setup-i2c
+Documentation: https://github.com/bberka/BrightSync/blob/main/docs/LINUX.md
+EOF
+chmod 0755 "$stage/install.sh"
+tar -C "$work" --owner=0 --group=0 -czf "$out/$base.tar.gz" "$base"
+
+if [ "$portable" = true ]; then
+    echo "Portable build: archive only"
+elif command -v "${NFPM:-nfpm}" >/dev/null 2>&1; then
+    echo "==> Native packages"
+    publish_for_nfpm=$publish
+    # A Windows nfpm.exe (local runs under Git Bash) needs a Windows path; on Linux this is a no-op.
+    if command -v cygpath >/dev/null 2>&1; then publish_for_nfpm=$(cygpath -m "$publish"); fi
+    export NFPM_ARCH=$nfpm_arch NFPM_VERSION=$version NFPM_PUBLISH=$publish_for_nfpm NFPM_SO=$rpm_so
+    cd "$root"
+    if [ "$musl" = true ]; then
+        "${NFPM:-nfpm}" package -f packaging/linux/nfpm.yaml -p apk -t "$out/$base.apk"
+    else
+        "${NFPM:-nfpm}" package -f packaging/linux/nfpm.yaml -p deb -t "$out/$base.deb"
+        "${NFPM:-nfpm}" package -f packaging/linux/nfpm.yaml -p rpm -t "$out/$base.rpm"
+        "${NFPM:-nfpm}" package -f packaging/linux/nfpm.yaml -p archlinux -t "$out/$base.pkg.tar.zst"
+    fi
+else
+    echo "nfpm not found; skipping deb/rpm/apk/archlinux packages" >&2
+fi
+
+if [ "$portable" = false ] && [ "$musl" = false ] && [ -n "${APPIMAGETOOL:-}" ]; then
+    echo "==> AppImage"
+    "$root/packaging/linux/make-appimage.sh" "$publish" "$out/$base.AppImage" "$appimage_arch"
+else
+    echo "Skipping AppImage (portable or musl target, or APPIMAGETOOL unset)"
+fi
+
+echo "==> Done"
+ls -la "$out/$base".* 2>/dev/null || true

@@ -1,0 +1,6 @@
+# BrightSync: let the user logged in at the local seat talk DDC/CI to their monitors.
+# "uaccess" grants access to the active session through systemd-logind ACLs, no group membership needed.
+# The file must sort before 73-seat-late.rules, which is where udev turns the tag into ACLs; a later file
+# (99-*) would tag the device after that step and change nothing. Limited to the I2C adapters of display
+# controllers (PCI class 0x03), the same match ddcutil ships, so sensors and memory SPD buses stay private.
+SUBSYSTEM=="i2c-dev", KERNEL=="i2c-[0-9]*", ATTRS{class}=="0x03*", TAG+="uaccess"

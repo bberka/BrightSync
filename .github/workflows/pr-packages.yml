@@ -1,0 +1,126 @@
+name: PR packages comment
+
+# Runs after CI finishes for a pull request and posts (or updates) one comment with links to the packages that
+# CI built. It runs from the default branch with a write token, so it must never check out or execute code
+# from the pull request: it only reads two small artifacts and the run's artifact list, validates every value
+# it uses, and renders text.
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+
+permissions: {}
+
+jobs:
+  comment:
+    if: ${{ github.event.workflow_run.event == 'pull_request' && (github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure') }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      RUN_URL: ${{ github.event.workflow_run.html_url }}
+      RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+    steps:
+      - name: Download pull request metadata
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: pr-meta
+          path: pr-meta
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Validate that the metadata belongs to this run
+        id: pr
+        shell: bash
+        run: |
+          set -euo pipefail
+          number="$(sed -n 1p pr-meta/meta.txt)"
+          sha="$(sed -n 2p pr-meta/meta.txt)"
+          [[ "$number" =~ ^[0-9]{1,9}$ ]] || { echo "Invalid pull request number" >&2; exit 1; }
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "Invalid commit" >&2; exit 1; }
+          [ "$sha" = "$RUN_HEAD_SHA" ] || { echo "Metadata commit does not match the run" >&2; exit 1; }
+          live="$(gh api "repos/$GH_REPO/pulls/$number" --jq .head.sha)"
+          if [ "$live" != "$sha" ]; then
+            echo "The pull request moved on to $live; a newer run will comment."
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "stale=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Render the comment
+        if: ${{ steps.pr.outputs.stale == 'false' }}
+        shell: bash
+        env:
+          SHA: ${{ steps.pr.outputs.sha }}
+        run: |
+          set -euo pipefail
+          short="${SHA:0:7}"
+          {
+            echo "<!-- brightsync-pr-packages -->"
+            if [ "$RUN_CONCLUSION" = "success" ]; then
+              echo "### Test builds for \`$short\`"
+              echo
+              echo "Checks passed. These packages come from this pull request and are **not** signed or released."
+            else
+              echo "### Checks failed for \`$short\`"
+              echo
+              echo "See the [workflow run]($RUN_URL) for the failing job."
+            fi
+          } > comment.md
+
+          gh api "repos/$GH_REPO/actions/runs/$RUN_ID/artifacts" --paginate \
+            --jq '.artifacts[] | select(.expired == false) | select(.name | startswith("BrightSync-package-")) | "\(.name) \(.size_in_bytes)"' \
+            | sort > artifacts.txt || true
+
+          if [ -s artifacts.txt ]; then
+            {
+              echo
+              echo "| Package | Size |"
+              echo "|---|---|"
+              while read -r name size; do
+                # Only names and sizes of the shape this repository's workflows produce are rendered.
+                [[ "$name" =~ ^BrightSync-package-[A-Za-z0-9.-]+$ ]] || continue
+                [[ "$size" =~ ^[0-9]+$ ]] || continue
+                echo "| \`$name\` | $((size / 1000000)) MB |"
+              done < artifacts.txt
+              echo
+              echo "[Download from the workflow run]($RUN_URL#artifacts) (a GitHub login is required; kept 14 days)."
+              echo
+              echo "<details><summary>How to try them</summary>"
+              echo
+              echo "- **Windows:** \`BrightSync-package-win-<arch>\` holds the setup installer and a portable zip. Builds are unsigned, so SmartScreen may warn."
+              echo "- **Linux:** \`BrightSync-package-linux-<arch>\` holds a \`.deb\`, \`.rpm\`, Arch package, AppImage and portable \`.tar.gz\`; \`linux-musl-*\` is for Alpine; \`linux-portable\` needs a .NET 10 runtime. See [the Linux guide](https://github.com/$GH_REPO/blob/HEAD/docs/LINUX.md)."
+              echo "- Pre-release builds report a \`-pr<number>.<run>\` version and do not self-update."
+              echo
+              echo "</details>"
+            } >> comment.md
+          elif [ "$RUN_CONCLUSION" = "success" ]; then
+            {
+              echo
+              echo "No packages were built for this run (draft pull request, or the package jobs were skipped)."
+            } >> comment.md
+          fi
+
+      - name: Post or update the comment
+        if: ${{ steps.pr.outputs.stale == 'false' }}
+        shell: bash
+        env:
+          NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          existing="$(gh api "repos/$GH_REPO/issues/$NUMBER/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]") | select(.body | startswith("<!-- brightsync-pr-packages -->")) | .id' | head -n 1)"
+          if [ -n "$existing" ]; then
+            gh api --method PATCH "repos/$GH_REPO/issues/comments/$existing" -F body=@comment.md > /dev/null
+          else
+            gh api --method POST "repos/$GH_REPO/issues/$NUMBER/comments" -F body=@comment.md > /dev/null
+          fi

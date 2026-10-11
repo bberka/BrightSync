@@ -1,3 +1,4 @@
+using BrightSync.Platform;
 using BrightSync.Core.Brightness;
 using BrightSync.Core.Config;
 using BrightSync.Core.Monitors;
@@ -131,17 +132,29 @@ public sealed class MonitorLifecycleTests
         });
         using var ddc = CreateDdc(provider);
 
-        var refreshTasks = new[]
+        var timeout = TimeSpan.FromSeconds(10);
+        var activeRefresh = Task.Run(ddc.Refresh);
+        await refreshStarted.Task.WaitAsync(timeout);
+
+        // Two more callers arrive while that pass is blocked. They run on their own threads so the test can
+        // see both parked on the running pass before releasing it; a fixed delay was not enough for the
+        // thread pool to start them on a loaded machine, and late callers each trigger a pass of their own.
+        var waitingCallers = new[]
         {
-            Task.Run(ddc.Refresh),
-            Task.Run(ddc.Refresh),
-            Task.Run(ddc.Refresh)
+            new Thread(ddc.Refresh) { IsBackground = true },
+            new Thread(ddc.Refresh) { IsBackground = true }
         };
-        await refreshStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
-        await Task.Delay(50);
+        foreach (var caller in waitingCallers)
+            caller.Start();
+
+        Assert.True(SpinWait.SpinUntil(
+            () => waitingCallers.All(caller => caller.ThreadState.HasFlag(ThreadState.WaitSleepJoin)),
+            timeout));
         releaseRefresh.SetResult();
 
-        await Task.WhenAll(refreshTasks).WaitAsync(TimeSpan.FromSeconds(2));
+        await activeRefresh.WaitAsync(timeout);
+        foreach (var caller in waitingCallers)
+            Assert.True(caller.Join(timeout));
 
         Assert.Equal(3, provider.CallCount);
         Assert.Same(followUp, Assert.Single(ddc.GetMonitors()));

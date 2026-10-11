@@ -1,0 +1,112 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Thin executable: entry point, platform selection, and everything publish-specific (AOT, manifest,
+       trimming roots). Application code lives in BrightSync.Core and BrightSync.UI. -->
+  <PropertyGroup>
+    <OutputType Condition="'$(BrightSyncTargetOs)' == 'windows'">WinExe</OutputType>
+    <OutputType Condition="'$(BrightSyncTargetOs)' != 'windows'">Exe</OutputType>
+    <TargetFramework>$(BrightSyncAppTfm)</TargetFramework>
+    <RootNamespace>BrightSync</RootNamespace>
+    <AssemblyName>BrightSync</AssemblyName>
+    <!-- Project is Native AOT compatible in all configurations. Build-time AOT
+         analyzer warnings are surfaced during both Debug and Release builds. -->
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(BrightSyncTargetOs)' == 'windows'">
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\BrightSync.UI\Resources\app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Enable invariant globalization: avoids shipping the large ICU/ globalization
+         data tables inside the AOT image. The app only renders English UI strings. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Use the reflection-free JSON code path by default. Serialization contexts
+         (see AppConfigJsonContext) supply the only type metadata that survives trim. -->
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+    <!-- No dynamic loading at runtime; everything must be available at AOT compile time. -->
+    <EnableDynamicLoading>false</EnableDynamicLoading>
+  </PropertyGroup>
+
+  <!-- MicroCom.Runtime (Avalonia's COM interop runtime) emits IL3053 AOT
+       analysis warnings; the affected code paths are dynamic COM activation
+       Avalonia does not exercise at runtime. The warnings are false positives
+       and have no functional impact, so suppress them so the publish log stays clean. -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);IL3053</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <!-- Native AOT is the default. Targets without a native AOT toolchain on their build host
+         (linux-arm, linux-musl-*) publish with -p:PublishAot=false and use trimmed single-file instead. -->
+    <PublishAot Condition="'$(PublishAot)' == ''">true</PublishAot>
+    <!-- Default runtime identifier: win-x64 on Windows, linux-<host arch> elsewhere. -->
+    <!-- BrightSyncPortable=true publishes a framework-dependent, RID-agnostic Linux build that carries the
+         native assets of every architecture Skia and HarfBuzz support (riscv64, loongarch64, x86, ...). -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' And '$(BrightSyncPortable)' != 'true'">$(BrightSyncDefaultRid)</RuntimeIdentifier>
+    <!-- Disable debug symbol generation to keep binary size clean -->
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <!-- Don't generate stack-trace data or stack traces metadata in the AOT image. -->
+    <IlcGenerateStackTraceData>false</IlcGenerateStackTraceData>
+    <!-- The default optimization preference is "Speed"; keep it small for a tray app. -->
+    <IlcOptimizationPreference>Size</IlcOptimizationPreference>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Avalonia.Desktop supplies the platform backends (Win32, X11) behind UsePlatformDetect. -->
+    <PackageReference Include="Avalonia" Version="12.1.4"/>
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.4"/>
+    <PackageReference Include="Serilog" Version="4.4.0"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BrightSync.Core\BrightSync.Core.csproj"/>
+    <ProjectReference Include="..\BrightSync.UI\BrightSync.UI.csproj"/>
+    <ProjectReference Include="..\BrightSync.Platform.Abstractions\BrightSync.Platform.Abstractions.csproj"/>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(BrightSyncTargetOs)' == 'windows'">
+    <ProjectReference Include="..\BrightSync.Platform.Windows\BrightSync.Platform.Windows.csproj"/>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(BrightSyncTargetOs)' == 'linux'">
+    <ProjectReference Include="..\BrightSync.Platform.Linux\BrightSync.Platform.Linux.csproj"/>
+  </ItemGroup>
+
+  <!-- Root every assembly the UI reaches by reflection (XAML loader, bindings, themes) so the
+       trimmer/AOT compiler keeps them. Without these, Native AOT silently strips required code paths. -->
+  <ItemGroup>
+    <TrimmerRootAssembly Include="Avalonia" />
+    <TrimmerRootAssembly Include="Avalonia.Base" />
+    <TrimmerRootAssembly Include="Avalonia.Controls" />
+    <TrimmerRootAssembly Include="Avalonia.Desktop" />
+    <TrimmerRootAssembly Include="Avalonia.Dialogs" />
+    <TrimmerRootAssembly Include="Avalonia.HarfBuzz" />
+    <TrimmerRootAssembly Include="Avalonia.Markup" />
+    <TrimmerRootAssembly Include="Avalonia.Markup.Xaml" />
+    <TrimmerRootAssembly Include="Avalonia.MicroCom" />
+    <TrimmerRootAssembly Include="Avalonia.Native" />
+    <TrimmerRootAssembly Include="Avalonia.OpenGL" />
+    <TrimmerRootAssembly Include="Avalonia.Skia" />
+    <TrimmerRootAssembly Include="Avalonia.Themes.Fluent" />
+    <TrimmerRootAssembly Include="MicroCom.Runtime" />
+    <TrimmerRootAssembly Include="BrightSync.UI" />
+    <TrimmerRootAssembly Include="BrightSync.Core" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(BrightSyncTargetOs)' == 'windows'">
+    <TrimmerRootAssembly Include="Avalonia.Win32" />
+    <TrimmerRootAssembly Include="BrightSync.Platform.Windows" />
+    <TrimmerRootAssembly Include="WmiLight" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(BrightSyncTargetOs)' == 'linux'">
+    <TrimmerRootAssembly Include="Avalonia.FreeDesktop" />
+    <TrimmerRootAssembly Include="Avalonia.X11" />
+    <TrimmerRootAssembly Include="BrightSync.Platform.Linux" />
+    <TrimmerRootAssembly Include="Tmds.DBus.Protocol" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,329 @@
+using BrightSync.Platform;
+using BrightSync.Core.Monitors;
+using Serilog;
+
+namespace BrightSync.Core.Brightness;
+
+public sealed partial class BrightSyncEngine
+{
+    /// <summary>Forces an immediate re-sync of all monitors (e.g. after settings change).</summary>
+    public void ForceSync()
+    {
+        if (IsDisposed)
+            return;
+
+        if (_masterBrightness >= 0)
+        {
+            Log.Debug("Force sync requested at master brightness {Brightness}%", _masterBrightness);
+            SyncAllMonitors();
+        }
+        else
+        {
+            Log.Debug("Force sync skipped because no master brightness value is available");
+        }
+
+        RaiseTargetsChanged();
+    }
+
+    /// <summary>Call after monitor list or config changes to rebuild DDC handles.</summary>
+    public void RefreshMonitors()
+    {
+        if (IsDisposed)
+            return;
+
+        if (IsMonitorAccessSuspended)
+        {
+            Log.Information("Monitor refresh skipped because monitor access is paused while the session is locked");
+            return;
+        }
+
+        try
+        {
+            Log.Information("Refreshing monitor list");
+            _ddc.Refresh();
+            if (IsDisposed)
+                return;
+
+            Log.Information("Monitor refresh complete. KnownMonitors={MonitorCount}", _ddc.GetMonitors().Count);
+            ForceSync();
+            ApplyAllPersistedSettings();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Monitor refresh/synchronization failed");
+        }
+    }
+
+    public void ApplyPersistedSettings(DdcMonitor monitor)
+    {
+        if (IsDisposed || IsMonitorAccessSuspended || !monitor.SupportsDdcCi) return;
+
+        var profile = _config.GetOrCreateProfile(monitor.DeviceName, monitor.StableIdentity);
+        if (!profile.Enabled) return;
+
+        if (!profile.AdvancedFeaturesEnabled) return;
+
+        if (profile.Contrast.HasValue && monitor.SupportsContrast)
+        {
+            _ddc.SetVcpFeature(monitor, VcpCodes.Contrast, (uint)profile.Contrast.Value);
+        }
+        if (profile.Volume.HasValue && monitor.SupportsVolume)
+        {
+            _ddc.SetVcpFeature(monitor, VcpCodes.Volume, (uint)profile.Volume.Value);
+        }
+        if (profile.ColorPreset.HasValue && monitor.SupportsColorPreset)
+        {
+            _ddc.SetVcpFeature(monitor, VcpCodes.ColorPreset, (uint)profile.ColorPreset.Value);
+        }
+        if (profile.InputSource.HasValue && monitor.SupportsInputSource)
+        {
+            _ddc.SetVcpFeature(monitor, VcpCodes.InputSource, (uint)profile.InputSource.Value);
+        }
+        if (monitor.SupportsRgbGains && profile.RedGain.HasValue && profile.GreenGain.HasValue && profile.BlueGain.HasValue)
+        {
+            _ddc.SetVcpFeature(monitor, VcpCodes.RedGain, (uint)profile.RedGain.Value);
+            _ddc.SetVcpFeature(monitor, VcpCodes.GreenGain, (uint)profile.GreenGain.Value);
+            _ddc.SetVcpFeature(monitor, VcpCodes.BlueGain, (uint)profile.BlueGain.Value);
+        }
+        if (profile.Sharpness.HasValue && monitor.SupportsSharpness)
+        {
+            _ddc.SetVcpFeature(monitor, VcpCodes.Sharpness, (uint)profile.Sharpness.Value);
+        }
+        if (profile.Saturation.HasValue && monitor.SupportsSaturation)
+        {
+            _ddc.SetVcpFeature(monitor, VcpCodes.Saturation, (uint)profile.Saturation.Value);
+        }
+        if (profile.Gamma.HasValue && monitor.SupportsGamma)
+        {
+            _ddc.SetVcpFeature(monitor, VcpCodes.Gamma, (uint)profile.Gamma.Value);
+        }
+        if (profile.PowerState.HasValue && monitor.SupportsPowerControl)
+        {
+            _ddc.SetVcpFeature(monitor, VcpCodes.PowerControl, (uint)profile.PowerState.Value);
+        }
+        if (profile.RefreshRate.HasValue)
+        {
+            PlatformServices.Current.DisplaySettings.SetRefreshRate(monitor.DeviceName, profile.RefreshRate.Value);
+        }
+        if (!string.IsNullOrWhiteSpace(profile.AssociatedColorProfile))
+        {
+            PlatformServices.Current.ColorProfiles.SetActiveColorProfile(monitor.DeviceName, profile.AssociatedColorProfile);
+        }
+    }
+
+    public void ApplyAllPersistedSettings()
+    {
+        if (IsDisposed || IsMonitorAccessSuspended) return;
+
+        foreach (var monitor in _ddc.GetMonitors())
+        {
+            if (IsDisposed)
+                return;
+
+            ApplyPersistedSettings(monitor);
+        }
+    }
+
+    public bool TrySetUserBrightness(int brightness)
+        => TryApplyUserBrightness(brightness, synchronize: false);
+
+    public bool TrySetUserBrightnessSync(int brightness)
+        => TryApplyUserBrightness(brightness, synchronize: true);
+
+    public bool ApplyAutomaticBrightness(int brightness)
+        => ApplyBrightness(brightness, allowManualWhenAutoEnabled: true, source: "auto", synchronize: false);
+
+    public bool SetIdleReductionActive(bool active)
+    {
+        if (IsDisposed)
+            return false;
+
+        if (_idleReductionActive == active)
+            return false;
+
+        _idleReductionActive = active;
+        Log.Information("Idle brightness reduction {State}", active ? "activated" : "cleared");
+
+        if (_masterBrightness >= 0)
+            QueueSync();
+
+        RaiseTargetsChanged();
+        return true;
+    }
+
+    private bool TryApplyUserBrightness(int brightness, bool synchronize)
+    {
+        if (IsDisposed)
+            return false;
+
+        if (_config.Config.AutoBrightness.Enabled)
+        {
+            Log.Debug("Manual brightness request ignored because auto brightness is enabled");
+            return false;
+        }
+
+        return ApplyBrightness(brightness, allowManualWhenAutoEnabled: false, source: "manual", synchronize);
+    }
+
+    private bool ApplyBrightness(int brightness, bool allowManualWhenAutoEnabled, string source, bool synchronize)
+    {
+        if (IsDisposed)
+            return false;
+
+        if (!allowManualWhenAutoEnabled && _config.Config.AutoBrightness.Enabled)
+        {
+            Log.Debug("Brightness request from {Source} ignored because auto brightness is enabled", source);
+            return false;
+        }
+
+        _masterBrightness = Math.Clamp(brightness, 0, 100);
+        if (source == "manual")
+        {
+            _config.Config.MasterBrightness = _masterBrightness;
+            _config.Save();
+        }
+
+        Log.Debug("Brightness source {Source} requested update to {Brightness}%", source, brightness);
+        MasterBrightnessChanged?.Invoke(this, _masterBrightness);
+        if (synchronize)
+            SyncAllMonitors();
+        else
+            QueueSync();
+        return true;
+    }
+
+    private void QueueSync()
+    {
+        if (IsDisposed)
+            return;
+
+        Volatile.Write(ref _syncRequested, 1);
+        if (Interlocked.CompareExchange(ref _syncWorkerActive, 1, 0) != 0)
+            return;
+
+        _ = Task.Run(RunQueuedSync);
+    }
+
+    private void RunQueuedSync()
+    {
+        try
+        {
+            while (!IsDisposed && !_lifetimeCts.IsCancellationRequested)
+            {
+                Volatile.Write(ref _syncRequested, 0);
+                SyncAllMonitors();
+
+                if (Volatile.Read(ref _syncRequested) == 0)
+                    return;
+            }
+        }
+        catch (OperationCanceledException) when (IsDisposed)
+        {
+            // Disposal is the expected cancellation path for queued work.
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Background monitor synchronization failed");
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _syncWorkerActive, 0);
+            if (!IsDisposed && Volatile.Read(ref _syncRequested) != 0 &&
+                Interlocked.CompareExchange(ref _syncWorkerActive, 1, 0) == 0)
+            {
+                _ = Task.Run(RunQueuedSync);
+            }
+        }
+    }
+
+    private void SyncAllMonitors()
+    {
+        if (IsDisposed || IsMonitorAccessSuspended)
+        {
+            Log.Debug("Monitor sync skipped because monitor access is paused while the session is locked");
+            return;
+        }
+
+        var appliedCount = 0;
+        var skippedCount = 0;
+
+        foreach (var monitor in _ddc.GetMonitors())
+        {
+            if (IsDisposed)
+                return;
+
+            if (!monitor.SupportsDdcCi)
+            {
+                skippedCount++;
+                continue;
+            }
+
+            var profile = _config.GetOrCreateProfile(monitor.DeviceName, monitor.StableIdentity);
+            if (!profile.Enabled)
+            {
+                skippedCount++;
+                continue;
+            }
+
+            var target = CalculateTarget(monitor.DeviceName, profile);
+            if (_ddc.SetBrightness(monitor, target))
+                appliedCount++;
+            else
+                Log.Warning("Failed to set brightness for monitor {Monitor}", monitor.FriendlyName);
+        }
+
+        Log.Debug("Monitor sync finished. Applied={AppliedCount}, Skipped={SkippedCount}", appliedCount, skippedCount);
+    }
+
+    private void Enforce()
+    {
+        if (IsDisposed || IsMonitorAccessSuspended)
+        {
+            Log.Debug("Brightness enforcement skipped because monitor access is paused while the session is locked");
+            return;
+        }
+
+        if (!_config.Config.EnforcementEnabled)
+            return;
+
+        var reappliedCount = 0;
+        foreach (var monitor in _ddc.GetMonitors())
+        {
+            if (IsDisposed)
+                return;
+
+            if (!monitor.SupportsDdcCi)
+                continue;
+
+            var profile = _config.GetOrCreateProfile(monitor.DeviceName, monitor.StableIdentity);
+            if (!profile.Enabled || monitor.LastCommandedPercent < 0)
+                continue;
+
+            if (!monitor.SupportsBrightnessRead)
+            {
+                Log.Debug(
+                    "Brightness enforcement skipped readback for monitor {Monitor} because backend {Backend} does not support brightness reads",
+                    monitor.FriendlyName,
+                    monitor.BrightnessBackend);
+                continue;
+            }
+
+            if (monitor.IsHdrEnabled)
+            {
+                Log.Debug("Brightness enforcement skipped readback for monitor {Monitor} because HDR is enabled",
+                    monitor.FriendlyName);
+                continue;
+            }
+
+            if (_ddc.TryGetBrightness(monitor, out var actual) &&
+                Math.Abs(actual - monitor.LastCommandedPercent) > 1)
+            {
+                _ddc.SetBrightness(monitor, monitor.LastCommandedPercent);
+                reappliedCount++;
+            }
+        }
+
+        if (reappliedCount > 0)
+            Log.Information("Brightness enforcement reapplied values to {MonitorCount} monitor(s)", reappliedCount);
+    }
+}

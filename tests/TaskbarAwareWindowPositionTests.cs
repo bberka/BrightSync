@@ -135,3 +135,47 @@ public sealed class TaskbarAwareWindowPositionTests
         Assert.Equal(new PixelPoint(1348, 12), position);
     }
 }
+
+public sealed class TaskbarInferenceTests
+{
+    private static readonly PixelRect Screen = new(0, 0, 1920, 1080);
+
+    [Fact]
+    public void Infer_FindsTopPanelFromWorkAreaGap()
+    {
+        var info = TaskbarPosition.InferFromWorkingArea(Screen, new PixelRect(0, 32, 1920, 1048));
+
+        Assert.Equal(TaskbarEdge.Top, info.Edge);
+        Assert.Equal(new PixelRect(0, 0, 1920, 32), info.Bounds);
+    }
+
+    [Fact]
+    public void Infer_FindsBottomPanel()
+    {
+        var info = TaskbarPosition.InferFromWorkingArea(Screen, new PixelRect(0, 0, 1920, 1030));
+
+        Assert.Equal(TaskbarEdge.Bottom, info.Edge);
+        Assert.Equal(new PixelRect(0, 1030, 1920, 50), info.Bounds);
+    }
+
+    [Fact]
+    public void Infer_FindsLeftAndRightDocks()
+    {
+        var left = TaskbarPosition.InferFromWorkingArea(Screen, new PixelRect(64, 0, 1856, 1080));
+        var right = TaskbarPosition.InferFromWorkingArea(Screen, new PixelRect(0, 0, 1850, 1080));
+
+        Assert.Equal(TaskbarEdge.Left, left.Edge);
+        Assert.Equal(new PixelRect(0, 0, 64, 1080), left.Bounds);
+        Assert.Equal(TaskbarEdge.Right, right.Edge);
+        Assert.Equal(new PixelRect(1850, 0, 70, 1080), right.Bounds);
+    }
+
+    [Fact]
+    public void Infer_DefaultsToBottomWithoutBoundsWhenNothingIsReserved()
+    {
+        var info = TaskbarPosition.InferFromWorkingArea(Screen, Screen);
+
+        Assert.Equal(TaskbarEdge.Bottom, info.Edge);
+        Assert.Null(info.Bounds);
+    }
+}

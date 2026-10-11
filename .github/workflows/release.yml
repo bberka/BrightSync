@@ -23,6 +23,8 @@ concurrency:
 
 jobs:
   prepare:
+    # Manual runs from any other branch must not tag or publish; every later job depends on this one.
+    if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
     runs-on: windows-latest
     permissions:
       contents: read
@@ -32,23 +34,24 @@ jobs:
       commit: ${{ steps.version.outputs.commit }}
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Read and compute version
         id: version
         shell: pwsh
         run: |
-          $baseVersion = (Get-Content VERSION -Raw).Trim()
-          if ([string]::IsNullOrWhiteSpace($baseVersion)) {
-            throw "VERSION file is empty."
+          # 0ver (https://0ver.org): the major version is always 0. VERSION holds only the minor number.
+          $minor = (Get-Content VERSION -Raw).Trim()
+          if ($minor -notmatch '^\d+$') {
+            throw "VERSION must contain only the minor version number (for example 19), found '$minor'."
           }
 
           git fetch --tags --force
 
-          $escapedBase = [regex]::Escape($baseVersion)
-          $pattern = "^v$escapedBase\.(\d+)$"
+          $pattern = "^v0\.$minor\.(\d+)$"
           $maxPatch = -1
           foreach ($tag in (git tag -l)) {
             if ($tag -match $pattern) {
@@ -59,7 +62,7 @@ jobs:
             }
           }
 
-          $fullVersion = "$baseVersion.$($maxPatch + 1)"
+          $fullVersion = "0.$minor.$($maxPatch + 1)"
           $tag = "v$fullVersion"
           Write-Host "Computed release version: $fullVersion"
 
@@ -110,243 +113,79 @@ jobs:
           exit 1
 
   validate:
+    name: validate (${{ matrix.os }})
     needs:
       - prepare
       - wait-for-ci
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+          - os: ubuntu-latest
+            rid: linux-x64
     env:
-      SOLUTION_PATH: BrightSync.sln
+      # The test project pulls in the app and exactly the platform projects for this OS. The solution also
+      # lists the Windows project, which a Linux runner has no reason to compile here.
+      SOLUTION_PATH: tests/BrightSync.Tests.csproj
       TEST_PROJECT_PATH: tests/BrightSync.Tests.csproj
       CONFIGURATION: Release
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup .NET 10
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 10.0.x
 
       - name: Restore
-        run: dotnet restore ${{ env.SOLUTION_PATH }} -r win-x64
+        run: dotnet restore ${{ env.SOLUTION_PATH }} -r ${{ matrix.rid }}
 
       - name: Build
         run: dotnet build ${{ env.SOLUTION_PATH }} -c ${{ env.CONFIGURATION }} --no-restore
 
       - name: Test hardware-safe suite
         if: ${{ inputs.run_hardware_tests != true }}
-        # Keep release validation aligned with the repository's verified hosted-runner filter.
-        run: dotnet test ${{ env.TEST_PROJECT_PATH }} -c ${{ env.CONFIGURATION }} --no-build --no-restore --filter "Category!=Hardware&Category!=Integration"
+        run: >
+          dotnet test --project ${{ env.TEST_PROJECT_PATH }} -c ${{ env.CONFIGURATION }} --no-build
+          --filter-not-trait "Category=Hardware" --filter-not-trait "Category=Integration"
 
       - name: Test full suite (manual hardware opt-in)
         if: ${{ inputs.run_hardware_tests == true }}
-        run: dotnet test ${{ env.TEST_PROJECT_PATH }} -c ${{ env.CONFIGURATION }} --no-build --no-restore
+        run: dotnet test --project ${{ env.TEST_PROJECT_PATH }} -c ${{ env.CONFIGURATION }} --no-build
 
-  package:
+  packages:
     needs:
       - prepare
       - validate
-    runs-on: windows-latest
     permissions:
       contents: read
-    strategy:
-      matrix:
-        include:
-          - rid: win-x64
-            suffix: win-x64
-            arch: x64
-          - rid: win-arm64
-            suffix: win-arm64
-            arch: arm64
-    env:
-      PROJECT_PATH: src/BrightSync.csproj
-      CONFIGURATION: Release
+    uses: ./.github/workflows/packages.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+    secrets:
       WINDOWS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_BASE64 }}
       WINDOWS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_PASSWORD }}
       WINDOWS_SIGNING_TIMESTAMP_URL: ${{ secrets.WINDOWS_SIGNING_TIMESTAMP_URL }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Setup .NET 10
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
-        with:
-          dotnet-version: 10.0.x
-
-      - name: Restore
-        run: dotnet restore ${{ env.PROJECT_PATH }} -r ${{ matrix.rid }}
-
-      - name: Validate Authenticode signing configuration
-        shell: pwsh
-        run: |
-          $hasCertificate = -not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERTIFICATE_BASE64)
-          $hasPassword = -not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERTIFICATE_PASSWORD)
-          $hasTimestampUrl = -not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_TIMESTAMP_URL)
-          $hasAnySigningSecret = $hasCertificate -or $hasPassword -or $hasTimestampUrl
-          $hasAllSigningSecrets = $hasCertificate -and $hasPassword -and $hasTimestampUrl
-          if ($hasAnySigningSecret -and -not $hasAllSigningSecrets) {
-            throw "Authenticode signing requires WINDOWS_SIGNING_CERTIFICATE_BASE64, WINDOWS_SIGNING_CERTIFICATE_PASSWORD, and WINDOWS_SIGNING_TIMESTAMP_URL together."
-          }
-
-      - name: Publish
-        shell: pwsh
-        run: |
-          $publishDir = Join-Path $env:RUNNER_TEMP "${{ matrix.suffix }}"
-          $publishArgs = @(
-            'publish',
-            '${{ env.PROJECT_PATH }}',
-            '-c', '${{ env.CONFIGURATION }}',
-            '-r', '${{ matrix.rid }}',
-            '--no-restore',
-            '-p:PublishSingleFile=true',
-            '-p:DebugType=None',
-            '-p:DebugSymbols=false',
-            '-p:Version=${{ needs.prepare.outputs.version }}',
-            '-p:AssemblyVersion=${{ needs.prepare.outputs.version }}',
-            '-p:FileVersion=${{ needs.prepare.outputs.version }}',
-            '-p:InformationalVersion=${{ needs.prepare.outputs.version }}',
-            '-o', $publishDir
-          )
-
-          dotnet @publishArgs
-
-      - name: Optional Authenticode signing hook for published executable
-        if: ${{ env.WINDOWS_SIGNING_CERTIFICATE_BASE64 != '' }}
-        shell: pwsh
-        run: |
-          $publishDir = Join-Path $env:RUNNER_TEMP "${{ matrix.suffix }}"
-          $certificatePath = Join-Path $env:RUNNER_TEMP "BrightSync-signing-${{ matrix.suffix }}.pfx"
-          $executablePath = Join-Path $publishDir 'BrightSync.exe'
-          try {
-            if (!(Test-Path -LiteralPath $executablePath -PathType Leaf)) {
-              throw "Published executable was not found at $executablePath."
-            }
-
-            [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_SIGNING_CERTIFICATE_BASE64))
-            $signtool = Get-Command signtool.exe -ErrorAction Stop
-            & $signtool.Source sign /fd SHA256 /f $certificatePath /p $env:WINDOWS_SIGNING_CERTIFICATE_PASSWORD /tr $env:WINDOWS_SIGNING_TIMESTAMP_URL /td SHA256 $executablePath
-            if ($LASTEXITCODE -ne 0) {
-              throw "signtool failed for the published executable with exit code $LASTEXITCODE."
-            }
-          }
-          finally {
-            if (Test-Path -LiteralPath $certificatePath) {
-              Remove-Item -LiteralPath $certificatePath -Force -ErrorAction Stop
-            }
-          }
-
-      - name: Archive publish output
-        shell: pwsh
-        run: |
-          $version = "${{ needs.prepare.outputs.version }}"
-          $publishDir = Join-Path $env:RUNNER_TEMP "${{ matrix.suffix }}"
-          $packageDir = Join-Path $env:RUNNER_TEMP "package"
-          $zipPath = Join-Path $env:RUNNER_TEMP "BrightSync-$version-${{ matrix.suffix }}.zip"
-          if (!(Test-Path -LiteralPath $publishDir -PathType Container)) {
-            throw "Publish directory was not created: $publishDir"
-          }
-
-          $files = @(Get-ChildItem -Path $publishDir -Recurse -File | Where-Object { $_.Extension -ne '.pdb' })
-          $publishedExecutable = Join-Path $publishDir 'BrightSync.exe'
-          if ($files.Count -eq 0 -or !(Test-Path -LiteralPath $publishedExecutable -PathType Leaf)) {
-            throw "Publish output did not contain the expected BrightSync.exe executable."
-          }
-
-          if (Test-Path -LiteralPath $packageDir) {
-            Remove-Item -LiteralPath $packageDir -Recurse -Force
-          }
-          New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
-
-          Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $archive = [System.IO.Compression.ZipFile]::Open($zipPath, [System.IO.Compression.ZipArchiveMode]::Create)
-          try {
-            foreach ($file in $files) {
-              $entryPath = [System.IO.Path]::GetRelativePath($publishDir, $file.FullName)
-              [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
-                $archive,
-                $file.FullName,
-                $entryPath,
-                [System.IO.Compression.CompressionLevel]::Optimal) | Out-Null
-            }
-          }
-          finally {
-            $archive.Dispose()
-          }
-
-          Copy-Item -LiteralPath $zipPath -Destination $packageDir -Force
-
-      - name: Build Installer (Inno Setup)
-        shell: pwsh
-        run: |
-          $version = "${{ needs.prepare.outputs.version }}"
-          $publishDir = Join-Path $env:RUNNER_TEMP "${{ matrix.suffix }}"
-
-          iscc `
-            /dAppVersion=$version `
-            "/dPublishDir=$publishDir" `
-            /dAppArch=${{ matrix.arch }} `
-            /O"$env:RUNNER_TEMP" `
-            installer/installer.iss
-
-          $setupPath = Join-Path $env:RUNNER_TEMP "BrightSync-Setup-v$version-win-${{ matrix.arch }}.exe"
-          if (!(Test-Path -LiteralPath $setupPath)) {
-            throw "Setup executable was not created."
-          }
-
-      - name: Optional Authenticode signing hook for installer
-        if: ${{ env.WINDOWS_SIGNING_CERTIFICATE_BASE64 != '' }}
-        shell: pwsh
-        run: |
-          $version = "${{ needs.prepare.outputs.version }}"
-          $setupPath = Join-Path $env:RUNNER_TEMP "BrightSync-Setup-v$version-win-${{ matrix.arch }}.exe"
-          $certificatePath = Join-Path $env:RUNNER_TEMP "BrightSync-signing-${{ matrix.suffix }}.pfx"
-          try {
-            if (!(Test-Path -LiteralPath $setupPath -PathType Leaf)) {
-              throw "Installer executable was not found at $setupPath."
-            }
-
-            [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_SIGNING_CERTIFICATE_BASE64))
-            $signtool = Get-Command signtool.exe -ErrorAction Stop
-            & $signtool.Source sign /fd SHA256 /f $certificatePath /p $env:WINDOWS_SIGNING_CERTIFICATE_PASSWORD /tr $env:WINDOWS_SIGNING_TIMESTAMP_URL /td SHA256 $setupPath
-            if ($LASTEXITCODE -ne 0) {
-              throw "signtool failed for the installer with exit code $LASTEXITCODE."
-            }
-          }
-          finally {
-            if (Test-Path -LiteralPath $certificatePath) {
-              Remove-Item -LiteralPath $certificatePath -Force -ErrorAction Stop
-            }
-          }
-
-      - name: Collect package assets
-        shell: pwsh
-        run: |
-          $version = "${{ needs.prepare.outputs.version }}"
-          $packageDir = Join-Path $env:RUNNER_TEMP "package"
-          $setupPath = Join-Path $env:RUNNER_TEMP "BrightSync-Setup-v$version-win-${{ matrix.arch }}.exe"
-          Copy-Item -LiteralPath $setupPath -Destination $packageDir -Force
-
-      - name: Upload package artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: BrightSync-package-${{ matrix.suffix }}
-          path: ${{ runner.temp }}/package/*
-          if-no-files-found: error
-          retention-days: 7
 
   release:
     needs:
       - prepare
-      - package
+      - packages
     runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: write
     steps:
       - name: Download package artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: BrightSync-package-*
           path: release-assets
@@ -362,9 +201,22 @@ jobs:
           expected=(
             "BrightSync-${RELEASE_VERSION}-win-x64.zip"
             "BrightSync-${RELEASE_VERSION}-win-arm64.zip"
+            "BrightSync-${RELEASE_VERSION}-win-x86.zip"
             "BrightSync-Setup-v${RELEASE_VERSION}-win-x64.exe"
             "BrightSync-Setup-v${RELEASE_VERSION}-win-arm64.exe"
+            "BrightSync-Setup-v${RELEASE_VERSION}-win-x86.exe"
+            "BrightSync-${RELEASE_VERSION}-linux-portable.tar.gz"
           )
+          for rid in linux-x64 linux-arm64 linux-arm; do
+            for ext in tar.gz deb rpm pkg.tar.zst AppImage; do
+              expected+=("BrightSync-${RELEASE_VERSION}-${rid}.${ext}")
+            done
+          done
+          for rid in linux-musl-x64 linux-musl-arm64 linux-musl-arm; do
+            for ext in tar.gz apk; do
+              expected+=("BrightSync-${RELEASE_VERSION}-${rid}.${ext}")
+            done
+          done
           shopt -s nullglob
           assets=(*)
           if (( ${#assets[@]} != ${#expected[@]} )); then

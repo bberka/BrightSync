@@ -1,0 +1,29 @@
+---
+import { features } from '../data/site';
+import Icon from './Icon.astro';
+---
+
+<section id="features">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow">Features</p>
+      <h2>Everything you need, nothing you have to babysit.</h2>
+      <p class="lead">
+        BrightSync follows a simple idea: configure it once, then never think about monitor brightness again.
+      </p>
+    </div>
+    <div class="feature-grid">
+      {
+        features.map((feature) => (
+          <article class="card feature">
+            <div class="icon">
+              <Icon name={feature.icon} />
+            </div>
+            <h3>{feature.title}</h3>
+            <p>{feature.body}</p>
+          </article>
+        ))
+      }
+    </div>
+  </div>
+</section>

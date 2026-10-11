@@ -1,0 +1,26 @@
+---
+import { Image } from 'astro:assets';
+import appIcon from '../assets/app-icon.png';
+import { REPO_URL, SITE_TITLE, url } from '../data/site';
+import Icon from './Icon.astro';
+---
+
+<header class="site-header">
+  <div class="container">
+    <a class="brand" href={url()} aria-label={`${SITE_TITLE} home`}>
+      <Image src={appIcon} alt="" width={28} height={28} loading="eager" />
+      {SITE_TITLE}
+    </a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="#features">Features</a>
+      <a href="#screenshots">Screenshots</a>
+      <a href="#platforms">Platforms</a>
+      <a href="#download">Download</a>
+      <a href="#cli">CLI</a>
+      <a href="#faq">FAQ</a>
+      <a class="gh" href={REPO_URL} rel="noopener">
+        <Icon name="github" size={18} /> GitHub
+      </a>
+    </nav>
+  </div>
+</header>

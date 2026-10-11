@@ -1,0 +1,36 @@
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      avalonia:
+        patterns:
+          - Avalonia*
+      test-tooling:
+        patterns:
+          - xunit*
+          - Microsoft.NET.Test.Sdk
+          - coverlet*
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: npm
+    directory: /website
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      astro:
+        patterns:
+          - astro
+          - "@astrojs/*"
