@@ -71,7 +71,7 @@ packaging/build-linux.sh linux-portable 0.19.0 out
 | `release.yml` | `VERSION` changes on `main`/`master`, or manual dispatch from the default branch | prepare (version `0.<VERSION>.<next patch>`, 0ver: `VERSION` is only the minor number), wait for the matching CI run, validate (build and test on Windows and Ubuntu), call `packages.yml`, then verify the exact asset list, write `BrightSync-SHA256SUMS.txt` and upload to the GitHub Release |
 | `website.yml` | changes under `website/` | Builds the site, deploys it to GitHub Pages from `main`/`master` |
 
-A branch without a pull request runs nothing. Open a draft pull request to get the test legs without the package builds.
+CI skips changes that only touch `**/*.md`, `docs/**`, `website/**`, `tools/**`, `LICENSE`, `.github/FUNDING.yml`, `.github/dependabot.yml`, `website.yml` or `pr-packages.yml`; the website has its own workflow. `release.yml` fails after five minutes if the commit it runs on has no CI run (docs-only), so release from a commit that touched code. Do not make a CI job a required status check: a skipped workflow would block docs-only pull requests. A branch without a pull request runs nothing. Open a draft pull request to get the test legs without the package builds.
 
 ### Pull request builds on a public repository
 

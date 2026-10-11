@@ -1,7 +1,8 @@
 name: CI
 
-# Pull requests (any base branch) get the full checks and testable packages. Branches without a pull request
-# run nothing; main and master are checked on push because the release workflow waits for that result.
+# Pull requests (any base branch) get the full checks and testable packages. Changes that only touch docs, the
+# website, developer tooling or repository metadata skip it (the website has its own workflow, pr-packages.yml
+# runs from the default branch and cannot be tested here). Branches without a pull request run nothing; main and master are checked on push because the release workflow waits for that result.
 on:
   pull_request:
     paths-ignore:
@@ -12,6 +13,8 @@ on:
       - .github/FUNDING.yml
       - .github/dependabot.yml
       - .github/workflows/website.yml
+      - .github/workflows/pr-packages.yml
+      - tools/**
   push:
     branches:
       - main
@@ -24,6 +27,8 @@ on:
       - .github/FUNDING.yml
       - .github/dependabot.yml
       - .github/workflows/website.yml
+      - .github/workflows/pr-packages.yml
+      - tools/**
 
 permissions: {}
 
