@@ -8,7 +8,7 @@ the right asset from the latest GitHub release, and the page works without it.
 cd website
 npm ci
 npm run dev        # http://localhost:4321/BrightSync/
-npm run check      # tsc type-check of .ts and .astro files
+npm run check      # astro sync, then tsc type-check of .ts and .astro files
 npm run build      # check, then astro build into dist/
 npm run preview    # serve dist/ exactly as Pages will
 ```
