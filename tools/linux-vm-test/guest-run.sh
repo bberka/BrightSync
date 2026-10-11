@@ -6,6 +6,7 @@
 #   SMOKE    launch the self-contained app under Xvfb and talk to it over the CLI
 #   TARBALL  portable archive: per-user install.sh, launch, uninstall, then --system install and uninstall
 #   APPIMAGE (Ubuntu only) build an AppImage with make-appimage.sh and launch it
+#   PORTABLE (Ubuntu only) install a .NET runtime and run the framework-dependent linux-portable archive
 # Everything is written to a file and a pump copies new lines to the serial console, re-opening it each time
 # (getty restarts after package installs hang up an open serial descriptor and would swallow later output).
 exec >/tmp/bs.out 2>&1
@@ -87,7 +88,9 @@ while [ $n -lt 10 ]; do
     sleep 3
 done
 echo "STATUS-EXIT $rc"
+# The exit command must be answered before the app goes away (it used to report a transport failure).
 timeout 120 $exe app exit
+echo "EXIT-CMD-RC $?"
 sleep 5
 if kill -0 "$app" 2>/dev/null; then echo "app still running after exit command"; kill "$app"; echo "EXIT-FORCED"; else echo "EXIT-CLEAN"; fi
 SMOKE
@@ -102,6 +105,24 @@ run_smoke() {
 }
 
 check_file() { if [ -e "$1" ]; then echo "FILE-OK $1"; else echo "FILE-MISSING $1"; return 1; fi; }
+
+# $1 = smoke log. The app answered status, answered the exit command, and was gone afterwards.
+smoke_passed() { grep -q "STATUS-EXIT 0" "$1" && grep -q "EXIT-CMD-RC 0" "$1" && grep -q "EXIT-CLEAN" "$1"; }
+
+# The uaccess tag only works from a rules file that sorts before 73-seat-late.rules; udev must also accept
+# the syntax where it can check it (udevadm verify, systemd 254 and later).
+check_udev_rule() {
+    rule=$1
+    case "$(basename "$rule")" in
+        [0-6][0-9]-*|7[0-2]-*) echo "UDEV-RULE-ORDER-OK" ;;
+        *) echo "UDEV-RULE-ORDER-BAD $rule"; return 1 ;;
+    esac
+    if udevadm verify --help >/dev/null 2>&1; then
+        if udevadm verify "$rule" >/tmp/udev-verify.log 2>&1; then echo "UDEV-RULE-VERIFY-OK"; else cat /tmp/udev-verify.log; echo "UDEV-RULE-VERIFY-BAD"; return 1; fi
+    else
+        echo "UDEV-RULE-VERIFY-SKIPPED (no udevadm verify)"
+    fi
+}
 
 # ---------------------------------------------------------------- PKG
 echo "BSTEST-TOOLS-BEGIN"
@@ -125,10 +146,11 @@ if fetch "$HOST/$pkg" >"/tmp/$pkg" && [ -s "/tmp/$pkg" ]; then
         && check_file /usr/share/applications/brightsync.desktop \
         && check_file /usr/lib/udev/rules.d/60-brightsync-i2c.rules \
         && check_file /usr/lib/modules-load.d/brightsync-i2c.conf \
-        && check_file /usr/share/icons/hicolor/128x128/apps/brightsync.png && files_ok=1 || files_ok=0
+        && check_file /usr/share/icons/hicolor/128x128/apps/brightsync.png \
+        && check_udev_rule /usr/lib/udev/rules.d/60-brightsync-i2c.rules && files_ok=1 || files_ok=0
     run_smoke /usr/bin/brightsync >/tmp/pkg-smoke.log 2>&1
     cat /tmp/pkg-smoke.log
-    grep -q "STATUS-EXIT 0" /tmp/pkg-smoke.log && grep -q "EXIT-CLEAN" /tmp/pkg-smoke.log && smoke_ok=1 || smoke_ok=0
+    smoke_passed /tmp/pkg-smoke.log && smoke_ok=1 || smoke_ok=0
     remove_pkg >/tmp/pkg-remove.log 2>&1 </dev/null
     echo "PKG-REMOVE-EXIT $?"
     if [ ! -e /usr/bin/brightsync ] && [ ! -e /opt/brightsync/BrightSync ] && [ ! -e /usr/lib/udev/rules.d/60-brightsync-i2c.rules ]; then
@@ -171,7 +193,7 @@ if fetch "$HOST/portable-$variant.tar.gz" | tar xz && cd BrightSync-*; then
     check_file "$HOME/.local/bin/brightsync" && check_file "$HOME/.local/share/applications/brightsync.desktop" || tar_ok=0
     grep -q "^Exec=$HOME/.local/bin/brightsync" "$HOME/.local/share/applications/brightsync.desktop" && echo "DESKTOP-EXEC-OK" || { echo "DESKTOP-EXEC-BAD"; tar_ok=0; }
     run_smoke "$HOME/.local/bin/brightsync" >/tmp/tar-smoke.log 2>&1
-    grep -q "STATUS-EXIT 0" /tmp/tar-smoke.log && grep -q "EXIT-CLEAN" /tmp/tar-smoke.log && echo "TARBALL-SMOKE-OK" || { cat /tmp/tar-smoke.log; tar_ok=0; }
+    smoke_passed /tmp/tar-smoke.log && echo "TARBALL-SMOKE-OK" || { cat /tmp/tar-smoke.log; tar_ok=0; }
     ./install.sh --uninstall >/tmp/tar-user-un.log 2>&1 </dev/null; echo "TARBALL-USER-UNINSTALL-EXIT $?"
     [ ! -e "$HOME/.local/bin/brightsync" ] && [ ! -e "$HOME/.local/opt/brightsync" ] && echo "TARBALL-USER-CLEAN" || { echo "TARBALL-USER-LEFTOVERS"; tar_ok=0; }
 
@@ -201,10 +223,32 @@ if [ "$ID" = ubuntu ]; then
             export APPIMAGE_EXTRACT_AND_RUN=1
             run_smoke /tmp/ai/BrightSync.AppImage >/tmp/ai/smoke.log 2>&1
             cat /tmp/ai/smoke.log
-            grep -q "STATUS-EXIT 0" /tmp/ai/smoke.log && grep -q "EXIT-CLEAN" /tmp/ai/smoke.log && ai_ok=1
+            smoke_passed /tmp/ai/smoke.log && ai_ok=1
         fi
     fi
     echo "BSTEST-APPIMAGE-EXIT $((1 - ai_ok))"
+    unset APPIMAGE_EXTRACT_AND_RUN
+
+    # ------------------------------------------------------------ PORTABLE (Ubuntu only)
+    # The framework-dependent archive runs on a .NET runtime the user provides. Take Microsoft's, the way
+    # someone on an architecture without a self-contained build would, and drive the app through its launcher.
+    echo "BSTEST-PORTABLE-BEGIN"
+    pt_ok=0
+    mkdir -p /tmp/portable && cd /tmp/portable || exit 1
+    command -v curl >/dev/null 2>&1 || apt-get install -y -qq curl >/dev/null 2>&1
+    if fetch "https://dot.net/v1/dotnet-install.sh" >dotnet-install.sh \
+        && bash dotnet-install.sh --runtime dotnet --channel 10.0 --install-dir /opt/dotnet >/tmp/portable/dotnet.log 2>&1 \
+        && fetch "$HOST/portable-linux-portable.tar.gz" | tar xz && cd BrightSync-*; then
+        export DOTNET_ROOT=/opt/dotnet PATH="/opt/dotnet:$PATH"
+        ./install.sh >/tmp/portable/install.log 2>&1 </dev/null; echo "PORTABLE-INSTALL-EXIT $?"
+        run_smoke "$HOME/.local/bin/brightsync" >/tmp/portable/smoke.log 2>&1
+        cat /tmp/portable/smoke.log
+        smoke_passed /tmp/portable/smoke.log && pt_ok=1
+        ./install.sh --uninstall >/dev/null 2>&1 </dev/null
+    else
+        echo "PORTABLE-SETUP-FAILED"; tail -n 5 /tmp/portable/dotnet.log 2>/dev/null
+    fi
+    echo "BSTEST-PORTABLE-EXIT $((1 - pt_ok))"
 fi
 
 echo "BSTEST-DONE"

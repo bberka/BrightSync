@@ -10,6 +10,7 @@ guest-run.sh, and reads the verdict from the serial console. The guest checks, i
   SMOKE     the self-contained app starts under Xvfb, answers `status`, and exits on `app exit`
   TARBALL   the portable archive installs per user and system-wide with install.sh and removes itself
   APPIMAGE  (Ubuntu) an AppImage is built from the published app and launched
+  PORTABLE  (Ubuntu) the framework-dependent linux-portable archive runs on a freshly installed .NET runtime
 
 Packages are produced with packaging/build-linux.sh, which needs bash and nfpm (--nfpm); without nfpm the
 PKG phase reports a download failure and the run fails.
@@ -56,7 +57,7 @@ def run(cmd, **kwargs):
     return subprocess.run(cmd, check=True, **kwargs)
 
 
-def build_payload(work: Path, needed: set[str], nfpm: str | None) -> Path:
+def build_payload(work: Path, needed: set[str], nfpm: str | None, portable: bool) -> Path:
     """Publishes the test binary, the app and the Linux packages, and serves them to the guests."""
     serve = work / "serve"
     serve.mkdir(parents=True, exist_ok=True)
@@ -97,6 +98,14 @@ def build_payload(work: Path, needed: set[str], nfpm: str | None) -> Path:
                 shutil.copyfile(source, serve / f"pkg{suffix}")
             elif rid == "linux-musl-x64" and name.endswith(".apk"):
                 shutil.copyfile(source, serve / "pkg.apk")
+
+    if portable:
+        pkg_out = work / "packages-linux-portable"
+        shutil.rmtree(pkg_out, ignore_errors=True)
+        print("[payload] packaging linux-portable")
+        run([bash, str(ROOT / "packaging/build-linux.sh"), "linux-portable", version, str(pkg_out)])
+        for source in pkg_out.glob("*.tar.gz"):
+            shutil.copyfile(source, serve / "portable-linux-portable.tar.gz")
 
     if "linux-x64" in needed:
         # Source for the in-guest AppImage build: mirrors the repo paths make-appimage.sh resolves.
@@ -203,14 +212,18 @@ def boot(args, work: Path, serve: Path, distro: str, image: Path, port: int):
 def verdict(log: Path, distro: str) -> tuple[bool, str]:
     text = log.read_text(errors="replace")
     total = next((line.strip() for line in text.splitlines() if "Total:" in line and "Failed:" in line), "no unit test summary")
+    # Every launch in the log ends with `app exit`; each of them has to be answered with exit code 0.
+    exit_codes = [line.split()[-1] for line in text.splitlines() if line.startswith("EXIT-CMD-RC ")]
     phases = {
         "pkg": "BSTEST-PKG-EXIT 0" in text,
         "unit": "BSTEST-UNIT-EXIT 0" in text,
-        "smoke": "STATUS-EXIT 0" in text and "EXIT-CLEAN" in text and "BSTEST-SMOKE-EXIT 0" in text,
+        "smoke": "STATUS-EXIT 0" in text and "EXIT-CLEAN" in text and "BSTEST-SMOKE-EXIT 0" in text
+                 and bool(exit_codes) and all(code == "0" for code in exit_codes),
         "tarball": "BSTEST-TARBALL-EXIT 0" in text,
     }
     if distro == "ubuntu":
         phases["appimage"] = "BSTEST-APPIMAGE-EXIT 0" in text
+        phases["portable"] = "BSTEST-PORTABLE-EXIT 0" in text
     detail = " ".join(f"{name}={'ok' if ok else 'FAIL'}" for name, ok in phases.items())
     return all(phases.values()), f"{detail} | {total.split('BrightSync.Tests')[-1].strip()}"
 
@@ -235,7 +248,8 @@ def main():
         sys.exit(f"unknown distro(s): {unknown}")
 
     images = {d: download(work, d) for d in distros}
-    serve = build_payload(work, {"linux-musl-x64" if d in MUSL else "linux-x64" for d in distros}, args.nfpm)
+    serve = build_payload(work, {"linux-musl-x64" if d in MUSL else "linux-x64" for d in distros}, args.nfpm,
+                          portable="ubuntu" in distros)
 
     results = []
     with concurrent.futures.ThreadPoolExecutor(args.parallel) as pool:
