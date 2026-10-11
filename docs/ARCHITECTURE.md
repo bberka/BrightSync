@@ -31,7 +31,6 @@ packaging/           windows/ (Inno Setup script), linux/ (nfpm, desktop, udev, 
 tools/               developer tooling, such as linux-vm-test (QEMU distro runs)
 website/             Astro landing page published to GitHub Pages; independent of the .NET build
 docs/                guides (Linux, architecture, packaging, roadmap) and the screenshots the README uses
-tasks/               planning notes for larger changes
 Directory.Build.props, global.json, VERSION, BrightSync.sln at the root
 ```
 
