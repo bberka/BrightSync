@@ -89,6 +89,12 @@ jobs:
             ci_run="$(jq -c '[.[] | select(.event == "push")] | first // empty' <<< "$runs")"
 
             if [[ -z "$ci_run" ]]; then
+              # CI skips commits that only touch docs, the website or repository metadata. Give a real run
+              # a few minutes to appear, then stop instead of waiting out the whole timeout.
+              if (( SECONDS > 300 )); then
+                echo "No CI run exists for $COMMIT_SHA (it may have been skipped as docs-only). Push a code change or re-run CI before releasing." >&2
+                exit 1
+              fi
               echo "Waiting for the CI workflow run for $COMMIT_SHA to appear..."
               sleep 15
               continue
