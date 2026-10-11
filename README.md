@@ -107,7 +107,7 @@ Important notes:
 | Laptop panel brightness | Yes (WMI) | Yes (backlight class, logind fallback) |
 | Tray icon, quick popup, settings window | Yes | Yes (StatusNotifierItem tray) |
 | Automatic curve, eye protection, boost, enforcement | Yes | Yes |
-| Idle dimming, ignore while media plays | Yes | Yes (Mutter, KDE or X11 idle; MPRIS media) |
+| Idle dimming, ignore while media plays | Yes | Yes on X11 sessions and on GNOME Wayland (Mutter, KDE or X11 idle; MPRIS media); hidden on other Wayland compositors |
 | Pause while locked | Yes | Yes (logind, GNOME and KDE screensavers) |
 | Energy Saver / Power Saver reduction | Yes | Yes (power-profiles-daemon) |
 | Start at login | Yes (registry) | Yes (XDG autostart) |

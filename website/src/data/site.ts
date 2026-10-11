@@ -96,7 +96,7 @@ export const faqs: Faq[] = [
   {
     question: 'Does it work on Wayland?',
     answer:
-      'Yes. BrightSync runs through XWayland, and brightness control does not depend on the display server because it talks to the monitor over I²C and to the laptop panel through the kernel.',
+      'Yes. BrightSync runs through XWayland, and brightness control does not depend on the display server because it talks to the monitor over I²C and to the laptop panel through the kernel. Idle dimming needs idle time from the compositor, which on Wayland only GNOME provides; other Wayland desktops hide that option.',
   },
   {
     question: 'Why do I not see the tray icon on GNOME?',

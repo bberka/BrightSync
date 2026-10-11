@@ -29,5 +29,6 @@ dotnet build src/BrightSync.App/BrightSync.App.csproj -r linux-x64              
 - Release asset names are a contract with `UpdateChecker`, the release workflow, and the docs. Read [docs/PACKAGING.md](docs/PACKAGING.md) before renaming or adding assets or touching workflows.
 - Per-user paths come from `AppPaths` (Core), never `Environment.GetFolderPath` directly: on Linux it returns an empty string when `~/.config` does not exist, which silently moves config and logs into the working directory.
 - Shell scripts and `packaging/linux/*` must stay LF (`.gitattributes`).
+- The udev rule file must sort before `73-seat-late.rules` (it is `60-brightsync-i2c.rules`): udev turns the `uaccess` tag into ACLs there, and a later file silently does nothing.
 - Config JSON is shared by both OSes: keep property names (`StartWithWindows` stays, the UI label comes from `PlatformCapabilities.StartupLabel`).
 - Linux user-facing behavior (permissions, tray support per desktop) is documented in [docs/LINUX.md](docs/LINUX.md); update it with any change there.

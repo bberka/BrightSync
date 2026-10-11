@@ -6,7 +6,7 @@ BrightSync runs on Linux desktops with X11 or Wayland (through XWayland). It con
 
 ## Verified distributions
 
-The native package, the test binary and the app run inside these official cloud images (QEMU, x86-64). Per distribution: the package installs on a bare system with its dependencies resolved by the package manager, ships the expected files, launches, and uninstalls cleanly; all unit tests pass; the app starts under Xvfb, initializes the Avalonia tray, answers `brightsync status`, and exits on `brightsync app exit`; the portable archive installs and removes itself with `install.sh`.
+The native package, the test binary and the app run inside these official cloud images (QEMU, x86-64). Per distribution: the package installs on a bare system with its dependencies resolved by the package manager, ships the expected files, launches, and uninstalls cleanly; all unit tests pass; the app starts under Xvfb, initializes the Avalonia tray, answers `brightsync status`, and exits on `brightsync app exit` (which must return 0); the portable archive installs and removes itself with `install.sh`. On Ubuntu the run also builds and launches an AppImage, and launches the framework-dependent `linux-portable` archive on Microsoft's .NET 10 runtime.
 
 | Distribution | libc | Result |
 |---|---|---|
@@ -44,7 +44,9 @@ Needed on the system (the packages declare these): `fontconfig` and the X11 clie
 External monitors are reached through the `i2c-dev` kernel module. The distribution packages and `install.sh --system` set this up:
 
 - `/usr/lib/modules-load.d/brightsync-i2c.conf` loads `i2c-dev` at boot.
-- `/usr/lib/udev/rules.d/99-brightsync-i2c.rules` tags `i2c-*` devices with `uaccess`, which gives the user logged in at the local seat read and write access through logind ACLs. No group membership is required.
+- `/usr/lib/udev/rules.d/60-brightsync-i2c.rules` tags the I2C adapters of display controllers (PCI class `0x03`) with `uaccess`, which gives the user logged in at the local seat read and write access through logind ACLs. No group membership is required. Other I2C buses (sensors, memory SPD) stay root-only.
+
+The number in the file name matters: udev applies `uaccess` in `73-seat-late.rules`, so the tag has to be set by a file that sorts before it. Keep that in mind if you copy the rule to `/etc/udev/rules.d`.
 
 Per-user installs (`./install.sh`) and AppImages cannot write system files. Run once:
 
@@ -60,7 +62,7 @@ ls -l /dev/i2c-*                   # a "+" after the mode means an ACL grants yo
 brightsync status                  # while BrightSync runs: monitor counts
 ```
 
-If `uaccess` is unavailable (no systemd-logind), add yourself to a group instead:
+If `uaccess` is unavailable (no systemd-logind), or the display controller is not a PCI device (Raspberry Pi and other ARM boards, whose I2C adapters carry no PCI class), add yourself to a group instead:
 
 ```bash
 sudo groupadd -f i2c && sudo usermod -aG i2c "$USER"
@@ -105,7 +107,9 @@ Windows uses the same Avalonia tray and menu. `BRIGHTSYNC_TRAY=native` switches 
 
 ## Wayland
 
-BrightSync uses the X11 backend, which on Wayland runs through XWayland. Window positions are honored there, so the popup opens in the bottom-right of the work area (the panel edge is inferred from the gap between the screen and its work area). Pointer-based screen selection and the XScreenSaver idle fallback only see XWayland clients; on GNOME and KDE, idle time comes from the compositor service instead.
+BrightSync uses the X11 backend, which on Wayland runs through XWayland. Window positions are honored there, so the popup opens in the bottom-right of the work area (the panel edge is inferred from the gap between the screen and its work area). Pointer-based screen selection only sees XWayland clients.
+
+Idle dimming on Wayland works on GNOME, where Mutter reports idle time. Other Wayland compositors (KDE Plasma, Sway, Hyprland) offer BrightSync no usable idle time: KDE's `GetSessionIdleTime` answers "not supported" on Wayland, and the XScreenSaver counter under XWayland ignores input sent to native Wayland windows, so it would report you idle while you work. BrightSync hides the idle dimming controls there instead of dimming an active screen.
 
 ## Features that follow the desktop
 
@@ -113,12 +117,12 @@ BrightSync uses the X11 backend, which on Wayland runs through XWayland. Window 
 |---|---|
 | Resume from sleep | logind `PrepareForSleep` |
 | Pause while locked | logind session `Lock`/`Unlock`, GNOME and freedesktop screensaver `ActiveChanged` |
-| Idle dimming | GNOME Mutter IdleMonitor, then KDE/freedesktop `GetSessionIdleTime`, then XScreenSaver |
+| Idle dimming | GNOME Mutter IdleMonitor (X11 and Wayland); on X11 sessions also KDE/freedesktop `GetSessionIdleTime`, then XScreenSaver |
 | Ignore while media plays | MPRIS players on the session bus |
 | Power Saver reduction | power-profiles-daemon `ActiveProfile == power-saver` |
 | Display hot-plug | polling `/sys/class/drm` every 3 seconds |
 | Clock changes | wall clock compared with the monotonic clock every 5 seconds |
-| Start at login | `~/.config/autostart/brightsync.desktop` (uses `$APPIMAGE` when running as an AppImage) |
+| Start at login | `~/.config/autostart/brightsync.desktop` (uses `$APPIMAGE` when running as an AppImage, and the `BrightSync` launcher for the framework-dependent portable build) |
 | Notifications | `org.freedesktop.Notifications`, `notify-send` as fallback |
 
 Not available on Linux: refresh rate switching, ICC color profile assignment, HDR status, and automatic installation of updates. Their controls are hidden.
