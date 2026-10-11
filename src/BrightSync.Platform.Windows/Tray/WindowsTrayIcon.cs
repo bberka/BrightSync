@@ -286,7 +286,10 @@ public sealed class WindowsTrayIcon : ITrayIcon
             {
                 using var subKey = settings.OpenSubKey(subKeyName, writable: true);
                 if (subKey?.GetValue("ExecutablePath") is not string executablePath ||
-                    !string.Equals(executablePath, processPath, StringComparison.OrdinalIgnoreCase))
+                    !string.Equals(
+                        ExpandKnownFolderPath(executablePath, ResolveKnownFolder),
+                        processPath,
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -305,6 +308,39 @@ public sealed class WindowsTrayIcon : ITrayIcon
 
         Log.Debug("Windows notification icon settings entry was not found for {ExecutablePath}", processPath);
         return false;
+    }
+
+    /// <summary>
+    /// Explorer records executables under a known folder as <c>{FOLDERID}\rest</c>, for example
+    /// <c>{6D809377-6AF0-444B-8957-A3773F02200E}\BrightSync\BrightSync.exe</c> for Program Files, which is
+    /// where the installer puts the app. Returns the full path, or the input when it has no such prefix.
+    /// </summary>
+    internal static string ExpandKnownFolderPath(string path, Func<Guid, string?> resolveKnownFolder)
+    {
+        const int BracedGuidLength = 38;
+        if (path.Length <= BracedGuidLength + 1 || path[0] != '{' || path[BracedGuidLength] != '\\' ||
+            !Guid.TryParseExact(path.AsSpan(0, BracedGuidLength), "B", out var folderId))
+        {
+            return path;
+        }
+
+        var root = resolveKnownFolder(folderId);
+        return string.IsNullOrEmpty(root) ? path : Path.Combine(root, path[(BracedGuidLength + 1)..]);
+    }
+
+    internal static string? ResolveKnownFolder(Guid folderId)
+    {
+        if (NativeMethods.SHGetKnownFolderPath(ref folderId, 0, IntPtr.Zero, out var buffer) != 0)
+            return null;
+
+        try
+        {
+            return Marshal.PtrToStringUni(buffer);
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(buffer);
+        }
     }
 
     private IntPtr WindowProc(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam)
@@ -554,6 +590,9 @@ public sealed class WindowsTrayIcon : ITrayIcon
         [DllImport("shell32.dll", EntryPoint = "Shell_NotifyIconW", SetLastError = true, CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool Shell_NotifyIcon(uint dwMessage, ref NotifyIconData lpData);
+
+        [DllImport("shell32.dll")]
+        public static extern int SHGetKnownFolderPath(ref Guid rfid, uint dwFlags, IntPtr hToken, out IntPtr ppszPath);
 
         [DllImport("shell32.dll", EntryPoint = "ExtractIconExW", SetLastError = true, CharSet = CharSet.Unicode)]
         public static extern int ExtractIconEx(
