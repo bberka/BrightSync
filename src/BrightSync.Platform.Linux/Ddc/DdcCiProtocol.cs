@@ -37,7 +37,12 @@ internal sealed class DdcCiProtocol(II2cBus bus, Action<int>? delay = null)
         _delay(ReplyDelayMilliseconds);
 
         Span<byte> reply = stackalloc byte[11];
-        if (bus.Read(reply) < reply.Length)
+        var read = bus.Read(reply);
+
+        // Displays need the bus idle between messages, also after a reply (ddcutil waits the same 50 ms).
+        // Without it a retry or the next request reaches a display that is still busy and gets no answer.
+        _delay(CommandSpacingMilliseconds);
+        if (read < reply.Length)
             return false;
 
         if (!ValidateReply(reply, out var length) || length != 8)

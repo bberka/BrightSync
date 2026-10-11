@@ -40,6 +40,9 @@ internal static unsafe partial class X11Native
     public static bool TryGetIdleTime(out TimeSpan idle)
     {
         idle = TimeSpan.Zero;
+        if (LinuxSession.IsWayland)
+            return false;
+
         try
         {
             lock (Gate)
@@ -62,9 +65,14 @@ internal static unsafe partial class X11Native
         }
     }
 
-    /// <summary>True when an X display is set and libXss can be loaded, so idle time can be read.</summary>
+    /// <summary>
+    /// True when the X11 screensaver extension reports real idle time: an X display is set, libXss loads, and
+    /// the session is not Wayland. Under XWayland the extension only counts input sent to X11 clients, so it
+    /// reports the user as idle while they work in native Wayland windows.
+    /// </summary>
     public static bool IsIdleQueryAvailable()
-        => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")) &&
+        => !LinuxSession.IsWayland &&
+           !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")) &&
            NativeLibrary.TryLoad("libXss.so.1", out var handle) &&
            Release(handle);
 

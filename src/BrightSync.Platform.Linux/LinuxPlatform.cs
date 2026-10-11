@@ -64,11 +64,12 @@ public static class LinuxPlatform
             return LinuxDesktopFeatures.Detect(
                 system.IsCompletedSuccessfully ? system.Result : [],
                 session.IsCompletedSuccessfully ? session.Result : [],
-                X11Native.IsIdleQueryAvailable());
+                X11Native.IsIdleQueryAvailable(),
+                LinuxSession.IsWayland);
         }
         catch (Exception)
         {
-            return LinuxDesktopFeatures.Detect([], [], X11Native.IsIdleQueryAvailable());
+            return LinuxDesktopFeatures.Detect([], [], X11Native.IsIdleQueryAvailable(), LinuxSession.IsWayland);
         }
     }
 

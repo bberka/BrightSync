@@ -164,6 +164,21 @@ public sealed class DdcCiProtocolTests
     }
 
     [Fact]
+    public void TryGetVcp_KeepsTheBusIdleAfterTheReplyAndAfterAFailedRead()
+    {
+        var delays = new List<int>();
+        var answered = new DdcCiProtocol(new FakeDisplayBus().WithFeature(0x10, 40, 100), delays.Add);
+        Assert.True(answered.TryGetVcp(0x10, out _, out _));
+        // 50 ms for the display to prepare its reply, 50 ms before the next message may follow.
+        Assert.Equal([50, 50], delays);
+
+        delays.Clear();
+        var silent = new DdcCiProtocol(new FakeDisplayBus { Silent = true }, delays.Add);
+        Assert.False(silent.TryGetVcp(0x10, out _, out _));
+        Assert.Equal([50, 50], delays);
+    }
+
+    [Fact]
     public void TryGetVcp_RejectsCorruptChecksum()
     {
         var reply = new byte[] { 0x6E, 0x88, 0x02, 0x00, 0x10, 0x00, 0x00, 0x64, 0x00, 0x28, 0x00 };
@@ -421,6 +436,40 @@ public sealed class LinuxServiceTests
     }
 
     [Fact]
+    public void AutostartEntry_DoublesPercentSoItIsNotReadAsAFieldCode()
+    {
+        var entry = LinuxAutoStartManager.BuildDesktopEntry("/opt/100%/BrightSync");
+
+        Assert.Contains("Exec=\"/opt/100%%/BrightSync\" --autostart\n", entry);
+    }
+
+    [Fact]
+    public void ResolveExecutable_PrefersTheAppImageOverTheMountedBinary()
+        => Assert.Equal(
+            "/home/u/BrightSync.AppImage",
+            LinuxAutoStartManager.ResolveExecutable(
+                "/home/u/BrightSync.AppImage", "/tmp/.mount_x/usr/lib/brightsync/BrightSync", "/tmp/.mount_x/usr/lib/brightsync/", _ => true));
+
+    [Fact]
+    public void ResolveExecutable_UsesTheLauncherWhenTheProcessIsTheSharedDotnetHost()
+    {
+        // The portable build runs as "dotnet BrightSync.dll"; starting "dotnet --autostart" at login would do nothing.
+        Assert.Equal(
+            "/opt/brightsync/BrightSync",
+            LinuxAutoStartManager.ResolveExecutable(null, "/usr/lib/dotnet/dotnet", "/opt/brightsync/", path => path == "/opt/brightsync/BrightSync"));
+
+        // Self-contained builds are their own process and stay as they are.
+        Assert.Equal(
+            "/opt/brightsync/BrightSync",
+            LinuxAutoStartManager.ResolveExecutable(null, "/opt/brightsync/BrightSync", "/opt/brightsync/", _ => true));
+
+        // No launcher next to the app: keep the process path rather than invent one.
+        Assert.Equal(
+            "/usr/lib/dotnet/dotnet",
+            LinuxAutoStartManager.ResolveExecutable(null, "/usr/lib/dotnet/dotnet", "/opt/brightsync/", _ => false));
+    }
+
+    [Fact]
     public void Autostart_WritesAndRemovesDesktopFile()
     {
         var directory = Path.Combine(Path.GetTempPath(), "brightsync-test-" + Guid.NewGuid().ToString("N"));
@@ -549,6 +598,35 @@ public sealed class LinuxDesktopFeatureTests
         Assert.True(features.DetectsSessionLock);
         Assert.False(features.DetectsEnergySaver);
     }
+
+    [Fact]
+    public void Detect_OnWaylandOnlyMutterCountsAsAnIdleSource()
+    {
+        // KDE answers GetSessionIdleTime with "not supported" on Wayland and XScreenSaver only sees XWayland
+        // clients, so offering idle dimming there would dim the screen while the user is working.
+        var plasma = BrightSync.Platform.Linux.LinuxDesktopFeatures.Detect(
+            ["org.freedesktop.login1"], ["org.freedesktop.ScreenSaver"], x11IdleAvailable: true, isWayland: true);
+        Assert.False(plasma.DetectsIdleTime);
+        Assert.True(plasma.DetectsSessionLock);
+
+        var gnome = BrightSync.Platform.Linux.LinuxDesktopFeatures.Detect(
+            [], ["org.gnome.Mutter.IdleMonitor"], x11IdleAvailable: false, isWayland: true);
+        Assert.True(gnome.DetectsIdleTime);
+
+        var plasmaX11 = BrightSync.Platform.Linux.LinuxDesktopFeatures.Detect(
+            [], ["org.freedesktop.ScreenSaver"], x11IdleAvailable: false, isWayland: false);
+        Assert.True(plasmaX11.DetectsIdleTime);
+    }
+
+    [Theory]
+    [InlineData("wayland-0", null, true)]
+    [InlineData(null, "wayland", true)]
+    [InlineData(null, "Wayland", true)]
+    [InlineData(null, "x11", false)]
+    [InlineData("", "tty", false)]
+    [InlineData(null, null, false)]
+    public void IsWaylandSession_ReadsTheSessionEnvironment(string? waylandDisplay, string? sessionType, bool expected)
+        => Assert.Equal(expected, BrightSync.Platform.Linux.LinuxSession.IsWaylandSession(waylandDisplay, sessionType));
 }
 
 public sealed class InertEnergySaverTests

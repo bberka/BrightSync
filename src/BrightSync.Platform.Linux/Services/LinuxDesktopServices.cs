@@ -228,7 +228,10 @@ internal sealed class LinuxAutoStartManager(string? autostartDirectory = null, s
         return text.ToString();
     }
 
-    /// <summary>Quotes one argument per the Desktop Entry spec: wrap in double quotes, backslash-escape <c>"`$\</c>.</summary>
+    /// <summary>
+    /// Quotes one argument per the Desktop Entry spec: wrap in double quotes, backslash-escape <c>"`$\</c>,
+    /// and double a literal percent sign, which otherwise starts a field code.
+    /// </summary>
     internal static string QuoteExecArgument(string value)
     {
         var quoted = new StringBuilder("\"");
@@ -236,6 +239,8 @@ internal sealed class LinuxAutoStartManager(string? autostartDirectory = null, s
         {
             if (character is '"' or '`' or '$' or '\\')
                 quoted.Append('\\');
+            else if (character == '%')
+                quoted.Append('%');
             quoted.Append(character);
         }
 
@@ -251,11 +256,35 @@ internal sealed class LinuxAutoStartManager(string? autostartDirectory = null, s
         return Path.Combine(configHome, "autostart");
     }
 
-    /// <summary>AppImages run from a temporary mount, so the stable path is the image itself.</summary>
     private static string ResolveExecutable()
+        => ResolveExecutable(
+            Environment.GetEnvironmentVariable("APPIMAGE"),
+            Environment.ProcessPath,
+            AppContext.BaseDirectory,
+            File.Exists);
+
+    /// <summary>
+    /// The command that starts BrightSync again. AppImages run from a temporary mount, so the stable path is
+    /// the image itself. The framework-dependent portable build runs as <c>dotnet BrightSync.dll</c>, where the
+    /// process is the shared .NET host; its entry point is the <c>BrightSync</c> launcher next to the app.
+    /// </summary>
+    internal static string ResolveExecutable(
+        string? appImage,
+        string? processPath,
+        string baseDirectory,
+        Func<string, bool> fileExists)
     {
-        var appImage = Environment.GetEnvironmentVariable("APPIMAGE");
-        return !string.IsNullOrWhiteSpace(appImage) ? appImage : Environment.ProcessPath ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(appImage))
+            return appImage;
+
+        if (string.Equals(Path.GetFileName(processPath), "dotnet", StringComparison.Ordinal))
+        {
+            var launcher = Path.Combine(baseDirectory, "BrightSync");
+            if (fileExists(launcher))
+                return launcher;
+        }
+
+        return processPath ?? string.Empty;
     }
 }
 
