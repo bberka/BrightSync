@@ -29,6 +29,8 @@ out=${3:?usage: build-linux.sh <rid> <version> <output-dir>}
 root=$(cd "$(dirname "$0")/.." && pwd)
 mkdir -p "$out"
 out=$(cd "$out" && pwd)
+# Assembly and file versions must be numeric; a prerelease suffix (0.18.0-pr12.3) only belongs in Version.
+numeric_version=${version%%-*}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
@@ -53,7 +55,7 @@ if [ "$portable" = true ]; then
         -p:BrightSyncTargetOs=linux -p:BrightSyncPortable=true \
         -p:PublishAot=false -p:UseAppHost=false \
         -p:DebugType=None -p:DebugSymbols=false \
-        -p:Version="$version" -p:AssemblyVersion="$version" -p:FileVersion="$version" \
+        -p:Version="$version" -p:AssemblyVersion="$numeric_version" -p:FileVersion="$numeric_version" \
         -p:InformationalVersion="$version" \
         -o "$publish"
     rm -f "$publish"/*.pdb
@@ -76,7 +78,7 @@ else
         -p:SelfContained=true \
         -p:PublishSingleFile=true \
         -p:DebugType=None -p:DebugSymbols=false \
-        -p:Version="$version" -p:AssemblyVersion="$version" -p:FileVersion="$version" \
+        -p:Version="$version" -p:AssemblyVersion="$numeric_version" -p:FileVersion="$numeric_version" \
         -p:InformationalVersion="$version" \
         -o "$publish"
     rm -f "$publish"/*.pdb
