@@ -1,8 +1,13 @@
 #!/bin/sh
-# Runs inside the guest VM: installs desktop libraries for the distro, runs the BrightSync unit tests
-# against the real Linux services, then launches the app under a virtual display and queries it over the CLI.
-# Everything goes to a file; a pump copies new lines to the serial console, re-opening it every time.
-# (getty restarts after package installs hang up an open serial descriptor and would swallow later output.)
+# Runs inside the guest VM (started by cloud-init, see vmtest.py). Phases, each reporting BSTEST-<PHASE>-EXIT:
+#   PKG      install the distro's native package on a bare system (the package manager must pull every
+#            library the app needs), check installed files, launch /usr/bin/brightsync, uninstall, check cleanup
+#   UNIT     install desktop libraries, run the xunit binary against the real Linux services
+#   SMOKE    launch the self-contained app under Xvfb and talk to it over the CLI
+#   TARBALL  portable archive: per-user install.sh, launch, uninstall, then --system install and uninstall
+#   APPIMAGE (Ubuntu only) build an AppImage with make-appimage.sh and launch it
+# Everything is written to a file and a pump copies new lines to the serial console, re-opening it each time
+# (getty restarts after package installs hang up an open serial descriptor and would swallow later output).
 exec >/tmp/bs.out 2>&1
 (
     sent=0
@@ -15,59 +20,52 @@ exec >/tmp/bs.out 2>&1
         sleep 2
     done
 ) &
+
 . /etc/os-release
-echo "BSTEST-BEGIN $PRETTY_NAME $(uname -m) kernel $(uname -r)"
 export HOME=/root
 HOST=http://10.0.2.2:${BSPORT:-8000}
+echo "BSTEST-BEGIN $PRETTY_NAME $(uname -m) kernel $(uname -r)"
 
 fetch() { python3 -c "import urllib.request,sys; sys.stdout.buffer.write(urllib.request.urlopen(sys.argv[1]).read())" "$1"; }
 
-echo "BSTEST-DEPS-BEGIN"
-install_deps() {
-case "$ID" in
-    ubuntu|debian)
-        export DEBIAN_FRONTEND=noninteractive
-        apt-get update -qq
-        apt-get install -y -qq xvfb dbus-x11 dbus-user-session libfontconfig1 libx11-6 libxcursor1 libxi6 libxrandr2 libxext6 libice6 libsm6 libgl1 libxss1 xauth xdg-utils
-        ;;
-    fedora)
-        dnf install -y -q --setopt=install_weak_deps=False xorg-x11-server-Xvfb xorg-x11-xauth dbus-daemon dbus-x11 fontconfig libICE libSM libXcursor libXi libXrandr libXext libXScrnSaver mesa-libGL xdg-utils
-        ;;
-    alpine)
-        apk add --no-cache xvfb xvfb-run xauth dbus dbus-x11 fontconfig libx11 libice libsm libxcursor libxi libxrandr libxext libxscrnsaver mesa-gl icu-libs libgcc libstdc++ ttf-dejavu xdg-utils
-        ;;
-    arch)
-        pacman -Sy --noconfirm --needed xorg-server-xvfb xorg-xauth dbus fontconfig libice libsm libxcursor libxi libxrandr libxext libxss libglvnd xdg-utils
-        ;;
-    opensuse*|sles)
-        zypper -n install xorg-x11-server-Xvfb xvfb-run xauth dbus-1-x11 fontconfig libICE6 libSM6 libXcursor1 libXi6 libXrandr2 libXext6 libXss1 Mesa-libGL1 xdg-utils
-        ;;
-    *) echo "unknown distro $ID" ;;
-esac
-}
-# Package managers print terminal queries when stdout is a tty and wait for an answer; use a file instead.
-install_deps >/tmp/deps.log 2>&1 </dev/null
-echo "BSTEST-DEPS-EXIT $?"
-tail -n 3 /tmp/deps.log
-free -m
-dmesg 2>/dev/null | grep -i "out of memory\|killed process" | tail -3
-
 case "$ID" in alpine) variant=linux-musl-x64 ;; *) variant=linux-x64 ;; esac
-mkdir -p /opt/bs
-cd /opt/bs
-fetch "$HOST/bs-$variant.tar.gz" | tar xz
-chmod +x tests/BrightSync.Tests app/BrightSync
-export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 DOTNET_TieredPGO=0 DOTNET_gcServer=0
 
-echo "BSTEST-UNIT-BEGIN"
-timeout 1500 tests/BrightSync.Tests -notrait "Category=Hardware" -notrait "Category=Integration"
-echo "BSTEST-UNIT-EXIT $?"
+# Only what is needed to host a virtual display and a session bus; no X client libraries on purpose,
+# so the native package has to declare every library the app loads.
+install_tools() {
+    case "$ID" in
+        ubuntu|debian)
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -qq && apt-get install -y -qq xvfb dbus-x11 xauth file ;;
+        fedora) dnf install -y -q --setopt=install_weak_deps=False xorg-x11-server-Xvfb xorg-x11-xauth dbus-daemon ;;
+        alpine) apk add --no-cache xvfb xvfb-run xauth dbus dbus-x11 ;;
+        arch) pacman -Sy --noconfirm --needed xorg-server-xvfb xorg-xauth dbus ;;
+        opensuse*|sles) zypper -n install xorg-x11-server-Xvfb xvfb-run xauth dbus-1-x11 ;;
+    esac
+}
 
-echo "BSTEST-SMOKE-BEGIN"
+install_deps() {
+    case "$ID" in
+        ubuntu|debian)
+            apt-get install -y -qq dbus-user-session libfontconfig1 libx11-6 libxcursor1 libxi6 libxrandr2 libxext6 libice6 libsm6 libgl1 libxss1 xdg-utils ;;
+        fedora)
+            dnf install -y -q --setopt=install_weak_deps=False dbus-x11 fontconfig libICE libSM libXcursor libXi libXrandr libXext libXScrnSaver mesa-libGL xdg-utils ;;
+        alpine)
+            apk add --no-cache fontconfig libx11 libice libsm libxcursor libxi libxrandr libxext libxscrnsaver mesa-gl icu-libs libgcc libstdc++ ttf-dejavu xdg-utils ;;
+        arch)
+            pacman -Sy --noconfirm --needed fontconfig libice libsm libxcursor libxi libxrandr libxext libxss libglvnd xdg-utils ;;
+        opensuse*|sles)
+            zypper -n install fontconfig libICE6 libSM6 libXcursor1 libXi6 libXrandr2 libXext6 libXss1 Mesa-libGL1 xdg-utils ;;
+    esac
+}
+
+# $1 = executable. Starts it under Xvfb on a private session bus, waits for the tray, queries and stops it.
 cat >/tmp/smoke.sh <<'SMOKE'
 #!/bin/sh
+exe=$1
 logdir=$HOME/.config/BrightSync/Logs
-/opt/bs/app/BrightSync --autostart >/tmp/app.out 2>&1 &
+rm -rf "$logdir"
+$exe --autostart >/tmp/app.out 2>&1 &
 app=$!
 i=0
 while [ $i -lt 150 ]; do
@@ -77,23 +75,138 @@ while [ $i -lt 150 ]; do
     i=$((i + 1))
 done
 echo "--- app.out ---"
-cat /tmp/app.out 2>/dev/null | tail -30
-echo "--- log ---"
-tail -n 40 "$logdir"/brightsync*.log 2>/dev/null
+tail -n 15 /tmp/app.out
 echo "--- status ---"
-timeout 120 /opt/bs/app/BrightSync status
-echo "STATUS-EXIT $?"
-timeout 120 /opt/bs/app/BrightSync app exit
+# The command server starts a moment after the tray; retry instead of racing it.
+n=0
+rc=1
+while [ $n -lt 10 ]; do
+    timeout 120 $exe status && { rc=0; break; }
+    rc=$?
+    n=$((n + 1))
+    sleep 3
+done
+echo "STATUS-EXIT $rc"
+timeout 120 $exe app exit
 sleep 5
-kill -0 "$app" 2>/dev/null && { echo "app still running after exit command"; kill "$app"; echo "EXIT-FORCED"; } || echo "EXIT-CLEAN"
+if kill -0 "$app" 2>/dev/null; then echo "app still running after exit command"; kill "$app"; echo "EXIT-FORCED"; else echo "EXIT-CLEAN"; fi
 SMOKE
 chmod +x /tmp/smoke.sh
-if command -v dbus-run-session >/dev/null 2>&1; then
-    timeout 900 xvfb-run -a dbus-run-session -- /tmp/smoke.sh
+
+run_smoke() {
+    if command -v dbus-run-session >/dev/null 2>&1; then
+        timeout 900 xvfb-run -a dbus-run-session -- /tmp/smoke.sh "$1"
+    else
+        timeout 900 xvfb-run -a /tmp/smoke.sh "$1"
+    fi
+}
+
+check_file() { if [ -e "$1" ]; then echo "FILE-OK $1"; else echo "FILE-MISSING $1"; return 1; fi; }
+
+# ---------------------------------------------------------------- PKG
+echo "BSTEST-TOOLS-BEGIN"
+install_tools >/tmp/tools.log 2>&1 </dev/null
+echo "BSTEST-TOOLS-EXIT $?"
+
+echo "BSTEST-PKG-BEGIN"
+case "$ID" in
+    ubuntu|debian)  pkg=pkg.deb;         install_pkg() { DEBIAN_FRONTEND=noninteractive apt-get install -y -qq /tmp/pkg.deb; }; remove_pkg() { apt-get remove -y -qq brightsync; } ;;
+    fedora)         pkg=pkg.rpm;         install_pkg() { dnf install -y -q --setopt=install_weak_deps=False /tmp/pkg.rpm; }; remove_pkg() { dnf remove -y -q brightsync; } ;;
+    opensuse*|sles) pkg=pkg.rpm;         install_pkg() { zypper -n --no-gpg-checks install /tmp/pkg.rpm; }; remove_pkg() { zypper -n remove brightsync; } ;;
+    arch)           pkg=pkg.pkg.tar.zst; install_pkg() { pacman -U --noconfirm /tmp/pkg.pkg.tar.zst; }; remove_pkg() { pacman -R --noconfirm brightsync; } ;;
+    alpine)         pkg=pkg.apk;         install_pkg() { apk add --allow-untrusted /tmp/pkg.apk; }; remove_pkg() { apk del brightsync; } ;;
+esac
+pkg_ok=0
+if fetch "$HOST/$pkg" >"/tmp/$pkg" && [ -s "/tmp/$pkg" ]; then
+    install_pkg >/tmp/pkg-install.log 2>&1 </dev/null
+    echo "PKG-INSTALL-EXIT $?"
+    tail -n 5 /tmp/pkg-install.log
+    check_file /usr/bin/brightsync && check_file /opt/brightsync/BrightSync \
+        && check_file /usr/share/applications/brightsync.desktop \
+        && check_file /usr/lib/udev/rules.d/99-brightsync-i2c.rules \
+        && check_file /usr/lib/modules-load.d/brightsync-i2c.conf \
+        && check_file /usr/share/icons/hicolor/128x128/apps/brightsync.png && files_ok=1 || files_ok=0
+    run_smoke /usr/bin/brightsync >/tmp/pkg-smoke.log 2>&1
+    cat /tmp/pkg-smoke.log
+    grep -q "STATUS-EXIT 0" /tmp/pkg-smoke.log && grep -q "EXIT-CLEAN" /tmp/pkg-smoke.log && smoke_ok=1 || smoke_ok=0
+    remove_pkg >/tmp/pkg-remove.log 2>&1 </dev/null
+    echo "PKG-REMOVE-EXIT $?"
+    if [ ! -e /usr/bin/brightsync ] && [ ! -e /opt/brightsync/BrightSync ] && [ ! -e /usr/lib/udev/rules.d/99-brightsync-i2c.rules ]; then
+        echo "PKG-REMOVE-CLEAN"; clean_ok=1
+    else
+        echo "PKG-REMOVE-LEFTOVERS"; clean_ok=0
+    fi
+    [ "$files_ok" = 1 ] && [ "$smoke_ok" = 1 ] && [ "$clean_ok" = 1 ] && pkg_ok=1
 else
-    timeout 900 xvfb-run -a /tmp/smoke.sh
+    echo "PKG-DOWNLOAD-FAILED $pkg"
 fi
+echo "BSTEST-PKG-EXIT $((1 - pkg_ok))"
+
+# ---------------------------------------------------------------- UNIT + SMOKE (self-contained build)
+echo "BSTEST-DEPS-BEGIN"
+install_deps >/tmp/deps.log 2>&1 </dev/null
+echo "BSTEST-DEPS-EXIT $?"
+tail -n 3 /tmp/deps.log
+
+mkdir -p /opt/bs
+cd /opt/bs || exit 1
+fetch "$HOST/bs-$variant.tar.gz" | tar xz
+chmod +x tests/BrightSync.Tests app/BrightSync
+export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 DOTNET_TieredPGO=0 DOTNET_gcServer=0
+
+echo "BSTEST-UNIT-BEGIN"
+timeout 1500 tests/BrightSync.Tests -notrait "Category=Hardware" -notrait "Category=Integration"
+echo "BSTEST-UNIT-EXIT $?"
+
+echo "BSTEST-SMOKE-BEGIN"
+run_smoke /opt/bs/app/BrightSync
 echo "BSTEST-SMOKE-EXIT $?"
+
+# ---------------------------------------------------------------- TARBALL (install.sh)
+echo "BSTEST-TARBALL-BEGIN"
+tar_ok=1
+mkdir -p /tmp/tarball && cd /tmp/tarball || exit 1
+if fetch "$HOST/portable-$variant.tar.gz" | tar xz && cd BrightSync-*; then
+    ./install.sh >/tmp/tar-user.log 2>&1 </dev/null; echo "TARBALL-USER-INSTALL-EXIT $?"
+    check_file "$HOME/.local/bin/brightsync" && check_file "$HOME/.local/share/applications/brightsync.desktop" || tar_ok=0
+    grep -q "^Exec=$HOME/.local/bin/brightsync" "$HOME/.local/share/applications/brightsync.desktop" && echo "DESKTOP-EXEC-OK" || { echo "DESKTOP-EXEC-BAD"; tar_ok=0; }
+    run_smoke "$HOME/.local/bin/brightsync" >/tmp/tar-smoke.log 2>&1
+    grep -q "STATUS-EXIT 0" /tmp/tar-smoke.log && grep -q "EXIT-CLEAN" /tmp/tar-smoke.log && echo "TARBALL-SMOKE-OK" || { cat /tmp/tar-smoke.log; tar_ok=0; }
+    ./install.sh --uninstall >/tmp/tar-user-un.log 2>&1 </dev/null; echo "TARBALL-USER-UNINSTALL-EXIT $?"
+    [ ! -e "$HOME/.local/bin/brightsync" ] && [ ! -e "$HOME/.local/opt/brightsync" ] && echo "TARBALL-USER-CLEAN" || { echo "TARBALL-USER-LEFTOVERS"; tar_ok=0; }
+
+    ./install.sh --system >/tmp/tar-sys.log 2>&1 </dev/null; echo "TARBALL-SYSTEM-INSTALL-EXIT $?"
+    check_file /opt/brightsync/BrightSync && check_file /usr/local/bin/brightsync \
+        && check_file /usr/lib/udev/rules.d/99-brightsync-i2c.rules && check_file /usr/lib/modules-load.d/brightsync-i2c.conf || tar_ok=0
+    ./install.sh --system --uninstall >/tmp/tar-sys-un.log 2>&1 </dev/null; echo "TARBALL-SYSTEM-UNINSTALL-EXIT $?"
+    [ ! -e /opt/brightsync ] && [ ! -e /usr/local/bin/brightsync ] && [ ! -e /usr/lib/udev/rules.d/99-brightsync-i2c.rules ] \
+        && echo "TARBALL-SYSTEM-CLEAN" || { echo "TARBALL-SYSTEM-LEFTOVERS"; tar_ok=0; }
+else
+    echo "TARBALL-DOWNLOAD-FAILED"; tar_ok=0
+fi
+echo "BSTEST-TARBALL-EXIT $((1 - tar_ok))"
+
+# ---------------------------------------------------------------- APPIMAGE (Ubuntu only)
+if [ "$ID" = ubuntu ]; then
+    echo "BSTEST-APPIMAGE-BEGIN"
+    ai_ok=0
+    mkdir -p /tmp/ai && cd /tmp/ai || exit 1
+    if fetch "$HOST/appimage-src.tar.gz" | tar xz \
+        && fetch "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" >appimagetool \
+        && chmod +x appimagetool; then
+        APPIMAGETOOL=/tmp/ai/appimagetool sh -c 'bash /tmp/ai/repo/packaging/linux/make-appimage.sh /tmp/ai/app /tmp/ai/BrightSync.AppImage x86_64' >/tmp/ai/build.log 2>&1
+        echo "APPIMAGE-BUILD-EXIT $?"
+        tail -n 4 /tmp/ai/build.log
+        if [ -x /tmp/ai/BrightSync.AppImage ]; then
+            export APPIMAGE_EXTRACT_AND_RUN=1
+            run_smoke /tmp/ai/BrightSync.AppImage >/tmp/ai/smoke.log 2>&1
+            cat /tmp/ai/smoke.log
+            grep -q "STATUS-EXIT 0" /tmp/ai/smoke.log && grep -q "EXIT-CLEAN" /tmp/ai/smoke.log && ai_ok=1
+        fi
+    fi
+    echo "BSTEST-APPIMAGE-EXIT $((1 - ai_ok))"
+fi
+
 echo "BSTEST-DONE"
 sleep 8
 sync

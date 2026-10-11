@@ -566,8 +566,5 @@ public sealed class ConfigManager
     }
 
     private static string GetDefaultConfigPath()
-        => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "BrightSync",
-            ConfigFileName);
+        => Path.Combine(AppPaths.RoamingDirectory, ConfigFileName);
 }

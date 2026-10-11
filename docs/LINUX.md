@@ -6,7 +6,7 @@ BrightSync runs on Linux desktops with X11 or Wayland (through XWayland). It con
 
 ## Verified distributions
 
-The test binary and the app run inside these official cloud images (QEMU, x86-64): all unit tests pass, the app starts under Xvfb, initializes the Avalonia tray, answers `brightsync status`, and exits on `brightsync app exit`.
+The native package, the test binary and the app run inside these official cloud images (QEMU, x86-64). Per distribution: the package installs on a bare system with its dependencies resolved by the package manager, ships the expected files, launches, and uninstalls cleanly; all unit tests pass; the app starts under Xvfb, initializes the Avalonia tray, answers `brightsync status`, and exits on `brightsync app exit`; the portable archive installs and removes itself with `install.sh`.
 
 | Distribution | libc | Result |
 |---|---|---|

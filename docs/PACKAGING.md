@@ -55,7 +55,11 @@ packaging/build-linux.sh linux-portable 0.19.0 out
 - `install.sh`: installer inside the portable tarball (`--system`, `--setup-i2c`, `--uninstall`).
 - `99-brightsync-i2c.rules`, `brightsync-i2c.conf`, `brightsync.desktop`.
 
-AppImage build uses `appimagetool` with an `AppRun` that launches the bundled binary. The AppImage cannot install the udev rule; its users run `--setup-i2c` from the tarball or follow [LINUX.md](LINUX.md).
+`packaging/linux/make-appimage.sh` builds the AppImage (an `AppRun` that launches the bundled binary, packed by `appimagetool`, which needs the `file` command). `build-linux.sh` and the VM test harness both call it. The AppImage cannot install the udev rule; its users run `--setup-i2c` from the tarball or follow [LINUX.md](LINUX.md).
+
+## Verifying packages
+
+`python tools/linux-vm-test/vmtest.py --qemu <dir> --nfpm <nfpm>` builds the packages with `build-linux.sh`, boots each distribution, installs its native package on a bare system (the package manager must resolve every library), checks the installed files, launches `/usr/bin/brightsync`, uninstalls and checks nothing is left behind. It then runs the unit suite, the portable archive's `install.sh` (per user and `--system`), and on Ubuntu an AppImage build and launch. See [LINUX.md](LINUX.md).
 
 ## Release workflow
 
@@ -63,4 +67,6 @@ AppImage build uses `appimagetool` with an `AppRun` that launches the bundled bi
 
 Authenticode signing of Windows binaries is optional and unchanged: set `WINDOWS_SIGNING_CERTIFICATE_BASE64`, `WINDOWS_SIGNING_CERTIFICATE_PASSWORD`, and `WINDOWS_SIGNING_TIMESTAMP_URL` together. Linux packages are not signed; verify downloads with the checksum manifest.
 
-`nfpm` is pinned and its download is verified against the published checksums. Action references are pinned to commit SHAs.
+`nfpm` is pinned and its download is verified against the published `checksums.txt`. `appimagetool` is fetched from its `continuous` release (it publishes no versioned assets), so an AppImage can change if upstream does. Action references are pinned to commit SHAs and `.github/dependabot.yml` keeps NuGet, npm and Actions dependencies current.
+
+nfpm only expands environment variables in `contents` entries that set `expand: true`, which is why `packaging/linux/nfpm.yaml` reads `NFPM_PUBLISH` that way. Its `archlinux` section uses `suggests` for optional packages (written as pacman `optdepends`).

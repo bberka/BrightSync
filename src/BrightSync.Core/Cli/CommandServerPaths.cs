@@ -2,8 +2,7 @@ namespace BrightSync.Cli;
 
 internal static class CommandServerPaths
 {
-    private static readonly string BaseDirectory =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BrightSync");
+    private static readonly string BaseDirectory = BrightSync.Core.AppPaths.LocalDirectory;
 
     public static string MetadataFilePath => Path.Combine(BaseDirectory, "command-server.json");
 

@@ -35,6 +35,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Read and compute version
         id: version
@@ -134,6 +135,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup .NET 10
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -184,6 +187,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup .NET 10
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -413,6 +418,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup .NET 10
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -420,7 +427,7 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Install native AOT prerequisites
-        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev file
 
       - name: Install nfpm
         shell: bash
@@ -435,7 +442,7 @@ jobs:
           base="https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}"
           archive="nfpm_${NFPM_VERSION}_Linux_${nfpm_arch}.tar.gz"
           curl -fsSL -o "$RUNNER_TEMP/$archive" "$base/$archive"
-          curl -fsSL -o "$RUNNER_TEMP/nfpm-checksums.txt" "$base/nfpm_${NFPM_VERSION}_checksums.txt"
+          curl -fsSL -o "$RUNNER_TEMP/nfpm-checksums.txt" "$base/checksums.txt"
           (cd "$RUNNER_TEMP" && grep " $archive\$" nfpm-checksums.txt | sha256sum --check -)
           mkdir -p "$RUNNER_TEMP/nfpm"
           tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/nfpm" nfpm
@@ -447,7 +454,8 @@ jobs:
         run: |
           set -euo pipefail
           tool="$RUNNER_TEMP/appimagetool"
-          curl -fsSL -o "$tool"             "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${{ matrix.appimagetool }}.AppImage"
+          url="https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${{ matrix.appimagetool }}.AppImage"
+          curl -fsSL -o "$tool" "$url"
           chmod +x "$tool"
           echo "APPIMAGETOOL=$tool" >> "$GITHUB_ENV"
 

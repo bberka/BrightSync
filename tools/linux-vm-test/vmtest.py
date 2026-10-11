@@ -2,15 +2,24 @@
 """Runs the BrightSync unit tests and a launch smoke test inside real Linux distributions.
 
 For every distribution the script boots an official cloud image under QEMU, lets cloud-init run
-guest-run.sh (install desktop libraries, run the self-contained test binary, start the app under Xvfb,
-query it with `BrightSync status`), and reads the verdict from the serial console.
+guest-run.sh, and reads the verdict from the serial console. The guest checks, in order:
+
+  PKG       the native package (.deb, .rpm, pacman, .apk) installs on a bare system with its dependencies
+            resolved by the package manager, ships the expected files, launches, and uninstalls cleanly
+  UNIT      the xunit suite runs against the real Linux services
+  SMOKE     the self-contained app starts under Xvfb, answers `status`, and exits on `app exit`
+  TARBALL   the portable archive installs per user and system-wide with install.sh and removes itself
+  APPIMAGE  (Ubuntu) an AppImage is built from the published app and launched
+
+Packages are produced with packaging/build-linux.sh, which needs bash and nfpm (--nfpm); without nfpm the
+PKG phase reports a download failure and the run fails.
 
 No administrator rights, WSL, Docker or hardware virtualization are needed: QEMU falls back to software
 emulation (slow, about 10 to 15 minutes per distribution) and uses KVM or WHPX when you ask for it.
 
     python tools/linux-vm-test/vmtest.py --distros ubuntu,debian,fedora,alpine --qemu C:\\tools\\qemu
 
-Requires: .NET 10 SDK, QEMU (qemu-system-x86_64 and qemu-img), Python 3.10+, about 3 GB of disk per image.
+Requires: .NET 10 SDK, bash, nfpm, QEMU (qemu-system-x86_64 and qemu-img), Python 3.10+, about 3 GB of disk per image.
 Images and logs are cached under <repo>/.vmtest (ignored by git).
 """
 import argparse
@@ -28,6 +37,8 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+CRLF = bytes([13, 10])
+LF = bytes([10])
 HERE = Path(__file__).resolve().parent
 
 IMAGES = {
@@ -45,10 +56,12 @@ def run(cmd, **kwargs):
     return subprocess.run(cmd, check=True, **kwargs)
 
 
-def build_payload(work: Path, needed: set[str]) -> Path:
-    """Publishes the test binary and the app for glibc and (if needed) musl, and serves them as tarballs."""
+def build_payload(work: Path, needed: set[str], nfpm: str | None) -> Path:
+    """Publishes the test binary, the app and the Linux packages, and serves them to the guests."""
     serve = work / "serve"
     serve.mkdir(parents=True, exist_ok=True)
+    version = (ROOT / "VERSION").read_text().strip() + ".0"
+    bash = shutil.which("bash")
     for rid in needed:
         out = work / f"publish-{rid}"
         shutil.rmtree(out, ignore_errors=True)
@@ -61,9 +74,48 @@ def build_payload(work: Path, needed: set[str]) -> Path:
         with tarfile.open(serve / f"bs-{rid}.tar.gz", "w:gz") as tar:
             tar.add(out / "tests", arcname="tests")
             tar.add(out / "app", arcname="app")
+
+        # Packages exactly as the release workflow builds them (no AOT: the host may not match the target).
+        pkg_out = work / f"packages-{rid}"
+        shutil.rmtree(pkg_out, ignore_errors=True)
+        if not bash:
+            sys.exit("bash not found; it is needed to run packaging/build-linux.sh")
+        env = dict(os.environ, BS_AOT="false")
+        if nfpm:
+            wrapper = work / "nfpm-wrapper.sh"
+            script = "\n".join(["#!/bin/sh", f'exec "{Path(nfpm).as_posix()}" "$@"', ""])
+            wrapper.write_bytes(script.encode())
+            env["NFPM"] = wrapper.as_posix()
+        print(f"[payload] packaging {rid}")
+        run([bash, str(ROOT / "packaging/build-linux.sh"), rid, version, str(pkg_out)], env=env)
+        for source in pkg_out.iterdir():
+            name = source.name
+            if name.endswith(".tar.gz"):
+                shutil.copyfile(source, serve / f"portable-{rid}.tar.gz")
+            elif rid == "linux-x64" and name.endswith((".deb", ".rpm", ".pkg.tar.zst")):
+                suffix = ".pkg.tar.zst" if name.endswith(".pkg.tar.zst") else Path(name).suffix
+                shutil.copyfile(source, serve / f"pkg{suffix}")
+            elif rid == "linux-musl-x64" and name.endswith(".apk"):
+                shutil.copyfile(source, serve / "pkg.apk")
+
+    if "linux-x64" in needed:
+        # Source for the in-guest AppImage build: mirrors the repo paths make-appimage.sh resolves.
+        with tarfile.open(serve / "appimage-src.tar.gz", "w:gz") as tar:
+            tar.add(work / "publish-linux-x64" / "app", arcname="app")
+            for rel in ("packaging/linux/make-appimage.sh", "packaging/linux/brightsync.desktop",
+                        "src/BrightSync.UI/Resources/app.png"):
+                data = (ROOT / rel).read_bytes()
+                if rel.endswith((".sh", ".desktop")):
+                    data = data.replace(CRLF, LF)
+                info = tarfile.TarInfo(f"repo/{rel}")
+                info.size = len(data)
+                info.mode = 0o755 if rel.endswith(".sh") else 0o644
+                import io
+                tar.addfile(info, io.BytesIO(data))
+
     shutil.copyfile(HERE / "guest-run.sh", serve / "run.sh")
     # The guest shell needs LF endings even when this script runs on Windows.
-    (serve / "run.sh").write_bytes((serve / "run.sh").read_bytes().replace(b"\r\n", b"\n"))
+    (serve / "run.sh").write_bytes((serve / "run.sh").read_bytes().replace(CRLF, LF))
     return serve
 
 
@@ -73,6 +125,8 @@ def download(work: Path, distro: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() and path.stat().st_size > 50_000_000:
         return path
+    if not url.startswith("https://"):
+        sys.exit(f"refusing non-https image URL for {distro}")
     print(f"[image] downloading {distro}")
     urllib.request.urlretrieve(url, str(path) + ".part")
     os.replace(str(path) + ".part", path)
@@ -146,18 +200,26 @@ def boot(args, work: Path, serve: Path, distro: str, image: Path, port: int):
     return distro, status, log
 
 
-def verdict(log: Path) -> tuple[bool, str]:
+def verdict(log: Path, distro: str) -> tuple[bool, str]:
     text = log.read_text(errors="replace")
     total = next((line.strip() for line in text.splitlines() if "Total:" in line and "Failed:" in line), "no unit test summary")
-    unit_ok = "BSTEST-UNIT-EXIT 0" in text
-    smoke_ok = "STATUS-EXIT 0" in text and "EXIT-CLEAN" in text
-    return unit_ok and smoke_ok, f"unit={'ok' if unit_ok else 'FAIL'} smoke={'ok' if smoke_ok else 'FAIL'} | {total.split('BrightSync.Tests')[-1].strip()}"
+    phases = {
+        "pkg": "BSTEST-PKG-EXIT 0" in text,
+        "unit": "BSTEST-UNIT-EXIT 0" in text,
+        "smoke": "STATUS-EXIT 0" in text and "EXIT-CLEAN" in text and "BSTEST-SMOKE-EXIT 0" in text,
+        "tarball": "BSTEST-TARBALL-EXIT 0" in text,
+    }
+    if distro == "ubuntu":
+        phases["appimage"] = "BSTEST-APPIMAGE-EXIT 0" in text
+    detail = " ".join(f"{name}={'ok' if ok else 'FAIL'}" for name, ok in phases.items())
+    return all(phases.values()), f"{detail} | {total.split('BrightSync.Tests')[-1].strip()}"
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--distros", default="ubuntu,debian,fedora,alpine", help="comma separated: " + ",".join(IMAGES))
     parser.add_argument("--qemu", help="directory containing qemu-system-x86_64 and qemu-img (default: PATH)")
+    parser.add_argument("--nfpm", help="path of the nfpm binary used to build deb/rpm/apk/pacman packages (default: PATH)")
     parser.add_argument("--accel", default="tcg,thread=multi,tb-size=512", help="QEMU -accel value, e.g. kvm or whpx")
     parser.add_argument("--parallel", type=int, default=2, help="VMs booted at once")
     parser.add_argument("--cpus", type=int, default=3)
@@ -173,7 +235,7 @@ def main():
         sys.exit(f"unknown distro(s): {unknown}")
 
     images = {d: download(work, d) for d in distros}
-    serve = build_payload(work, {"linux-musl-x64" if d in MUSL else "linux-x64" for d in distros})
+    serve = build_payload(work, {"linux-musl-x64" if d in MUSL else "linux-x64" for d in distros}, args.nfpm)
 
     results = []
     with concurrent.futures.ThreadPoolExecutor(args.parallel) as pool:
@@ -184,7 +246,7 @@ def main():
     failed = False
     print()
     for distro, status, log in results:
-        ok, detail = verdict(log)
+        ok, detail = verdict(log, distro)
         failed |= not ok
         print(f"{'PASS' if ok else 'FAIL'}  {distro:10} {status:10} {detail}   (log: {log})")
     sys.exit(1 if failed else 0)

@@ -27,6 +27,7 @@ dotnet build src/BrightSync.App/BrightSync.App.csproj -r linux-x64              
 
 - The Windows tray stays Win32 (`WindowsTrayIcon`). Avalonia's tray lost the icon when the published app ran from another folder. Re-test in `C:\Program Files` after Native AOT before changing the default.
 - Release asset names are a contract with `UpdateChecker`, the release workflow, and the docs. Read [docs/PACKAGING.md](docs/PACKAGING.md) before renaming or adding assets or touching workflows.
+- Per-user paths come from `AppPaths` (Core), never `Environment.GetFolderPath` directly: on Linux it returns an empty string when `~/.config` does not exist, which silently moves config and logs into the working directory.
 - Shell scripts and `packaging/linux/*` must stay LF (`.gitattributes`).
 - Config JSON is shared by both OSes: keep property names (`StartWithWindows` stays, the UI label comes from `PlatformCapabilities.StartupLabel`).
 - Linux user-facing behavior (permissions, tray support per desktop) is documented in [docs/LINUX.md](docs/LINUX.md); update it with any change there.

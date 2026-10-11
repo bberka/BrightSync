@@ -5,8 +5,7 @@ namespace BrightSync.Core.Logging;
 
 public static class LoggingSetup
 {
-    private static readonly string AppDataDirectory =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BrightSync");
+    private static readonly string AppDataDirectory = AppPaths.RoamingDirectory;
 
     public static string GetLogDirectory()
         => Path.Combine(AppDataDirectory, "Logs");

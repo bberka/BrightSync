@@ -34,10 +34,10 @@ trap 'rm -rf "$work"' EXIT
 
 portable=false
 case "$rid" in
-    linux-portable) portable=true; arch=any; nfpm_arch=""; appimage_arch="" ;;
-    linux-x64|linux-musl-x64) arch=x64; nfpm_arch=amd64; appimage_arch=x86_64 ;;
-    linux-arm64|linux-musl-arm64) arch=arm64; nfpm_arch=arm64; appimage_arch=aarch64 ;;
-    linux-arm|linux-musl-arm) arch=arm; nfpm_arch=arm7; appimage_arch=armhf ;;
+    linux-portable) portable=true; arch=any; nfpm_arch=""; appimage_arch=""; rpm_so="" ;;
+    linux-x64|linux-musl-x64) arch=x64; nfpm_arch=amd64; appimage_arch=x86_64; rpm_so="()(64bit)" ;;
+    linux-arm64|linux-musl-arm64) arch=arm64; nfpm_arch=arm64; appimage_arch=aarch64; rpm_so="()(64bit)" ;;
+    linux-arm|linux-musl-arm) arch=arm; nfpm_arch=arm7; appimage_arch=armhf; rpm_so="" ;;
     *) echo "Unsupported runtime identifier: $rid" >&2; exit 2 ;;
 esac
 case "$rid" in linux-musl-*) musl=true ;; *) musl=false ;; esac
@@ -111,7 +111,10 @@ if [ "$portable" = true ]; then
     echo "Portable build: archive only"
 elif command -v "${NFPM:-nfpm}" >/dev/null 2>&1; then
     echo "==> Native packages"
-    export NFPM_ARCH=$nfpm_arch NFPM_VERSION=$version BS_PUBLISH=$publish
+    publish_for_nfpm=$publish
+    # A Windows nfpm.exe (local runs under Git Bash) needs a Windows path; on Linux this is a no-op.
+    if command -v cygpath >/dev/null 2>&1; then publish_for_nfpm=$(cygpath -m "$publish"); fi
+    export NFPM_ARCH=$nfpm_arch NFPM_VERSION=$version NFPM_PUBLISH=$publish_for_nfpm NFPM_SO=$rpm_so
     cd "$root"
     if [ "$musl" = true ]; then
         "${NFPM:-nfpm}" package -f packaging/linux/nfpm.yaml -p apk -t "$out/$base.apk"
@@ -126,22 +129,10 @@ fi
 
 if [ "$portable" = false ] && [ "$musl" = false ] && [ -n "${APPIMAGETOOL:-}" ]; then
     echo "==> AppImage"
-    appdir="$work/BrightSync.AppDir"
-    mkdir -p "$appdir/usr/bin" "$appdir/usr/lib/brightsync"
-    cp -a "$publish/." "$appdir/usr/lib/brightsync/"
-    cat >"$appdir/AppRun" <<'EOF'
-#!/bin/sh
-here=$(dirname "$(readlink -f "$0")")
-exec "$here/usr/lib/brightsync/BrightSync" "$@"
-EOF
-    chmod 0755 "$appdir/AppRun"
-    cp "$root/packaging/linux/brightsync.desktop" "$appdir/brightsync.desktop"
-    cp "$root/src/BrightSync.UI/Resources/app.png" "$appdir/brightsync.png"
-    ARCH=$appimage_arch "$APPIMAGETOOL" --appimage-extract-and-run "$appdir" "$out/$base.AppImage" 2>&1 \
-        || ARCH=$appimage_arch "$APPIMAGETOOL" "$appdir" "$out/$base.AppImage"
+    "$root/packaging/linux/make-appimage.sh" "$publish" "$out/$base.AppImage" "$appimage_arch"
 else
     echo "Skipping AppImage (portable or musl target, or APPIMAGETOOL unset)"
 fi
 
 echo "==> Done"
-ls -la "$out" | grep "$base" || true
+ls -la "$out/$base".* 2>/dev/null || true

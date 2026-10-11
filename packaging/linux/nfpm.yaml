@@ -2,7 +2,8 @@
 # Rendered by packaging/build-linux.sh, which exports:
 #   NFPM_ARCH     amd64 | arm64 | arm7
 #   NFPM_VERSION  release version, e.g. 0.19.0
-#   BS_PUBLISH    directory holding the published BrightSync binary and native libraries
+#   NFPM_SO       soname suffix for rpm dependencies: "()(64bit)" or empty
+#   NFPM_PUBLISH directory holding the published BrightSync binary and native libraries
 name: brightsync
 arch: ${NFPM_ARCH}
 platform: linux
@@ -19,9 +20,10 @@ homepage: https://github.com/bberka/BrightSync
 license: MIT
 
 contents:
-  - src: ${BS_PUBLISH}/
+  - src: ${NFPM_PUBLISH}/
     dst: /opt/brightsync/
     type: tree
+    expand: true
     file_info:
       mode: 0755
   - src: /opt/brightsync/BrightSync
@@ -61,18 +63,20 @@ overrides:
       - libxss1
       - xdg-utils
   rpm:
+    # Library sonames instead of package names: Fedora calls the package libICE, openSUSE libICE6, and both
+    # provide the soname. NFPM_SO is "()(64bit)" on 64-bit targets and empty on 32-bit arm.
     depends:
-      - fontconfig
-      - libICE
-      - libSM
-      - libX11
-      - libXcursor
-      - libXext
-      - libXi
-      - libXrandr
+      - libfontconfig.so.1${NFPM_SO}
+      - libICE.so.6${NFPM_SO}
+      - libSM.so.6${NFPM_SO}
+      - libX11.so.6${NFPM_SO}
+      - libXcursor.so.1${NFPM_SO}
+      - libXext.so.6${NFPM_SO}
+      - libXi.so.6${NFPM_SO}
+      - libXrandr.so.2${NFPM_SO}
     recommends:
-      - libXScrnSaver
-      - mesa-libGL
+      - libXss.so.1${NFPM_SO}
+      - libGL.so.1${NFPM_SO}
       - xdg-utils
   apk:
     depends:
@@ -96,6 +100,7 @@ overrides:
       - libxext
       - libxi
       - libxrandr
-    optdepends:
-      - 'libxss: idle detection on X11'
-      - 'xdg-utils: open links from the settings window'
+    # nfpm writes suggests as pacman optdepends.
+    suggests:
+      - libxss
+      - xdg-utils
