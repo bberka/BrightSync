@@ -146,6 +146,7 @@ public sealed class ResidentCommandServer : IDisposable
             var response = await _handler.HandleAsync(request, cancellationToken);
             var statusCode = response.Success ? HttpStatusCode.OK : HttpStatusCode.BadRequest;
             await WriteResponseAsync(context.Response, response, statusCode, cancellationToken);
+            response.AfterSent?.Invoke();
         }
         catch (Exception ex)
         {

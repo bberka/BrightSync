@@ -12,6 +12,13 @@ public sealed class CommandResponse
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public CliStatusSnapshot? Status { get; init; }
 
+    /// <summary>
+    /// Work the server runs once the response has reached the caller. The exit command needs it: shutting
+    /// down stops the server, so exiting first would drop the reply and the CLI would report a transport failure.
+    /// </summary>
+    [JsonIgnore]
+    internal Action? AfterSent { get; init; }
+
     public CliExecutionResult ToExecutionResult(bool jsonOutput = false)
     {
         if (!Success)

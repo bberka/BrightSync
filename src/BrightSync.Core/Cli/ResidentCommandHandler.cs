@@ -160,10 +160,22 @@ public sealed class ResidentCommandHandler
     }
 
     private CommandResponse ExitApp()
-    {
-        _requestAppExit();
-        return CommandResponse.Ok("BrightSync exit requested.");
-    }
+        => new()
+        {
+            Success = true,
+            ExitCode = CliExitCode.Success,
+            Message = "BrightSync exit requested.",
+            AfterSent = RequestAppExitOnUiThread
+        };
+
+    private void RequestAppExitOnUiThread()
+        => _ = _invokeOnUiThread(
+            () =>
+            {
+                _requestAppExit();
+                return CommandResponse.Ok("BrightSync exit requested.");
+            },
+            CancellationToken.None);
 
     private CliStatusSnapshot CreateFallbackStatusSnapshot()
         => CliStatusSnapshotFactory.Create(

@@ -134,6 +134,42 @@ public sealed class CliStatusTests
         Assert.DoesNotContain("config.json", result.Message);
     }
 
+    [Fact]
+    public async Task Handler_defers_app_exit_until_the_response_was_sent()
+    {
+        using var context = new TestContext();
+        var config = context.CreateConfig();
+        var engine = new FakeBrightnessEngine();
+        using var autoBrightness = new AutoBrightnessService(engine, config);
+        using var eyeProtection = new EyeProtectionService(engine, config);
+        using var brightnessBoost = new BrightnessBoostService(engine, config);
+        var exitRequests = 0;
+        var handler = new ResidentCommandHandler(
+            engine,
+            autoBrightness,
+            eyeProtection,
+            brightnessBoost,
+            () => { },
+            () => { },
+            () => exitRequests++,
+            static (callback, _) => Task.FromResult(callback()));
+
+        var response = await handler.HandleAsync(
+            new CommandRequest { CommandType = AppCommandType.AppExit },
+            CancellationToken.None);
+
+        // Exiting stops the command server, so it must not happen before the caller has its answer.
+        Assert.True(response.Success);
+        Assert.Equal(CliExitCode.Success, response.ExitCode);
+        Assert.Equal(0, exitRequests);
+        Assert.NotNull(response.AfterSent);
+
+        response.AfterSent();
+
+        Assert.Equal(1, exitRequests);
+        Assert.DoesNotContain("AfterSent", JsonSerializer.Serialize(response, CliJsonContext.Default.CommandResponse));
+    }
+
     private sealed class FakeBrightnessEngine : IBrightnessEngineOperations
     {
         public event EventHandler<int>? MasterBrightnessChanged;
