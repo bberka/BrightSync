@@ -32,9 +32,10 @@ import Icon from './Icon.astro';
 
     <details class="uninstall-linux">
       <summary>Uninstall BrightSync</summary>
-      <p class="muted">Your settings are kept. Use the matching command for your installation:</p>
-      <pre><code>curl -fsSL https://raw.githubusercontent.com/bberka/BrightSync/master/install.sh | bash -s -- --uninstall
-curl -fsSL https://raw.githubusercontent.com/bberka/BrightSync/master/install.sh | sudo bash -s -- --system --uninstall</code></pre>
+      <p class="muted">For a per-user installation (your settings are kept):</p>
+      <pre><code>curl -fsSL https://raw.githubusercontent.com/bberka/BrightSync/master/install.sh | bash -s -- --uninstall</code></pre>
+      <p class="muted">For a system-wide installation (your settings are kept):</p>
+      <pre><code>curl -fsSL https://raw.githubusercontent.com/bberka/BrightSync/master/install.sh | sudo bash -s -- --system --uninstall</code></pre>
     </details>
 
     <p class="muted" style="margin-top:1.5rem">
