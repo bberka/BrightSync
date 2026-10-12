@@ -442,6 +442,25 @@ td .mark {
   width: 100%;
 }
 
+.install-linux {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+
+.install-linux h3,
+.install-linux p {
+  margin: 0;
+}
+
+.install-linux details {
+  margin: 0.5rem 0 0;
+}
+
+.install-linux summary {
+  cursor: pointer;
+}
+
 .dl-list h3 {
   font-size: 1.05rem;
   margin-bottom: 0.6rem;
