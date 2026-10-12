@@ -339,6 +339,36 @@ public sealed class LinuxMonitorBackendTests
     }
 
     [Fact]
+    public void Enumerate_MatchesBusByEdidWhenTheConnectorHasNoDdcLink()
+    {
+        var edid = EdidFixture.Build("MSI", 0x3EA5, 7, "MSI MAG401QR", "SN002");
+        var sysfs = new FakeSysfs()
+            .AddFile($"{Drm}/card0-DP-3/status", "connected\n")
+            .AddFile($"{Drm}/card0-DP-3/edid", edid)
+            .AddFile($"{Drm}/card0-DP-3/modes", "3440x1440\n")
+            .AddFile("/sys/class/i2c-dev/i2c-17/name", "SMBus I801 adapter at 0000:00:1f.4\n")
+            .AddFile("/sys/class/i2c-dev/i2c-13/name", "NVIDIA i2c adapter 1 at 1:00.0\n")
+            .AddFile("/sys/class/i2c-dev/i2c-14/name", "NVIDIA i2c adapter 3 at 1:00.0\n");
+        var opened = new List<int>();
+        var ddc = new FakeDisplayBus().WithFeature(VcpCodes.Brightness, 30, 100);
+        var backend = new LinuxMonitorBackend(
+            sysfs,
+            new FakePanel(),
+            number =>
+            {
+                opened.Add(number);
+                return number == 14 ? ddc : null;
+            },
+            number => number == 14 ? new FakeEdidBus(edid) : new FakeEdidBus(new byte[128]));
+
+        var monitor = Assert.Single(backend.Enumerate(false, CancellationToken.None).Monitors);
+
+        Assert.True(monitor.SupportsDdcCi);
+        Assert.Equal(30, monitor.LastCommandedPercent);
+        Assert.Equal([14], opened);
+    }
+
+    [Fact]
     public void SetAndGetBrightness_RoundTripThroughTheBus()
     {
         var bus = new FakeDisplayBus().WithFeature(VcpCodes.Brightness, 10, 100);

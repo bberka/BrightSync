@@ -75,7 +75,7 @@ Things that stop DDC/CI from working regardless of permissions:
 
 - **DDC/CI is switched off in the monitor's on-screen menu.** Enable it (often under "Setup" or "Other").
 - **Docks, KVMs, MST hubs and some HDMI adapters** drop DDC traffic. Try a direct cable.
-- **NVIDIA proprietary driver:** connectors may not expose an I2C bus. BrightSync then lists the monitor as not controllable; the row's detection details name the missing bus. Using `nvidia-drm.modeset=1` often exposes the buses.
+- **NVIDIA proprietary driver:** connectors have no `ddc` link to their I2C bus. BrightSync matches each connector to an `/dev/i2c-N` adapter by comparing the EDID the adapter returns with the connector's EDID (the way `ddcutil` does), so this works when the `i2c-dev` module is loaded and the NVIDIA adapters are readable. If no adapter matches, the row's detection details name the missing bus.
 - **Virtual machines** have no physical monitor to talk to.
 - DisplayLink adapters do not carry DDC/CI.
 
