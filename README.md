@@ -126,6 +126,18 @@ Important notes:
 
 Download the package for your distribution and CPU from the [latest release](https://github.com/bberka/BrightSync/releases/latest):
 
+Or install (and update later) the latest Linux release with the hosted script:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bberka/BrightSync/master/install.sh | bash
+```
+
+Run the same command again to update. For a system-wide install, pass `--system` and run it with root privileges:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bberka/BrightSync/master/install.sh | sudo bash -s -- --system
+```
+
 ```bash
 sudo apt install ./BrightSync-<version>-linux-x64.deb        # Debian, Ubuntu, Mint
 sudo dnf install ./BrightSync-<version>-linux-x64.rpm        # Fedora, RHEL, openSUSE (zypper)
@@ -276,7 +288,7 @@ The config format is identical on both platforms.
 
 ## Updates
 
-BrightSync checks GitHub releases for updates. On Windows it can download, verify (SHA-256), and install the matching installer. On Linux it shows an update notice and opens the releases page; install the new package with your package manager.
+BrightSync checks GitHub releases for updates. On Windows it can download, verify (SHA-256), and install the matching installer. On Linux it shows an update notice and opens the releases page; rerun the hosted installer command in the Linux section to update.
 
 ## Build Locally
 

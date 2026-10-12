@@ -27,6 +27,16 @@ arm64 and arm builds are cross-published and covered by the same unit tests on t
 
 ## Supported systems
 
+### Quick install and updates
+
+Install the latest release for the current CPU and libc with:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bberka/BrightSync/master/install.sh | bash
+```
+
+Run that command again to update. This installs per-user under `~/.local`; for a system-wide install use `curl -fsSL https://raw.githubusercontent.com/bberka/BrightSync/master/install.sh | sudo bash -s -- --system`. The installer downloads the matching portable release archive and uses its bundled installer. It supports glibc and musl on x64, arm64, and arm. For DDC/CI monitor access without a system-wide install, run `curl -fsSL https://raw.githubusercontent.com/bberka/BrightSync/master/install.sh | sudo bash -s -- --setup-i2c` once.
+
 | Package | Distributions | CPU |
 |---|---|---|
 | `.deb` | Debian, Ubuntu, Linux Mint, Pop!_OS, Raspberry Pi OS | x64, arm64, arm (armhf) |
