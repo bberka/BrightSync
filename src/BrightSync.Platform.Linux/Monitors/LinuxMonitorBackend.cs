@@ -12,8 +12,11 @@ namespace BrightSync.Platform.Linux.Monitors;
 internal sealed class LinuxMonitorBackend(
     ISysfs sysfs,
     IInternalBrightness internalBrightness,
-    Func<int, II2cBus?> openBus) : IMonitorBackend
+    Func<int, II2cBus?> openBus,
+    Func<int, II2cBus?>? openEdidBus = null) : IMonitorBackend
 {
+    private const string I2cDevRoot = "/sys/class/i2c-dev";
+
     public void InvalidateCaches()
     {
     }
@@ -25,12 +28,14 @@ internal sealed class LinuxMonitorBackend(
 
         try
         {
-            foreach (var connector in DrmScanner.Scan(sysfs))
+            var connectors = DrmScanner.Scan(sysfs);
+            var claimedBuses = connectors.Where(c => c.I2cBus is not null).Select(c => c.I2cBus!.Value).ToHashSet();
+            foreach (var connector in connectors)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var monitor = connector.IsInternal
                     ? BuildInternal(connector)
-                    : BuildExternal(connector, resources, cancellationToken);
+                    : BuildExternal(connector, claimedBuses, resources, cancellationToken);
                 monitors.Add(monitor);
             }
 
@@ -140,7 +145,11 @@ internal sealed class LinuxMonitorBackend(
         };
     }
 
-    private DdcMonitor BuildExternal(DrmConnector connector, List<IDisposable> resources, CancellationToken cancellationToken)
+    private DdcMonitor BuildExternal(
+        DrmConnector connector,
+        HashSet<int> claimedBuses,
+        List<IDisposable> resources,
+        CancellationToken cancellationToken)
     {
         var identity = IdentityOf(connector);
         var details = new List<string>();
@@ -152,7 +161,16 @@ internal sealed class LinuxMonitorBackend(
         var currentPercent = -1;
         string? capabilities = null;
 
-        if (connector.I2cBus is not { } busNumber)
+        var resolvedBus = connector.I2cBus;
+        if (resolvedBus is null && FindBusByEdid(connector, claimedBuses, cancellationToken) is { } matched)
+        {
+            // Proprietary NVIDIA drivers expose no ddc link on the connector; the monitor is found by its EDID.
+            claimedBuses.Add(matched);
+            resolvedBus = matched;
+            details.Add($"I2C bus /dev/i2c-{matched} was matched to this connector by its EDID.");
+        }
+
+        if (resolvedBus is not { } busNumber)
         {
             details.Add("The kernel did not expose an I2C bus for this connector.");
         }
@@ -241,6 +259,44 @@ internal sealed class LinuxMonitorBackend(
             backendLabel);
         return monitor;
     }
+
+    /// <summary>
+    /// Finds the I2C adapter that serves <paramref name="connector"/> when the driver gives the connector no
+    /// <c>ddc</c> link, by comparing the EDID the adapter returns at address 0x50 with the connector's EDID.
+    /// </summary>
+    private int? FindBusByEdid(DrmConnector connector, HashSet<int> claimedBuses, CancellationToken cancellationToken)
+    {
+        if (openEdidBus is null || connector.EdidBytes is not { Length: >= I2cEdidReader.BlockSize } expected)
+            return null;
+
+        foreach (var entry in sysfs.ListDirectories(I2cDevRoot))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!entry.StartsWith("i2c-", StringComparison.Ordinal) ||
+                !int.TryParse(entry.AsSpan(4), out var number) ||
+                claimedBuses.Contains(number) ||
+                !MayCarryDisplay(sysfs.ReadText($"{I2cDevRoot}/{entry}/name")))
+            {
+                continue;
+            }
+
+            using var bus = openEdidBus(number);
+            if (bus is null)
+                continue;
+
+            var edid = I2cEdidReader.Read(bus);
+            if (edid is not null && edid.AsSpan().SequenceEqual(expected.AsSpan(0, I2cEdidReader.BlockSize)))
+                return number;
+        }
+
+        return null;
+    }
+
+    /// <summary>Skips system-management buses, whose address 0x50 holds memory modules rather than a display.</summary>
+    private static bool MayCarryDisplay(string? adapterName)
+        => adapterName is null ||
+           (!adapterName.Contains("SMBus", StringComparison.OrdinalIgnoreCase) &&
+            !adapterName.Contains("DesignWare", StringComparison.OrdinalIgnoreCase));
 
     private static bool TryReadBrightness(DdcCiProtocol protocol, out uint current, out uint maximum)
     {

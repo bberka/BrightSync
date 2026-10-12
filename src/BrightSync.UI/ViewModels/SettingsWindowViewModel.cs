@@ -354,6 +354,21 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
         }
     }
 
+    /// <summary>Index into the placement combo box; follows the <see cref="WindowPlacement"/> declaration order.</summary>
+    public int WindowPlacementIndex
+    {
+        get => (int)_config.Config.WindowPlacement;
+        set
+        {
+            if (!Enum.IsDefined(typeof(WindowPlacement), value) || WindowPlacementIndex == value)
+                return;
+
+            _config.Config.WindowPlacement = (WindowPlacement)value;
+            OnChanged();
+            RequestAutoSave();
+        }
+    }
+
     public bool UseLegacyDdcCiDetection
     {
         get => _useLegacyDdcCiDetection;
@@ -1025,6 +1040,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged, IDisposabl
             AutoCheckUpdates = true;
             AutoInstallUpdates = true;
             AutoInstallMode = AutoInstallMode.WhenIdle;
+            WindowPlacementIndex = (int)WindowPlacement.Taskbar;
 
             foreach (var monitor in Monitors)
                 monitor.Reset();

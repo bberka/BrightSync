@@ -1,3 +1,4 @@
+using BrightSync.Core.Config;
 using Avalonia;
 using BrightSync.UI;
 
@@ -177,5 +178,23 @@ public sealed class TaskbarInferenceTests
 
         Assert.Equal(TaskbarEdge.Bottom, info.Edge);
         Assert.Null(info.Bounds);
+    }
+
+    [Theory]
+    [InlineData(WindowPlacement.TopLeft, 12, 12)]
+    [InlineData(WindowPlacement.TopCenter, 810, 12)]
+    [InlineData(WindowPlacement.TopRight, 1608, 12)]
+    [InlineData(WindowPlacement.CenterLeft, 12, 440)]
+    [InlineData(WindowPlacement.Center, 810, 440)]
+    [InlineData(WindowPlacement.CenterRight, 1608, 440)]
+    [InlineData(WindowPlacement.BottomLeft, 12, 868)]
+    [InlineData(WindowPlacement.BottomCenter, 810, 868)]
+    [InlineData(WindowPlacement.BottomRight, 1608, 868)]
+    public void CalculateFixed_places_popup_at_the_chosen_spot(WindowPlacement placement, int x, int y)
+    {
+        var position = TaskbarAwareWindowPositionCalculator.CalculateFixed(
+            new PixelRect(0, 0, 1920, 1080), scaling: 1, width: 300, height: 200, placement);
+
+        Assert.Equal(new PixelPoint(x, y), position);
     }
 }

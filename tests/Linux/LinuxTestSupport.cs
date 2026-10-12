@@ -182,3 +182,30 @@ internal sealed class FakeDisplayBus : II2cBus
         return frame;
     }
 }
+
+/// <summary>EEPROM at I2C address 0x50: returns the EDID after the offset byte is written.</summary>
+internal sealed class FakeEdidBus(byte[] edid) : II2cBus
+{
+    private int _position = -1;
+
+    public bool Write(ReadOnlySpan<byte> data)
+    {
+        _position = data.Length == 1 ? data[0] : -1;
+        return true;
+    }
+
+    public int Read(Span<byte> buffer)
+    {
+        if (_position < 0)
+            return -1;
+
+        var count = Math.Min(buffer.Length, edid.Length - _position);
+        edid.AsSpan(_position, count).CopyTo(buffer);
+        _position += count;
+        return count;
+    }
+
+    public void Dispose()
+    {
+    }
+}

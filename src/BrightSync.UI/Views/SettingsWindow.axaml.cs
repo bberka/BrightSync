@@ -30,6 +30,7 @@ public partial class SettingsWindow : Window
     private readonly List<Button> _sidebarButtons = new();
 
     private readonly SettingsWindowViewModel _vm;
+    private readonly ConfigManager? _config;
     private int _draggingCurvePointIndex = -1;
     private Border? _dragValueBadge;
     private Screen? _targetScreen;
@@ -39,6 +40,7 @@ public partial class SettingsWindow : Window
     {
         InitializeComponent();
         _vm = null!;
+        _config = null;
         _platformSettings = null;
     }
 
@@ -54,6 +56,7 @@ public partial class SettingsWindow : Window
         SelfUpdateService selfUpdate)
     {
         InitializeComponent();
+        _config = config;
         Title = AppVersionInfo.GetDisplayTitle();
         _vm = new SettingsWindowViewModel(engine, autoBrightness, idleReduction, eyeProtection, brightnessBoost, config,
             ddc, updateChecker, selfUpdate);
@@ -146,6 +149,14 @@ public partial class SettingsWindow : Window
 
         if (double.IsNaN(width) || width <= 0) width = 560;
         if (double.IsNaN(height) || height <= 0) height = 770;
+
+        var placement = _config?.Config.WindowPlacement ?? WindowPlacement.Taskbar;
+        if (placement != WindowPlacement.Taskbar)
+        {
+            Position = TaskbarAwareWindowPositionCalculator.CalculateFixed(
+                workingArea, scaling, width, height, placement);
+            return;
+        }
 
         var taskbarPosition = TaskbarPosition.GetPosition(screen.Bounds);
         Position = TaskbarAwareWindowPositionCalculator.Calculate(
@@ -272,6 +283,8 @@ public partial class SettingsWindow : Window
     {
         if (e.PropertyName == nameof(SettingsWindowViewModel.SelectedSection))
             UpdateSidebarActiveState();
+        else if (e.PropertyName == nameof(SettingsWindowViewModel.WindowPlacementIndex) && IsVisible)
+            PositionBottomRight(useCursorScreen: false);
     }
 
     private void UpdateSidebarActiveState()

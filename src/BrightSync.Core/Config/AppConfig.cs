@@ -91,6 +91,24 @@ public sealed class AppConfig
 
     /// <summary>How often (minutes) to refresh and reload monitors.</summary>
     public int PeriodicMonitorRefreshIntervalMinutes { get; set; } = 30;
+
+    /// <summary>Where the quick brightness popup and settings window appear.</summary>
+    public WindowPlacement WindowPlacement { get; set; } = WindowPlacement.Taskbar;
+}
+
+/// <summary>Screen position for BrightSync windows. <see cref="Taskbar"/> follows the taskbar or panel when one is found.</summary>
+public enum WindowPlacement
+{
+    Taskbar,
+    TopLeft,
+    TopCenter,
+    TopRight,
+    CenterLeft,
+    Center,
+    CenterRight,
+    BottomLeft,
+    BottomCenter,
+    BottomRight
 }
 
 public enum AutoInstallMode

@@ -1,4 +1,5 @@
 using Avalonia;
+using BrightSync.Core.Config;
 using BrightSync.Platform;
 
 namespace BrightSync.UI;
@@ -95,6 +96,46 @@ internal static class TaskbarPosition
 internal static class TaskbarAwareWindowPositionCalculator
 {
     private const double EdgeMargin = 12;
+
+    /// <summary>Places a window at a fixed spot of the working area; <see cref="WindowPlacement.Taskbar"/> is not valid here.</summary>
+    public static PixelPoint CalculateFixed(
+        PixelRect workingArea,
+        double scaling,
+        double width,
+        double height,
+        WindowPlacement placement)
+    {
+        if (double.IsNaN(scaling) || scaling <= 0)
+            scaling = 1;
+        if (double.IsNaN(width) || width <= 0)
+            width = 360;
+        if (double.IsNaN(height) || height <= 0)
+            height = 150;
+
+        var w = (int)(width * scaling);
+        var h = (int)(height * scaling);
+        var margin = (int)(EdgeMargin * scaling);
+
+        var left = workingArea.X + margin;
+        var centerX = workingArea.X + (workingArea.Width - w) / 2;
+        var right = workingArea.Right - w - margin;
+        var top = workingArea.Y + margin;
+        var centerY = workingArea.Y + (workingArea.Height - h) / 2;
+        var bottom = workingArea.Bottom - h - margin;
+
+        return placement switch
+        {
+            WindowPlacement.TopLeft => new PixelPoint(left, top),
+            WindowPlacement.TopCenter => new PixelPoint(centerX, top),
+            WindowPlacement.TopRight => new PixelPoint(right, top),
+            WindowPlacement.CenterLeft => new PixelPoint(left, centerY),
+            WindowPlacement.Center => new PixelPoint(centerX, centerY),
+            WindowPlacement.CenterRight => new PixelPoint(right, centerY),
+            WindowPlacement.BottomLeft => new PixelPoint(left, bottom),
+            WindowPlacement.BottomCenter => new PixelPoint(centerX, bottom),
+            _ => new PixelPoint(right, bottom)
+        };
+    }
 
     public static PixelPoint Calculate(
         PixelRect workingArea,

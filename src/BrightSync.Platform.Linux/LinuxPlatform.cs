@@ -35,7 +35,8 @@ public static class LinuxPlatform
                 CanSelfInstallUpdates = false,
                 TrayShowsNotifications = true
             },
-            Monitors = new LinuxMonitorBackend(sysfs, backlight, bus => LinuxI2cBus.TryOpen(bus)),
+            Monitors = new LinuxMonitorBackend(sysfs, backlight, bus => LinuxI2cBus.TryOpen(bus),
+                bus => LinuxI2cBus.TryOpen(bus, LinuxI2cBus.EdidAddress)),
             InternalBrightness = backlight,
             Events = new LinuxSystemEvents(sysfs),
             Idle = new LinuxIdleTimeSource(),
