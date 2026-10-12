@@ -138,6 +138,13 @@ Run the same command again to update. For a system-wide install, pass `--system`
 curl -fsSL https://raw.githubusercontent.com/bberka/BrightSync/master/install.sh | sudo bash -s -- --system
 ```
 
+Uninstall a per-user installation with `--uninstall`; add `--system` and use `sudo` for a system-wide installation. Your settings are kept:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bberka/BrightSync/master/install.sh | bash -s -- --uninstall
+curl -fsSL https://raw.githubusercontent.com/bberka/BrightSync/master/install.sh | sudo bash -s -- --system --uninstall
+```
+
 ```bash
 sudo apt install ./BrightSync-<version>-linux-x64.deb        # Debian, Ubuntu, Mint
 sudo dnf install ./BrightSync-<version>-linux-x64.rpm        # Fedora, RHEL, openSUSE (zypper)
