@@ -20,7 +20,23 @@ import Icon from './Icon.astro';
       </p>
     </div>
 
+    <div class="install-linux">
+      <h3>Install or update on Linux</h3>
+      <p class="muted">Run this command to install the latest release for your CPU. Run it again to update.</p>
+      <pre><code>curl -fsSL https://raw.githubusercontent.com/bberka/BrightSync/master/install.sh | bash</code></pre>
+      <p class="muted">For a system-wide install, add <code>--system</code> and run with <code>sudo</code>:</p>
+      <pre><code>curl -fsSL https://raw.githubusercontent.com/bberka/BrightSync/master/install.sh | sudo bash -s -- --system</code></pre>
+    </div>
+
     <div class="dl-list" data-download-list hidden></div>
+
+    <details class="uninstall-linux">
+      <summary>Uninstall BrightSync</summary>
+      <p class="muted">For a per-user installation (your settings are kept):</p>
+      <pre><code>curl -fsSL https://raw.githubusercontent.com/bberka/BrightSync/master/install.sh | bash -s -- --uninstall</code></pre>
+      <p class="muted">For a system-wide installation (your settings are kept):</p>
+      <pre><code>curl -fsSL https://raw.githubusercontent.com/bberka/BrightSync/master/install.sh | sudo bash -s -- --system --uninstall</code></pre>
+    </details>
 
     <p class="muted" style="margin-top:1.5rem">
       Every release ships a <code>BrightSync-SHA256SUMS.txt</code> so you can verify downloads. Linux install

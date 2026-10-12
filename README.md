@@ -138,10 +138,15 @@ Run the same command again to update. For a system-wide install, pass `--system`
 curl -fsSL https://raw.githubusercontent.com/bberka/BrightSync/master/install.sh | sudo bash -s -- --system
 ```
 
-Uninstall a per-user installation with `--uninstall`; add `--system` and use `sudo` for a system-wide installation. Your settings are kept:
+Uninstall a per-user installation with `--uninstall`. Your settings are kept:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/bberka/BrightSync/master/install.sh | bash -s -- --uninstall
+```
+
+For a system-wide installation, run:
+
+```bash
 curl -fsSL https://raw.githubusercontent.com/bberka/BrightSync/master/install.sh | sudo bash -s -- --system --uninstall
 ```
 
@@ -173,6 +178,8 @@ Behavior to know:
 ## Command Line
 
 BrightSync also supports command-line commands through `BrightSync.exe` on Windows and `brightsync` on Linux. Examples below use `BrightSync.exe`.
+
+On Windows, the [Flow Launcher plugin](https://github.com/bberka/Flow.Launcher.Plugin.BrightSync) lets you control brightness and BrightSync modes with the `bs` keyword. It requires Flow Launcher 2.x, Python 3, and BrightSync running in the tray.
 
 Resident-aware behavior:
 

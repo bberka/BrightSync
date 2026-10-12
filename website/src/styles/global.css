@@ -440,6 +440,31 @@ td .mark {
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1rem;
   width: 100%;
+  margin-top: 2rem;
+}
+
+.install-linux {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+
+.install-linux h3,
+.install-linux p {
+  margin: 0;
+}
+
+.uninstall-linux {
+  margin: 2rem 0 0;
+}
+
+.uninstall-linux p {
+  margin-top: 0.8rem;
+}
+
+.install-linux summary,
+.uninstall-linux summary {
+  cursor: pointer;
 }
 
 .dl-list h3 {

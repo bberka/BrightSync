@@ -111,7 +111,7 @@ export const faqs: Faq[] = [
   {
     question: 'How does it update?',
     answer:
-      'On Windows BrightSync checks GitHub releases and can download, verify the SHA-256 checksum and install the matching installer. On Linux it tells you a new version exists and you update through your package manager or by downloading the new package.',
+      'On Windows BrightSync checks GitHub releases and can download, verify the SHA-256 checksum and install the matching installer. On Linux it tells you a new version exists; rerun the install command on this page to update, or use your package manager for a package installation.',
   },
   {
     question: 'Is it free? Does it collect data?',
