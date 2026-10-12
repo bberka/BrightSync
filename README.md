@@ -174,6 +174,8 @@ Behavior to know:
 
 BrightSync also supports command-line commands through `BrightSync.exe` on Windows and `brightsync` on Linux. Examples below use `BrightSync.exe`.
 
+On Windows, the [Flow Launcher plugin](https://github.com/bberka/Flow.Launcher.Plugin.BrightSync) lets you control brightness and BrightSync modes with the `bs` keyword. It requires Flow Launcher 2.x, Python 3, and BrightSync running in the tray.
+
 Resident-aware behavior:
 
 - If BrightSync is already running in the tray, CLI commands are forwarded to the running app through a localhost-only command server.

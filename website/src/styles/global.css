@@ -453,11 +453,16 @@ td .mark {
   margin: 0;
 }
 
-.install-linux details {
-  margin: 0.5rem 0 0;
+.uninstall-linux {
+  margin: 2rem 0 0;
 }
 
-.install-linux summary {
+.uninstall-linux p {
+  margin-top: 0.8rem;
+}
+
+.install-linux summary,
+.uninstall-linux summary {
   cursor: pointer;
 }
 
