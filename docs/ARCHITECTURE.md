@@ -28,6 +28,7 @@ App ──► UI ──► Core ──► Abstractions ◄── Windows | Linux
 src/                 every production project: Core, UI, App, Platform.Abstractions, Platform.Windows, Platform.Linux
 tests/               one xunit v3 project for all of the above, with Linux fakes in tests/Linux
 packaging/           windows/ (Inno Setup script), linux/ (nfpm, desktop, udev, install.sh), build-linux.sh
+install.sh           hosted Linux latest-release installer (also included in release assets)
 tools/               developer tooling, such as linux-vm-test (QEMU distro runs)
 website/             Astro landing page published to GitHub Pages; independent of the .NET build
 docs/                guides (Linux, architecture, packaging, roadmap) and the screenshots the README uses

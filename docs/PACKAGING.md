@@ -24,6 +24,7 @@ The names are a contract: the release workflow's `expected` list, the checksum m
 | Linux musl | `BrightSync-<version>-linux-musl-<x64\|arm64\|arm>.<tar.gz\|apk>` |
 | Linux portable | `BrightSync-<version>-linux-portable.tar.gz` |
 | Checksums | `BrightSync-SHA256SUMS.txt` (every asset above, one line each) |
+| Hosted Linux installer | `BrightSync-install.sh` |
 
 The Windows updater only accepts `BrightSync-Setup-*` assets whose name contains `-win-<arch>.`; do not rename them.
 
@@ -53,6 +54,7 @@ packaging/build-linux.sh linux-portable 0.19.0 out
 - `nfpm.yaml`: one definition for deb, rpm, apk, and archlinux. Installs the app to `/opt/brightsync`, links `/usr/bin/brightsync`, and adds the desktop file, icon, udev rule, and modules-load entry.
 - `postinstall.sh`, `postremove.sh`: best-effort `modprobe i2c-dev`, udev reload, desktop database refresh. They never fail the transaction.
 - `install.sh`: installer inside the portable tarball (`--system`, `--setup-i2c`, `--uninstall`).
+- `../../install.sh`: hosted latest-release installer, also published as `BrightSync-install.sh`. It selects the Linux archive for the current CPU and libc, then invokes the bundled installer; running it again updates the install.
 - `60-brightsync-i2c.rules`, `brightsync-i2c.conf`, `brightsync.desktop`.
 
 `packaging/linux/make-appimage.sh` builds the AppImage (an `AppRun` that launches the bundled binary, packed by `appimagetool`, which needs the `file` command). `build-linux.sh` and the VM test harness both call it. The AppImage cannot install the udev rule; its users run `--setup-i2c` from the tarball or follow [LINUX.md](LINUX.md).
