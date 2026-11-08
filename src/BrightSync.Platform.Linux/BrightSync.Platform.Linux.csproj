@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Serilog" Version="4.4.0" />
-    <PackageReference Include="Tmds.DBus.Protocol" Version="0.95.1" />
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.95.2" />
   </ItemGroup>
 
   <ItemGroup>
