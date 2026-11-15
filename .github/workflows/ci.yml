@@ -61,10 +61,27 @@ jobs:
         with:
           persist-credentials: false
 
+      # The Windows image ships a .NET 10 SDK one patch behind the newest, and installing the newest costs
+      # about 20 seconds there. Tests do not need the newest patch, so install only when no .NET 10 SDK exists.
+      - name: Look for a .NET 10 SDK on the runner
+        id: sdk
+        shell: bash
+        run: |
+          dotnet --list-sdks || true
+          if dotnet --list-sdks 2>/dev/null | grep -q '^10\.'; then echo "found=true" >> "$GITHUB_OUTPUT"; fi
+
       - name: Setup .NET 10
+        if: ${{ steps.sdk.outputs.found != 'true' }}
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 10.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ runner.arch }}-tests-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+          restore-keys: nuget-${{ runner.os }}-${{ runner.arch }}-tests-
 
       - name: Restore
         run: dotnet restore ${{ env.SOLUTION_PATH }}
