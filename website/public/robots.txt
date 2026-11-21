@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://bberka.github.io/BrightSync/sitemap-index.xml
+Sitemap: https://brightsync.bbay.dev/sitemap-index.xml
