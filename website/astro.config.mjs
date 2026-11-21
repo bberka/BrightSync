@@ -1,10 +1,9 @@
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 
-// Project site: https://bberka.github.io/BrightSync/
+// Custom domain: https://brightsync.bbay.dev/ (CNAME in public/, DNS CNAME to bberka.github.io)
 export default defineConfig({
-  site: 'https://bberka.github.io',
-  base: '/BrightSync',
+  site: 'https://brightsync.bbay.dev',
   trailingSlash: 'always',
   integrations: [sitemap()],
   build: { assets: 'assets' },

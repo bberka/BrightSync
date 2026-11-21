@@ -7,7 +7,7 @@ export const SITE_TAGLINE = 'One brightness for every monitor';
 export const SITE_DESCRIPTION =
   'BrightSync is a free, open-source tray app for Windows and Linux that keeps all your monitors, including the laptop panel, at one shared brightness. DDC/CI, automatic curve, idle dimming, eye protection and a CLI.';
 
-/** Joins a path onto the configured base so links work on the GitHub Pages project URL. */
+/** Joins a path onto the configured base so links work under any base path. */
 export function url(path = ''): string {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   return `${base}/${path.replace(/^\//, '')}`;

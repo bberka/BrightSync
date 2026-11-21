@@ -2,7 +2,7 @@
 
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/bberka/BrightSync) ![GitHub top language](https://img.shields.io/github/languages/top/bberka/BrightSync) ![GitHub License](https://img.shields.io/github/license/bberka/BrightSync) ![CI](https://github.com/bberka/BrightSync/actions/workflows/ci.yml/badge.svg) ![Website](https://github.com/bberka/BrightSync/actions/workflows/website.yml/badge.svg)
 
-**Website: <https://bberka.github.io/BrightSync/>**
+**Website: <https://brightsync.bbay.dev/>**
 
 BrightSync is a tray app for Windows and Linux that keeps the brightness of your monitors aligned to one shared master brightness value.
 
