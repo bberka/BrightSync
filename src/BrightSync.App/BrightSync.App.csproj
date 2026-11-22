@@ -56,8 +56,8 @@
 
   <ItemGroup>
     <!-- Avalonia.Desktop supplies the platform backends (Win32, X11) behind UsePlatformDetect. -->
-    <PackageReference Include="Avalonia" Version="12.1.5"/>
-    <PackageReference Include="Avalonia.Desktop" Version="12.1.5"/>
+    <PackageReference Include="Avalonia" Version="12.1.6"/>
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.6"/>
     <PackageReference Include="Serilog" Version="4.4.0"/>
   </ItemGroup>
 
