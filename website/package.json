@@ -15,8 +15,8 @@
     "check": "astro sync && tsc --noEmit --runExternalCode"
   },
   "dependencies": {
-    "@astrojs/sitemap": "^3.7.4",
-    "astro": "^7.4.0"
+    "@astrojs/sitemap": "^3.7.5",
+    "astro": "^7.4.12"
   },
   "devDependencies": {
     "@astrojs/ts-content-mapper": "^0.2.0",
